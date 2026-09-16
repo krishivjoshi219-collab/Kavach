@@ -75,3 +75,25 @@ In production, webhook validation:
    * `INITIAL_PURCHASE` or `RENEWAL` → `set_tier(household_id, event.entitlement_id)`
    * `CANCELLATION` or `EXPIRATION` → `set_tier(household_id, "free")`
 3. Audits tier changes into the database.
+
+---
+
+## 5. Stripe Web-to-App Caregiver Funnel (RevenueCat Funnels)
+
+* **Entrypoint**: `simulator/web/public/funnel.html` (served at `/funnel.html`).
+* **Conversion Flow**:
+  1. 4-question scam vulnerability quiz targeting worried adult children.
+  2. Dynamic Risk Assessment score (e.g. 84% High Risk).
+  3. Stripe Checkout integration for **Pro Shield ($4.99/mo)**.
+  4. Instant QR code generation to pair the parent's Android device seamlessly with zero friction.
+
+---
+
+## 6. OneSignal Caregiver Retention Journeys
+
+* **Implementation**: `agent/notifications.py` & `/api/v1/notifications/send`
+* **Journeys**:
+  * **Morning Wellness Check-In**: Gentle daily notification keeping senior active.
+  * **Caregiver Nudge**: Automated alert to manager if senior misses check-in by 2+ hours.
+  * **Breakthrough Scam Alert**: Real-time high-priority push dispatching senior's blocked threat to family manager war room.
+

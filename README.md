@@ -10,12 +10,15 @@ UNCERTAIN / LIKELY_SAFE), daily rhythms + check-ins, a spoken household briefing
 and family alerts sealed behind a read-back confirmation code. Nothing alerts the
 family without the senior's spoken word.
 
-**How it submits:** real MCP server (Streamable HTTP, spec `2025-11-25`, 11 tools +
-`ui://kavach-family-board` MCP App resource) + simulated Alexa+ web app with two
-faces (senior voice view, family board) + Agent Skill (`skills/kavach-guardian`).
+**How it submits:**
+1. **Real MCP Server**: Streamable HTTP, spec `2025-11-25`, 11 tools + `ui://kavach-family-board` MCP App resource + Agent Skill (`skills/kavach-guardian`).
+2. **Native Android Guardian App**: `CallScreeningService` auto-reject + SMS quarantine + Google Tink ECIES hybrid crypto + Emergency Siren + Elder Autonomy Kill Switch.
+3. **Interactive Scam Lab**: 5 real-world fraud scenarios for on-demand judge and family rehearsal.
+4. **Caregiver Monetization Stack**: RevenueCat 3-tier model (Free / Pro $4.99 / Ultra $11.99) + Stripe Web-to-App quiz funnel (`/funnel.html`) + OneSignal retention journeys.
 
 ## URLs (fill after deploy)
 - Simulator (Cloudflare Pages): `https://REPLACE.pages.dev`
+- Caregiver Funnel: `https://REPLACE.pages.dev/funnel.html`
 - Backend (HF Space): `https://REPLACE.hf.space` · MCP: `/mcp` · REST: `/api/chat`
 - Demo video (<3 min, public): `https://youtube.com/REPLACE`
 

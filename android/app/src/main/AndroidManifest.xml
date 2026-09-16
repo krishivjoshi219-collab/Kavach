@@ -32,6 +32,8 @@
         <activity android:name=".ui.FamilyActivity" android:exported="false" />
         <activity android:name=".ui.PairingActivity" android:exported="false" />
         <activity android:name=".ui.PaywallActivity" android:exported="false" />
+        <activity android:name=".ui.ScamLabActivity" android:exported="false" />
+        <activity android:name=".ui.AuditActivity" android:exported="false" />
         <activity
             android:name=".siren.SirenActivity"
             android:exported="false"

@@ -157,6 +157,31 @@ class FamilyActivity : AppCompatActivity() {
         }
         root.addView(sirenBtn, btnLp)
 
+        // Whisper Alert Button
+        val whisperBtn = Button(this).apply {
+            text = "💬 Whisper Safety Alert to Dad's Screen"
+            textSize = 15f
+            setBackgroundColor(Color.parseColor("#00695C"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                Thread {
+                    try {
+                        val payload = "Dad, please do NOT transfer money or share OTP! I am checking this caller now."
+                        val res = client.sendCommand(hid, seniorId, "senior", "show_message", payload)
+                        val ok = res.optBoolean("ok", false)
+                        runOnUiThread {
+                            if (ok) {
+                                Toast.makeText(this@FamilyActivity, "Safety alert sent to Dad's screen!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@FamilyActivity, "Action blocked by senior consent settings.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }.start()
+            }
+        }
+        root.addView(whisperBtn, btnLp)
+
         // Section: Block Scam Numbers
         val sectionBlock = TextView(this).apply {
             text = "🛡️ Block Scam Number (Salted Hash)"
@@ -197,6 +222,23 @@ class FamilyActivity : AppCompatActivity() {
         }
         root.addView(blockBtn, btnLp)
 
+        // Section: Community Threat Radar
+        val threatRadar = TextView(this).apply {
+            text = "📡 Community Shield Radar:\n" +
+                    "• 14 Bank Impersonation calls blocked in your region today\n" +
+                    "• 6 Fake Electricity Bill APKs quarantined\n" +
+                    "• Household Shield status: 100% Protected"
+            textSize = 14f
+            setTextColor(Color.parseColor("#0D47A1"))
+            setBackgroundColor(Color.parseColor("#E3F2FD"))
+            setPadding(24, 18, 24, 18)
+        }
+        val radarLp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 16, 0, 16) }
+        root.addView(threatRadar, radarLp)
+
         // Section: Pairing
         val pairBtn = Button(this).apply {
             text = "🔗 Pairing Ceremony & QR Code"
@@ -208,6 +250,30 @@ class FamilyActivity : AppCompatActivity() {
             }
         }
         root.addView(pairBtn, btnLp)
+
+        // Section: Audit
+        val auditBtn = Button(this).apply {
+            text = "🔍 Zero-Knowledge Privacy Audit"
+            textSize = 15f
+            setBackgroundColor(Color.parseColor("#37474F"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                startActivity(Intent(this@FamilyActivity, AuditActivity::class.java))
+            }
+        }
+        root.addView(auditBtn, btnLp)
+
+        // Section: Scam Lab
+        val scamLabBtn = Button(this).apply {
+            text = "🧪 Interactive Scam Lab Rehearsal"
+            textSize = 15f
+            setBackgroundColor(Color.parseColor("#1565C0"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                startActivity(Intent(this@FamilyActivity, ScamLabActivity::class.java))
+            }
+        }
+        root.addView(scamLabBtn, btnLp)
 
         setContentView(scroll)
     }

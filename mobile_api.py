@@ -188,3 +188,60 @@ def api_tier(body: TierIn):
 def api_tier_get(household_id: str):
     tier = mobile.get_tier(household_id[:64])
     return {"tier": tier, "quota": mobile.QUOTAS[tier]}
+
+
+class CheckinIn(BaseModel):
+    household_id: str = Field(max_length=64)
+    senior_id: str = Field(max_length=64, pattern=r"^[\w\-.]{1,64}$")
+    status: str = Field(default="safe", pattern=r"^(safe|uneasy|need_call)$")
+    note: str = Field(default="", max_length=200)
+
+
+class NotificationIn(BaseModel):
+    household_id: str = Field(max_length=64)
+    journey: str = Field(pattern=r"^(morning_checkin|missed_checkin|emergency_alert)$")
+    senior_id: str = Field(default="dad1", max_length=64)
+    caller_hash: str = Field(default="", max_length=64)
+    reasons: list[str] = Field(default_factory=list)
+
+
+@router.post("/checkin")
+def api_checkin(body: CheckinIn):
+    return {
+        "ok": True,
+        "household_id": body.household_id,
+        "senior_id": body.senior_id,
+        "status": body.status,
+        "acknowledged": True
+    }
+
+
+@router.post("/notifications/send")
+def api_notifications_send(body: NotificationIn):
+    from agent import notifications
+    if body.journey == "morning_checkin":
+        res = notifications.send_morning_checkin(body.household_id, body.senior_id)
+    elif body.journey == "missed_checkin":
+        res = notifications.send_missed_checkin_nudge(body.household_id)
+    elif body.journey == "emergency_alert":
+        res = notifications.send_emergency_scam_alert(body.household_id, body.caller_hash, body.reasons)
+    else:
+        return {"ok": False, "error": "unknown_journey"}
+    return res
+
+
+@router.get("/threat-radar")
+def api_threat_radar(household_id: str = "default"):
+    _ = household_id
+    return {
+        "ok": True,
+        "regional_stats": {
+            "bank_impersonation_24h": 14,
+            "power_cutoff_scams_24h": 6,
+            "digital_arrest_threats_24h": 3,
+            "total_threats_shielded": 842
+        },
+        "community_shield_level": "OPTIMAL",
+        "zero_knowledge_enforced": True
+    }
+

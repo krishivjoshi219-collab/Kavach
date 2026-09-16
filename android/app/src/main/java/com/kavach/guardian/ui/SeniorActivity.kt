@@ -95,6 +95,18 @@ class SeniorActivity : AppCompatActivity() {
         }
         root.addView(pairBtn, btnLp)
 
+        // Button: Scam Lab Rehearsal
+        val scamLabBtn = createSeniorButton("🧪 Practice Scam Defense (Scam Lab)", Color.parseColor("#1565C0"), Color.WHITE) {
+            startActivity(Intent(this, ScamLabActivity::class.java))
+        }
+        root.addView(scamLabBtn, btnLp)
+
+        // Button: Privacy Audit
+        val auditBtn = createSeniorButton("🔍 Zero-Knowledge Privacy Audit", Color.parseColor("#37474F"), Color.WHITE) {
+            startActivity(Intent(this, AuditActivity::class.java))
+        }
+        root.addView(auditBtn, btnLp)
+
         // Button: Kill Switch (Elder Autonomy)
         val killSwitchBtn = createSeniorButton("🛑 Kill Switch (Revoke All)", Color.parseColor("#424242"), Color.WHITE) {
             val hid = store.getString("household_id") ?: ""

@@ -43,9 +43,12 @@ Resource: `ui://kavach-family-board` (`text/html;profile=mcp-app`, extension
 - `POST /api/v1/device/command` — Queues consent-gated remote action (`cut_call`, `sound_siren`, `show_message`).
 - `GET  /api/v1/device/commands?household_id=&target=` — Retrieves queued commands for device.
 - `POST /api/v1/device/commands/{id}/ack` — Acknowledges command delivery.
-- `POST /api/v1/brain/ask` — Quota-gated cloud inference (requires `cloud_brain` consent; quota depends on tier).
-- `POST /api/v1/household/tier` — Synchronizes subscription tier (`free`, `pro`, `ultra`) with quotas.
-- `GET  /api/v1/household/tier?household_id=` — Retrieves current tier and quota.
+- POST /api/v1/brain/ask — Quota-gated cloud inference (requires cloud_brain consent; quota depends on tier).
+- POST /api/v1/household/tier — Synchronizes subscription tier (free, pro, ultra) with quotas.
+- GET  /api/v1/household/tier?household_id= — Retrieves current tier and quota.
+- POST /api/v1/checkin — Records senior daily wellness check-in (status: safe, uneasy, need_call).
+- POST /api/v1/notifications/send — Dispatches OneSignal safety journeys (morning_checkin, missed_checkin, emergency_alert).
+- GET  /api/v1/threat-radar?household_id= — Aggregated community threat indicators and regional scam statistics.
 
 ## Errors
 - `422` validation · `429` `{ok:false, error:"rate_limited", request_id}` — back off

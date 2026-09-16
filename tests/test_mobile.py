@@ -129,3 +129,36 @@ def test_brain_quota_and_consent():
                         json={"household_id": hid, "senior_id": sid,
                               "snippet": "hello"}).json()
     assert again["ok"] is True and again["tier"] == "pro"
+
+
+def test_checkin_and_onesignal_notifications():
+    hid, sid = _household(), "dad3"
+    # Daily wellness check-in
+    c = client.post("/api/v1/checkin",
+                    json={"household_id": hid, "senior_id": sid, "status": "safe"}).json()
+    assert c["ok"] and c["acknowledged"]
+
+    # Morning check-in journey
+    m = client.post("/api/v1/notifications/send",
+                    json={"household_id": hid, "journey": "morning_checkin", "senior_id": sid}).json()
+    assert m["ok"] and m.get("simulated", True)
+
+    # Missed check-in nudge to caregiver
+    n = client.post("/api/v1/notifications/send",
+                    json={"household_id": hid, "journey": "missed_checkin"}).json()
+    assert n["ok"]
+
+    # Emergency scam interception breakthrough alert
+    e = client.post("/api/v1/notifications/send",
+                    json={"household_id": hid, "journey": "emergency_alert",
+                          "caller_hash": "a" * 64, "reasons": ["OTP Ask", "Freeze threat"]}).json()
+    assert e["ok"]
+
+
+def test_threat_radar():
+    radar = client.get("/api/v1/threat-radar").json()
+    assert radar["ok"] is True
+    assert "regional_stats" in radar
+    assert radar["regional_stats"]["total_threats_shielded"] > 0
+    assert radar["zero_knowledge_enforced"] is True
+
