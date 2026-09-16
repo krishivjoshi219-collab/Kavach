@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+node_modules/
+dist/
+.kcli/
+*.db
+*.db-journal
+simulator/web/dist/
+.pytest_cache/
+.ruff_cache/
+*.tsbuildinfo

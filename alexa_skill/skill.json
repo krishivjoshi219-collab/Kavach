@@ -1,0 +1,14 @@
+{
+  "interactionModel": { "languageModel": { "invocationName": "k voiceops" } },
+  "manifest": {
+    "id": "k-voiceops-alexa",
+    "version": "0.1.0",
+    "description": "Agentic DevOps triage: pipeline status, log triage, verified patches via MCP.",
+    "mcp": { "endpoint": "REPLACE_WITH_HF_SPACE_URL/mcp", "specVersion": "2025-11-25",
+             "note": "bare /mcp and /mcp/ both serve Streamable HTTP; verify with MCP Inspector" },
+    "tools": [
+      "get_pipeline_status", "triage_and_heal_incident", "verify_code_file",
+      "inspect_repo_structure", "execute_command", "propose_patch"
+    ]
+  }
+}
