@@ -3,11 +3,11 @@ package com.kavach.guardian.crypto
 import android.content.Context
 import android.util.Base64
 import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.HybridDecrypt
+import com.google.crypto.tink.HybridEncrypt
 import com.google.crypto.tink.JsonKeysetReader
 import com.google.crypto.tink.JsonKeysetWriter
 import com.google.crypto.tink.KeysetHandle
-import com.google.crypto.tink.hybrid.HybridDecrypt
-import com.google.crypto.tink.hybrid.HybridEncrypt
 import com.google.crypto.tink.hybrid.HybridKeyTemplates
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.google.crypto.tink.integration.android.AndroidKeystore
@@ -53,12 +53,12 @@ class ShieldCrypto(context: Context, private val tag: String) {
 
     fun encryptForTheirKey(theirPublicKey: ByteArray, plaintext: ByteArray): ByteArray {
         val pub = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(theirPublicKey))
-        val enc = pub.getPrimitive(HybridEncrypt::class.java)
+        val enc: HybridEncrypt = pub.getPrimitive(HybridEncrypt::class.java)
         return enc.encrypt(plaintext, CONTEXT_INFO)
     }
 
     fun decrypt(ciphertext: ByteArray): ByteArray {
-        val dec = privateHandle().getPrimitive(HybridDecrypt::class.java)
+        val dec: HybridDecrypt = privateHandle().getPrimitive(HybridDecrypt::class.java)
         return dec.decrypt(ciphertext, CONTEXT_INFO)
     }
 
