@@ -1,43 +1,43 @@
-# K-VoiceOps for Alexa+ — Voice DevOps Triage (Hybrid: Real MCP + Simulated UI)
+# Kavach 🛡️ — a voice guardian for seniors (Alexa+ Track)
 
-Production endpoints: `/healthz` `/readyz` `/version` `/metrics` `/api/chat` `/mcp` `/mcp/` `/docs` — full reference in `docs/API.md`, deploy runbook in `docs/DEPLOY.md`, architecture in `docs/ARCHITECTURE.md`.
+> “My codebase has an immune system — and this is what it sounds like” was the dev
+> idea. Kavach is what it became: **protection for people who cannot verify, with
+> proof for people who can.** A senior talks through a scary call, one gentle
+> question at a time; the family gets verdicts with cited evidence — never vibes.
 
-> Alexa+ Track entry. Ask “Alexa, why did my deploy fail?” → real MCP server (Streamable HTTP,
-> spec `2025-11-25`) runs AST-verified triage → simulated Alexa+ web UI shows voice + cards/carousel.
+**What it does:** scam-call debriefs with evidence-cited verdicts (SCAM / SUSPICIOUS /
+UNCERTAIN / LIKELY_SAFE), daily rhythms + check-ins, a spoken household briefing,
+and family alerts sealed behind a read-back confirmation code. Nothing alerts the
+family without the senior's spoken word.
+
+**How it submits:** real MCP server (Streamable HTTP, spec `2025-11-25`, 11 tools +
+`ui://kavach-family-board` MCP App resource) + simulated Alexa+ web app with two
+faces (senior voice view, family board) + Agent Skill (`skills/kavach-guardian`).
 
 ## URLs (fill after deploy)
 - Simulator (Cloudflare Pages): `https://REPLACE.pages.dev`
-- Backend (HF Space): `https://REPLACE.hf.space` · MCP: `/mcp` · REST: `/api/chat` · Health: `/healthz`
+- Backend (HF Space): `https://REPLACE.hf.space` · MCP: `/mcp` · REST: `/api/chat`
 - Demo video (<3 min, public): `https://youtube.com/REPLACE`
 
 ## Run locally
 ```bash
 pip install -r mcp_server/requirements.txt
-uvicorn app:app --port 7860            # / -> fallback UI, /api/chat, /mcp, /healthz
-# simulator:
-cd simulator/web && npm i && VITE_API_BASE=http://localhost:7860 npm run dev
+python skills/kavach-guardian/scripts/seed_demo.py
+uvicorn app:app --port 7860            # / -> fallback, /api/chat, /mcp, /docs
+cd simulator/web && npm i && npm run dev   # http://localhost:5173
 ```
 
+Try: “Something strange happened — a call about my bank” → answer 4 short questions
+→ verdict with cited red flags → family board updates live.
+
 ## Deploy
-**Backend → Hugging Face Spaces (Docker, free, no CC):**
-1. Create Space (Docker blank), set env `GEMINI_API_KEY` (free AI Studio key), optional `GROQ_API_KEY`.
-2. Push this repo (or `Dockerfile`+`app.py`+`agent/`+`mcp_server/`). Space serves `:7860`.
-3. Verify `GET /healthz`, MCP Inspector → `https://<space>.hf.space/mcp` (bare path works;
-   `/mcp/` also works; Streamable HTTP, spec 2025-11-25, 6 tools).
-4. Optional lockdown: set `MCP_ALLOWED_HOSTS=<space>.hf.space` (enables DNS-rebinding
-   protection); default is open demo mode so any HF hostname works.
-5. Update `alexa_skill/skill.json` endpoint + this README.
+Backend → Hugging Face Spaces (Docker, free, no CC): push, set `GEMINI_API_KEY`
+(optional — protocol templates work offline), add Space + Pages URLs to
+`ALLOWED_ORIGINS`. Verify `/healthz`, `/readyz`, Inspector on `/mcp`.
+Frontend → Cloudflare Pages: build `simulator/web/dist`, set `VITE_API_BASE`.
+Full runbook: `docs/DEPLOY.md`. API: `docs/API.md`. Design: `docs/ARCHITECTURE.md`.
 
-**Frontend → Cloudflare Pages (free, unlimited bandwidth):**
-1. `cd simulator/web && npm run build` → deploy `dist/`.
-2. Env: `VITE_API_BASE=https://<space>.hf.space`, `VITE_MCP_URL=https://<space>.hf.space/mcp`.
-3. Add Pages domain to backend `ALLOWED_ORIGINS`.
-
-## What judges test
-- `POST /api/chat {"text":"why did my deploy fail?","session_id":"demo"}` → spoken + cards + tool trace.
-- MCP Inspector on `/mcp`: `get_pipeline_status`, `triage_and_heal_incident`, `verify_code_file`.
-- Video shows voice → MCP logs → verified patch card.
-
-## Stack (no AWS, no credit card)
-Python FastMCP + FastAPI + SQLite memory + Gemini Flash (free) / Groq fallback / offline stub.
-See `PRODUCT_FEEDBACK.md`, `FRICTION_LOG.md`, `DEMO.md`, `OPEN_SOURCE.md`, `docs/`.
+## Safety scope (read this)
+Kavach is a companion + escalation aid, not medical/legal/financial advice. It never
+diagnoses, never prescribes, never sends anything without the confirmation ceremony.
+Demo household is fictional. See `docs/ARCHITECTURE.md` § safety.

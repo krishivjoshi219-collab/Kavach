@@ -1,1 +1,1 @@
-"""K-VoiceOps agent package."""
+"""Kavach agent package: voice guardian + scam shield for seniors."""

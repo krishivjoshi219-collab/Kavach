@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kavach family board</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f6f1e7; color: #2b2118; }
+  h2 { margin: 0 0 4px; font-size: 20px; }
+  .sub { color: #7a6a55; font-size: 13px; margin-bottom: 12px; }
+  .grid { display: grid; gap: 10px; }
+  .card { background: #fff; border: 1px solid #e3d5bd; border-radius: 12px; padding: 12px; }
+  .card h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #7a6a55; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
+  .SCAM { background: #f87171; color: #2b0606; }
+  .SUSPICIOUS { background: #fbbf24; color: #2b1d06; }
+  .LIKELY_SAFE { background: #34d399; color: #06281c; }
+  .UNCERTAIN { background: #93c5fd; color: #0b1e3a; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { border: 1px solid #c9b892; background: #2b2118; color: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  small { color: #7a6a55; }
+  ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+</style>
+</head>
+<body>
+<h2>🛡️ Kavach family board</h2>
+<div class="sub" id="status">connecting…</div>
+<div class="grid" id="board"></div>
+<div class="row" style="margin-top:10px">
+  <button id="refresh">↻ refresh</button>
+  <small>served as an MCP App resource (<code>ui://kavach-family-board</code>)</small>
+</div>
+<script>
+(function () {
+  var board = document.getElementById('board');
+  var status = document.getElementById('status');
+  var seq = 0, pending = {};
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function render(feed) {
+    var inc = feed.incidents || [], routines = feed.routines || [];
+    status.textContent = (feed.senior ? feed.senior.name + '’s household' : 'household')
+      + ' · ' + inc.length + ' case(s)';
+    var html = '<div class="card"><h4>Cases</h4>';
+    if (!inc.length) html += '<div>No incidents on record. A clean slate.</div>';
+    inc.slice(0, 8).forEach(function (c) {
+      html += '<div class="row" style="margin:6px 0"><span class="pill ' + esc(c.verdict) + '">'
+        + esc(c.verdict) + '</span><span>#' + c.id + ' · ' + esc(c.channel) + ' · '
+        + esc((c.caller_claim || 'unknown caller').slice(0, 60)) + '</span></div>';
+    });
+    html += '</div><div class="card"><h4>Daily rhythms</h4><ul>';
+    routines.forEach(function (r) {
+      html += '<li>' + esc(r.label) + ' — usually ' + esc(r.expected_time || '?')
+        + (r.last_confirmed ? ' ✓' : '') + '</li>';
+    });
+    html += '</ul></div>';
+    board.innerHTML = html;
+  }
+
+  // 1) MCP Apps bridge: ask the host for data via postMessage tools/call.
+  function viaBridge() {
+    return new Promise(function (resolve, reject) {
+      var to = setTimeout(function () { reject(new Error('no bridge')); }, 1500);
+      var id = ++seq;
+      pending[id] = function (data) { clearTimeout(to); resolve(data); };
+      parent.postMessage({ jsonrpc: '2.0', id: id, method: 'tools/call',
+        params: { name: 'incident_history', arguments: { limit: 10 } } }, '*');
+    });
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data || {};
+    if (d.jsonrpc === '2.0' && d.id && pending[d.id]) {
+      var fn = pending[d.id]; delete pending[d.id]; fn(d.result || d);
+    }
+    if (d.jsonrpc === '2.0' && d.method === 'ui/initialize') {
+      parent.postMessage({ jsonrpc: '2.0', id: d.id || 0,
+        result: { app: 'kavach-family-board', version: '0.1.0' } }, '*');
+    }
+  });
+
+  // 2) Same-origin fallback (works when served by the Kavach backend directly).
+  function viaFetch() {
+    var sid = 'demo-senior';
+    try {
+      var m = /senior_id=([\w\-.]+)/.exec(location.search);
+      if (m) sid = m[1];
+    } catch (e) { /* keep default */ }
+    return fetch('/api/family-feed?senior_id=' + encodeURIComponent(sid))
+      .then(function (r) { if (!r.ok) throw new Error('feed ' + r.status); return r.json(); });
+  }
+
+  function load() {
+    status.textContent = 'connecting…';
+    viaBridge().then(function (res) {
+      var text = (((res.content || [])[0] || {}).text) || '{}';
+      var parsed = JSON.parse(text);
+      render({ senior: { name: 'Household' }, incidents: parsed.incidents || [], routines: [] });
+    }).catch(function () { viaFetch().then(render).catch(function (e) {
+      status.textContent = 'offline — ' + e.message;
+    }); });
+  }
+  document.getElementById('refresh').addEventListener('click', load);
+  load();
+})();
+</script>
+</body>
+</html>

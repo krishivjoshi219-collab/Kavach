@@ -1,10 +1,10 @@
-"""Shared config for K-VoiceOps (no AWS, no credit card: Gemini/Groq free + HF + Pages)."""
+"""Shared config for Kavach — voice guardian + scam shield for seniors."""
 from __future__ import annotations
 
 import os
 
-APP_NAME = "k-voiceops"
-APP_VERSION = os.getenv("APP_VERSION", "0.2.0")
+APP_NAME = "kavach"
+APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
@@ -14,9 +14,10 @@ MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "8000"))
 RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "30"))
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:7860").split(",") if o.strip()]
-DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "voiceops.db"))
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "kavach.db"))
 MCP_SPEC_VERSION = "2025-11-25"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
+DEFAULT_SENIOR_ID = os.getenv("KAVACH_SENIOR_ID", "demo-senior")
 
 
 def llm_status() -> dict:

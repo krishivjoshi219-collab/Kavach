@@ -1,7 +1,19 @@
-# Demo Script (<3 min video)
-0:00–0:20 — Pages UI: click 🎤, say “Alexa, why did my deploy fail?”
-0:20–1:00 — HF `/mcp`: Inspector lists 6 tools; server logs show
-  `get_pipeline_status(demo-web)` → FAILED → `triage_and_heal_incident`.
-1:00–2:00 — Agent: culprit line, AST `ast.parse` + `py_compile` verify loop (max 3), diff.
-2:00–2:50 — Cards/carousel: Status → Culprit → Verified patch → “tests pass”; voice speaks summary.
-Show `request_id` + latency footer + `/healthz` 200 as proof.
+# Demo Script (<3 min video) — Kavach saves Asha from a scam call
+
+Cast: senior view (left) + family board (right), voice on.
+Seeded history shows 2 past cases so memory reads on camera.
+
+0:00–0:25 — THE CALL. Senior view: “Something strange happened — a call about my bank.”
+  Kavach: calm opening, question 1 (call/message/visit?). Answer by voice.
+0:25–1:10 — THE INTERROGATION. Three short answers (bank officer → OTP to unfreeze →
+  police today). Show the protocol never rushing, one question at a time.
+1:10–1:50 — THE VERDICT. “This is a scam” spoken + verdict card with 3 cited red flags
+  + numbered next steps. Cut to MCP Inspector: `debrief_caller` trace + case #N logged.
+1:50–2:25 — THE FAMILY LOOP. “Tell my family” → 6-letter code on screen → read it back →
+  alert sent. Family board refreshes: new SCAM case with proof, routine timeline intact.
+2:25–2:55 — THE CLOSE. Morning-briefing line + “every verdict cites evidence; nothing
+  alerts family without spoken approval.” End cards: repo, `/mcp`, MCP App `ui://`,
+  skill. On-screen disclaimer: companion + escalation aid, not professional advice.
+
+Fallback branch (if backend sleeps): pre-warmed `/healthz`, offline templates carry
+the same arc — protocol and verdicts never need the cloud.

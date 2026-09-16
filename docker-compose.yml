@@ -2,13 +2,13 @@
 services:
   api:
     build: .
-    image: k-voiceops:local
+    image: kavach:local
     ports: ["7860:7860"]
     env_file: [.env]
     environment:
-      DB_PATH: /data/voiceops.db
+      DB_PATH: /data/kavach.db
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:7860
-    volumes: ["voiceops-data:/data"]
+    volumes: ["kavach-data:/data"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -19,4 +19,4 @@ services:
       start_period: 20s
 
 volumes:
-  voiceops-data:
+  kavach-data:

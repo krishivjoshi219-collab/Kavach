@@ -1,7 +1,7 @@
-export const EXAMPLES = [
-  'why did my deploy fail?',
-  'is the demo-api pipeline passing?',
-  'verify this code:\n```python\ndef f():\n    return 1\n```'
+export const SENIOR_EXAMPLES = [
+  'Something strange happened — a call about my bank',
+  'Checking in — good morning, all well',
+  'How is my household today?'
 ]
 
 type Rec = {
@@ -27,7 +27,12 @@ export function speak(text: string) {
     }
     if (w.speechSynthesis && w.SpeechSynthesisUtterance && text) {
       w.speechSynthesis.cancel()
-      w.speechSynthesis.speak(new w.SpeechSynthesisUtterance(text.slice(0, 280)))
+      const u = new w.SpeechSynthesisUtterance(text.slice(0, 400)) as unknown as {
+        rate: number; pitch: number
+      }
+      u.rate = 0.92
+      u.pitch = 1.0
+      w.speechSynthesis.speak(u)
     }
   } catch { /* audio is best-effort */ }
 }

@@ -1,18 +1,18 @@
-"""K-VoiceOps production entrypoint.
+"""Kavach production entrypoint: guardian API + real MCP + family board.
 
-Serves, on one port (HF Spaces :7860):
-  GET  /healthz   liveness (always 200 when process is up)
-  GET  /readyz    readiness (DB writable + MCP session manager running)
-  GET  /version   build + capability descriptor
-  GET  /metrics   operational counters (JSON, no extra deps)
-  POST /api/chat  REST bridge for the Pages simulator (rate-limited)
-  POST /mcp       real MCP over Streamable HTTP, spec 2025-11-25 (bare path)
-  POST /mcp/      same (trailing-slash alias, no redirects)
-  GET  /ui, /     lightweight fallback console (Pages is the full UI)
+  GET  /healthz   liveness        GET  /readyz    readiness (DB + MCP manager)
+  GET  /version   build + mode    GET  /metrics   operational counters
+  POST /api/chat  senior/family conversation (rate-limited)
+  GET  /api/family-feed          incidents + routines + check-ins + alerts
+  POST /mcp , /mcp/              real MCP, Streamable HTTP, spec 2025-11-25
+  GET  /apps/family-board.html   MCP App UI (also served as ui:// resource)
+  GET  /ui , /                   lightweight fallback console
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 import sqlite3
 import tempfile
 import threading
@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -30,12 +30,13 @@ from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse as StarletteJSON
 
 from agent import config as cfg
-from agent.ops_agent import run_agent_turn
-from mcp_server.server import mcp
+from agent import models
+from agent.kavach_agent import run_agent_turn
+from mcp_server.server import UI_URI, mcp
 
 logging.basicConfig(level=getattr(logging, cfg.LOG_LEVEL.upper(), logging.INFO),
                     format="%(asctime)s %(levelname)s %(name)s rid=%(request_id)s %(message)s")
-_base_logger = logging.getLogger("k-voiceops")
+_base_logger = logging.getLogger("kavach")
 
 
 def _log(**fields: object) -> None:
@@ -54,7 +55,6 @@ MCP_RUNNING = {"ok": False}
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Start MCP session manager (task group) so Streamable HTTP works.
     _log(event="startup", mode=cfg.llm_status()["mode"], origins=cfg.ALLOWED_ORIGINS)
     async with mcp.session_manager.run():
         MCP_RUNNING["ok"] = True
@@ -65,8 +65,8 @@ async def lifespan(_: FastAPI):
 
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="K-VoiceOps Alexa+", version=cfg.APP_VERSION, lifespan=lifespan,
-              docs_url="/docs", redoc_url=None)
+app = FastAPI(title="Kavach — voice guardian for seniors", version=cfg.APP_VERSION,
+              lifespan=lifespan, docs_url="/docs", redoc_url=None)
 app.state.limiter = limiter
 
 
@@ -109,7 +109,7 @@ async def _request_context(request: Request, call_next):
     response.headers["x-request-id"] = rid
     response.headers["x-content-type-options"] = "nosniff"
     response.headers["referrer-policy"] = "no-referrer"
-    response.headers["x-frame-options"] = "DENY"
+    response.headers["x-frame-options"] = "SAMEORIGIN"
     _log(event="request", rid=rid, method=request.method,
          path=request.url.path, status=response.status_code, latency_ms=latency)
     return response
@@ -125,8 +125,6 @@ app.add_middleware(
 )
 
 # Real MCP over Streamable HTTP at /mcp AND /mcp/ (spec 2025-11-25).
-# Direct Starlette Routes to the session-manager ASGI app (no Mount -> no 307
-# redirect, so strict MCP clients work on the bare /mcp path too).
 _mcp_init_app = mcp.streamable_http_app()  # creates mcp.session_manager
 del _mcp_init_app
 from mcp.server.fastmcp.server import StreamableHTTPASGIApp
@@ -140,6 +138,7 @@ app.router.routes.append(Route("/mcp/", endpoint=_mcp_asgi, methods=["GET", "POS
 class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=8000)
     session_id: str = Field(default="default", max_length=64, pattern=r"^[\w\-.]{1,64}$")
+    senior_id: str = Field(default="demo-senior", max_length=64, pattern=r"^[\w\-.]{1,64}$")
 
 
 @app.get("/healthz")
@@ -151,9 +150,11 @@ def healthz():
 @app.get("/version")
 def version():
     return {"service": cfg.APP_NAME, "version": cfg.APP_VERSION,
-            "mcp_spec": cfg.MCP_SPEC_VERSION, "llm": cfg.llm_status(),
+            "mcp_spec": cfg.MCP_SPEC_VERSION, "mcp_app": UI_URI,
+            "llm": cfg.llm_status(),
             "endpoints": ["/healthz", "/readyz", "/version", "/metrics",
-                          "/api/chat", "/mcp", "/mcp/", "/ui"]}
+                          "/api/chat", "/api/family-feed", "/mcp", "/mcp/",
+                          "/apps/family-board.html", "/ui"]}
 
 
 @app.get("/readyz")
@@ -172,10 +173,13 @@ def readyz():
         finally:
             conn.close()
         checks["db_writable"] = True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 - readiness probe must report, not raise
         checks["db_writable"] = False
         checks["db_error"] = str(e)[:200]
-    ready = bool(checks["mcp_session_manager"] and checks["db_writable"])
+    board = os.path.join(os.path.dirname(__file__), "mcp_server", "ui", "family_board.html")
+    checks["mcp_app_board"] = os.path.exists(board)
+    ready = bool(checks["mcp_session_manager"] and checks["db_writable"]
+                 and checks["mcp_app_board"])
     return JSONResponse({"ready": ready, "checks": checks},
                         status_code=200 if ready else 503)
 
@@ -189,6 +193,31 @@ def metrics():
     return {"uptime_s": int(time.time() - START_TIME), "avg_chat_latency_ms": avg, **snap}
 
 
+def _feed(senior_id: str) -> dict:
+    models.ensure_seed(senior_id)
+    senior = models.get_senior(senior_id) or {}
+    incidents = models.list_incidents(senior_id, 20)
+    for i in incidents:
+        try:
+            i["red_flags"] = json.loads(i["red_flags"])
+        except (json.JSONDecodeError, TypeError):
+            i["red_flags"] = []
+    return {"senior": {"id": senior.get("id"), "name": senior.get("name"),
+                       "language": senior.get("language")},
+            "incidents": incidents,
+            "routines": models.list_routines(senior_id),
+            "checkins": models.list_checkins(senior_id, 10),
+            "alerts": [{k: a[k] for k in ("id", "kind", "title", "status", "created", "sent_at")
+                        if k in a} for a in models.list_alerts(senior_id, 20)],
+            "contacts": [{"label": c["label"], "kind": c["kind"]}
+                         for c in models.list_contacts(senior_id)]}
+
+
+@app.get("/api/family-feed")
+def family_feed(senior_id: str = "demo-senior"):
+    return JSONResponse(_feed(senior_id[:64]))
+
+
 @app.post("/api/chat")
 @limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
 def chat(body: ChatIn, request: Request):
@@ -196,9 +225,11 @@ def chat(body: ChatIn, request: Request):
     rid = getattr(request.state, "rid", uuid.uuid4().hex[:12])
     t0 = time.time()
     try:
-        out = run_agent_turn(text, body.session_id or "default")
-    except Exception as e:  # noqa: BLE001 - never 500 on demo day
-        out = {"spoken": "Sorry, I hit an internal error.",
+        out = run_agent_turn(text, body.session_id or "default",
+                             body.senior_id or "demo-senior")
+    except Exception as e:  # noqa: BLE001 - chat must never 500 on demo day
+        out = {"spoken": "Something hiccuped on my side — but everything you said is saved. "
+                         "Please try once more.",
                "text": f"error: {str(e)[:300]}", "cards": [], "tools": [], "provider": "error"}
         with METRICS_LOCK:
             METRICS["chat_errors"] += 1
@@ -211,26 +242,33 @@ def chat(body: ChatIn, request: Request):
     return JSONResponse(out)
 
 
+@app.get("/apps/family-board.html")
+def board_html(senior_id: str = "demo-senior"):
+    path = os.path.join(os.path.dirname(__file__), "mcp_server", "ui", "family_board.html")
+    return FileResponse(path, media_type="text/html")
+
+
 FALLBACK_HTML = """<!doctype html><html><head><meta charset=utf-8>
 <meta name=viewport content='width=device-width,initial-scale=1'>
-<title>K-VoiceOps Alexa+ (fallback UI)</title>
-<style>body{font-family:system-ui;max-width:720px;margin:24px auto;padding:0 16px}
-.card{border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0}
-button{padding:10px 16px;border-radius:10px;border:0;background:#232f3e;color:#fff}</style>
+<title>Kavach — voice guardian (fallback console)</title>
+<style>body{font-family:system-ui;max-width:720px;margin:24px auto;padding:0 16px;
+background:#faf6ec;color:#2b2118}
+.card{border:1px solid #e3d5bd;background:#fff;border-radius:12px;padding:12px;margin:10px 0}
+button{padding:10px 16px;border-radius:10px;border:0;background:#2b2118;color:#fff}</style>
 </head><body>
-<h2>K-VoiceOps Alexa+ — fallback console</h2>
-<p>Full simulator: deploy <code>simulator/web</code> to Cloudflare Pages and point it at
-<code>/api/chat</code>. This page works even if Pages is down. Status: <a href="/readyz">readyz</a>
-&middot; <a href="/metrics">metrics</a> &middot; <a href="/version">version</a></p>
-<textarea id=q rows=3 style='width:100%'>why did my deploy fail?</textarea><br><br>
-<button onclick='go()'>Ask</button> <span id=lat></span><div id=out></div>
+<h2>🛡️ Kavach — fallback console</h2>
+<p>The full experience lives in the simulator (senior voice view + family board).
+Status: <a href="/readyz">readyz</a> &middot; <a href="/metrics">metrics</a>
+&middot; <a href="/version">version</a> &middot;
+<a href="/apps/family-board.html">family board app</a></p>
+<textarea id=q rows=3 style='width:100%'>Someone called about my bank account</textarea><br><br>
+<button onclick='go()'>Talk to Kavach</button> <span id=lat></span><div id=out></div>
 <script>async function go(){const t0=Date.now();
 const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({text:document.getElementById('q').value,session_id:'demo'})});
 const j=await r.json();document.getElementById('lat').textContent=' '+(Date.now()-t0)+'ms';
-document.getElementById('out').innerHTML='<div class=card><b>Alexa says:</b> '+j.spoken+'</div>'+
-(j.cards||[]).map(c=>'<div class=card><b>'+c.title+'</b><pre>'+(c.body||'').slice(0,2000)+'</pre></div>').join('')
-+(j.tools||[]).map(t=>'<div class=card><small>'+t+'</small></div>').join('');}</script>
+document.getElementById('out').innerHTML='<div class=card><b>Kavach says:</b> '+j.spoken+'</div>'+
+(j.cards||[]).map(c=>'<div class=card><b>'+c.title+'</b><pre>'+(c.body||'').slice(0,2000)+'</pre></div>').join('');}</script>
 </body></html>"""
 
 
