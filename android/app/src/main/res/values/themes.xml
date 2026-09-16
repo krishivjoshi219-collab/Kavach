@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kavach" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">#B3541E</item>
+        <item name="colorPrimaryDark">#80330D</item>
+        <item name="android:windowBackground">#FAF6EC</item>
+    </style>
+</resources>

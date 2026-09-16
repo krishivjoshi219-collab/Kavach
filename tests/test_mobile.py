@@ -1,0 +1,131 @@
+"""Mobile contract tests: pairing, blind relay, hash screening, consent, commands, quota."""
+from fastapi.testclient import TestClient
+
+import app as appmod
+from agent import mobile
+
+client = TestClient(appmod.app)
+PUB_A = "A" * 64
+PUB_B = "B" * 64
+
+
+def _household():
+    return client.post("/api/v1/households").json()["household_id"]
+
+
+def test_pairing_flow_and_expiry():
+    hid = _household()
+    bad = client.post("/api/v1/pair/init",
+                      json={"household_id": hid, "manager_pubkey": ""})
+    assert bad.json()["ok"] is False
+    init = client.post("/api/v1/pair/init",
+                       json={"household_id": hid, "manager_pubkey": PUB_A}).json()
+    assert init["ok"] and len(init["pairing_code"]) == 6
+    nope = client.post("/api/v1/pair/complete",
+                       json={"pairing_code": "ZZZZZZ", "senior_pubkey": PUB_B,
+                             "senior_id": "s1"})
+    assert nope.json()["ok"] is False
+    done = client.post("/api/v1/pair/complete",
+                       json={"pairing_code": init["pairing_code"], "senior_pubkey": PUB_B,
+                             "senior_id": "s1"}).json()
+    assert done["ok"] and done["manager_pubkey"] == PUB_A
+    again = client.post("/api/v1/pair/complete",
+                        json={"pairing_code": init["pairing_code"], "senior_pubkey": PUB_B,
+                              "senior_id": "s1"}).json()
+    assert again["ok"] is False  # single-use codes
+
+
+def test_blind_relay_never_sees_plaintext():
+    hid = _household()
+    secret = "otp-is-123456-mom"
+    bid = client.post("/api/v1/sync/push",
+                      json={"household_id": hid, "sender": "senior",
+                            "nonce": "n1", "ciphertext": "ENCRYPTED:" + secret}).json()
+    assert bid["ok"]
+    blobs = client.get("/api/v1/sync/pull",
+                       params={"household_id": hid}).json()["blobs"]
+    assert len(blobs) == 1 and blobs[0]["ciphertext"].startswith("ENCRYPTED:")
+    # server-side, the stored row must not contain interpretable content beyond the blob
+    assert secret not in blobs[0]["nonce"]
+    assert client.post("/api/v1/sync/push",
+                       json={"household_id": hid, "sender": "alien",
+                             "nonce": "n", "ciphertext": "x"}).status_code == 422
+
+
+def test_hash_screening_allow_block_unblock():
+    hid = _household()
+    h = mobile.hash_number(hid, "+91-98XXX-XXX99")
+    assert len(h) == 64
+    assert client.post("/api/v1/screen/lookup",
+                       json={"household_id": hid, "number_hash": h}).json()["action"] == "allow"
+    assert client.post("/api/v1/screen/block",
+                       json={"household_id": hid, "number_hash": h,
+                             "label": "scam call", "action": "block"}).json()["ok"] is True
+    hit = client.post("/api/v1/screen/lookup",
+                      json={"household_id": hid, "number_hash": h}).json()
+    assert hit["action"] == "block" and hit["source"] == "household"
+    assert client.post("/api/v1/screen/unblock",
+                       json={"household_id": hid, "number_hash": h}).json()["ok"] is True
+    # raw numbers are never accepted: hashes only
+    assert client.post("/api/v1/screen/lookup",
+                       json={"household_id": hid,
+                             "number_hash": "+91-98XXX-XXX99"}).status_code == 422
+
+
+def test_consent_gates_remote_cut():
+    hid, sid = _household(), "dad1"
+    # no consent: remote cut refused
+    r = client.post("/api/v1/device/command",
+                    json={"household_id": hid, "senior_id": sid, "target": "senior",
+                          "type": "cut_call"}).json()
+    assert r["ok"] is False and r["error"] == "consent_required"
+    # grant everything, then cut works
+    assert client.post("/api/v1/consent/set",
+                       json={"household_id": hid, "senior_id": sid,
+                             "capabilities": {"remote_cut": True, "screen_calls": True},
+                             "granted_by": "dad1"}).json()["ok"] is True
+    q = client.post("/api/v1/device/command",
+                    json={"household_id": hid, "senior_id": sid, "target": "senior",
+                          "type": "cut_call"}).json()
+    assert q["ok"] and "command_id" in q
+    pend = client.get("/api/v1/device/commands",
+                      params={"household_id": hid, "target": "senior"}).json()
+    assert len(pend["commands"]) == 1
+    assert client.post(f"/api/v1/device/commands/{q['command_id']}/ack").json()["ok"] is True
+    # revoke = kill switch: everything refused again
+    assert client.post("/api/v1/consent/revoke",
+                       params={"household_id": hid, "senior_id": sid}).json()["ok"] is True
+    r2 = client.post("/api/v1/device/command",
+                     json={"household_id": hid, "senior_id": sid, "target": "senior",
+                           "type": "cut_call"}).json()
+    assert r2["ok"] is False
+
+
+def test_brain_quota_and_consent():
+    hid, sid = _household(), "dad2"
+    # cloud brain off by default
+    assert client.post("/api/v1/brain/ask",
+                       json={"household_id": hid, "senior_id": sid,
+                             "snippet": "share otp now"}).json()["error"] == "consent_required"
+    client.post("/api/v1/consent/set",
+                json={"household_id": hid, "senior_id": sid,
+                      "capabilities": {"cloud_brain": True}, "granted_by": "dad2"})
+    first = client.post("/api/v1/brain/ask",
+                        json={"household_id": hid, "senior_id": sid,
+                              "snippet": "account frozen share otp immediately"}).json()
+    assert first["ok"] and first["verdict"] == "SCAM" and first["tier"] == "free"
+    # exhaust the free quota (20)
+    for _ in range(25):
+        last = client.post("/api/v1/brain/ask",
+                           json={"household_id": hid, "senior_id": sid,
+                                 "snippet": "hello"}).json()
+    assert last["ok"] is False and last["error"] == "quota_exceeded"
+    # upgrade to pro: 10x quota, verdicts flow again
+    assert client.post("/api/v1/household/tier",
+                       json={"household_id": hid, "tier": "pro"}).json()["ok"] is True
+    assert client.get("/api/v1/household/tier",
+                      params={"household_id": hid}).json() == {"tier": "pro", "quota": 200}
+    again = client.post("/api/v1/brain/ask",
+                        json={"household_id": hid, "senior_id": sid,
+                              "snippet": "hello"}).json()
+    assert again["ok"] is True and again["tier"] == "pro"

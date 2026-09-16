@@ -12,3 +12,13 @@ simulator/web/dist/
 .pytest_cache/
 .ruff_cache/
 *.tsbuildinfo
+
+# Android
+.gradle/
+**/build/
+android/local.properties
+*.apk
+*.aab
+
+# Local logs
+opencode_conversation.txt

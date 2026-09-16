@@ -28,6 +28,25 @@ Resource: `ui://kavach-family-board` (`text/html;profile=mcp-app`, extension
 `io.modelcontextprotocol/ui`) with text fallback — also served at
 `GET /apps/family-board.html`.
 
+## Mobile Contract & Zero-Knowledge Relay (`/api/v1/*`)
+- `POST /api/v1/households` — Generates unique household ID.
+- `POST /api/v1/pair/init` — Starts pairing ceremony; stores manager public key; returns 6-char pairing code (10m TTL).
+- `POST /api/v1/pair/complete` — Consumes pairing code; binds senior public key and senior ID.
+- `POST /api/v1/sync/push` — Ingests encrypted ciphertext blob (relay only, server never inspects payload).
+- `GET  /api/v1/sync/pull?household_id=&since_id=` — Retrieves encrypted blobs.
+- `POST /api/v1/screen/lookup` — Privacy-preserving check against household-salted number hash.
+- `POST /api/v1/screen/block` — Adds salted number hash to household blocklist (`block`, `silence`, `allow`).
+- `POST /api/v1/screen/unblock` — Removes number hash from household blocklist.
+- `POST /api/v1/consent/set` — Senior sets granted capabilities (`screen_calls`, `forward_sms`, `remote_cut`, `cloud_brain`, `share_routines`).
+- `POST /api/v1/consent/revoke?household_id=&senior_id=` — Instant elder autonomy kill switch; revokes all capabilities.
+- `GET  /api/v1/consent?household_id=&senior_id=` — Returns capability grant status.
+- `POST /api/v1/device/command` — Queues consent-gated remote action (`cut_call`, `sound_siren`, `show_message`).
+- `GET  /api/v1/device/commands?household_id=&target=` — Retrieves queued commands for device.
+- `POST /api/v1/device/commands/{id}/ack` — Acknowledges command delivery.
+- `POST /api/v1/brain/ask` — Quota-gated cloud inference (requires `cloud_brain` consent; quota depends on tier).
+- `POST /api/v1/household/tier` — Synchronizes subscription tier (`free`, `pro`, `ultra`) with quotas.
+- `GET  /api/v1/household/tier?household_id=` — Retrieves current tier and quota.
+
 ## Errors
 - `422` validation · `429` `{ok:false, error:"rate_limited", request_id}` — back off
 - `500` `{ok:false, error:"internal", request_id}` — never leaks tracebacks

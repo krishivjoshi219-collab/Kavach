@@ -29,6 +29,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse as StarletteJSON
 
+import mobile_api
 from agent import config as cfg
 from agent import models
 from agent.kavach_agent import run_agent_turn
@@ -68,6 +69,7 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Kavach — voice guardian for seniors", version=cfg.APP_VERSION,
               lifespan=lifespan, docs_url="/docs", redoc_url=None)
 app.state.limiter = limiter
+app.include_router(mobile_api.router)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -153,8 +155,8 @@ def version():
             "mcp_spec": cfg.MCP_SPEC_VERSION, "mcp_app": UI_URI,
             "llm": cfg.llm_status(),
             "endpoints": ["/healthz", "/readyz", "/version", "/metrics",
-                          "/api/chat", "/api/family-feed", "/mcp", "/mcp/",
-                          "/apps/family-board.html", "/ui"]}
+                          "/api/chat", "/api/family-feed", "/api/v1/* (mobile contract)",
+                          "/mcp", "/mcp/", "/apps/family-board.html", "/ui"]}
 
 
 @app.get("/readyz")
