@@ -47,4 +47,8 @@ dependencies {
     // Monetization (test mode for the hackathon).
     implementation("com.revenuecat.purchases:purchases:10.21.1")
     implementation("com.revenuecat.purchases:purchases-ui:10.21.1")
+
+    // Unit tests
+    testImplementation("junit:junit:4.13.2")
 }
+
