@@ -1,0 +1,20 @@
+[
+  {"id": "hdfc-fraud", "jurisdiction": "IN", "category": "bank",
+   "institution": "HDFC Bank Fraud Reporting", "domain": "hdfcbank.com",
+   "contact_page": "https://www.hdfcbank.com/personal/need-help/report-fraud",
+   "phone": "1800-258-6161", "source": "https://www.hdfcbank.com",
+   "verified_at": "2026-09-01", "language": "en"},
+  {"id": "rbi-sachet", "jurisdiction": "IN", "category": "regulator",
+   "institution": "RBI Sachet Fraud Reporting", "domain": "rbi.org.in",
+   "contact_page": "https://sachet.rbi.org.in", "phone": "",
+   "source": "https://www.rbi.org.in", "verified_at": "2026-09-01", "language": "en"},
+  {"id": "cybercrime-in", "jurisdiction": "IN", "category": "police",
+   "institution": "National Cyber Crime Portal", "domain": "cybercrime.gov.in",
+   "contact_page": "https://cybercrime.gov.in", "phone": "1930",
+   "source": "https://cybercrime.gov.in", "verified_at": "2026-09-01", "language": "hi"},
+  {"id": "hdfc-fraud-hi", "jurisdiction": "IN", "category": "bank",
+   "institution": "HDFC बैंक धोखाधड़ी रिपोर्ट", "domain": "hdfcbank.com",
+   "contact_page": "https://www.hdfcbank.com/personal/need-help/report-fraud",
+   "phone": "1800-258-6161", "source": "https://www.hdfcbank.com",
+   "verified_at": "2026-09-01", "language": "hi"}
+]

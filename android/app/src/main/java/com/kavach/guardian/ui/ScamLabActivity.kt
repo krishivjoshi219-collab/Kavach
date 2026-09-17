@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.kavach.guardian.KavachApp
 import com.kavach.guardian.screen.RuleEngine
 import com.kavach.guardian.siren.SirenActivity
+import com.kavach.guardian.sms.SmsHandler
 
 class ScamLabActivity : AppCompatActivity() {
 
@@ -106,6 +107,36 @@ class ScamLabActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(0, 0, 0, 24) }
         root.addView(resultBox, resultLp)
+
+        // Killer demo: simulated senior sitting + live spam incoming through the
+        // SAME production path as the real receiver (not a fake UI).
+        val liveAttackBtn = Button(this).apply {
+            text = "🔴 SIMULATE LIVE ATTACK (senior sitting + spam incoming)"
+            textSize = 16f
+            setBackgroundColor(Color.parseColor("#C62828"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                Thread {
+                    val r = SmsHandler.handleSms(
+                        this@ScamLabActivity,
+                        "+91-98XXX-BANK1",
+                        "Your bank account has been frozen due to suspicious activity. Immediately share your OTP or our police officer will arrest you.",
+                        demo = true)
+                    val hid = store.getString("household_id") ?: "default"
+                    val hash = com.kavach.guardian.screen.RuleEngine.hashNumber(hid, "+91-98XXX-BANK1")
+                    runOnUiThread {
+                        resultBox.text = "LIVE ATTACK: verdict=${r.verdict} forwarded=${r.forwarded} quarantined=${r.quarantined}\n" +
+                            "Sender hash ${hash.take(12)}… auto-learned. Ask the same number to call now — second call auto-rejects pre-ring.\n" +
+                            "Manager phone should siren with the full decrypted text."
+                        if (r.verdict == "SCAM") {
+                            resultBox.setTextColor(Color.parseColor("#C62828"))
+                            resultBox.setBackgroundColor(Color.parseColor("#FFEBEE"))
+                        }
+                    }
+                }.start()
+            }
+        }
+        root.addView(liveAttackBtn, resultLp)
 
         for (scenario in scenarios) {
             val card = LinearLayout(this).apply {

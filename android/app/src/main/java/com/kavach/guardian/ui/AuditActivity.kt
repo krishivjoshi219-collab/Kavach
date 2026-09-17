@@ -54,9 +54,10 @@ class AuditActivity : AppCompatActivity() {
 
         val auditCard = TextView(this).apply {
             text = "🔒 PROOF OF ZERO-KNOWLEDGE:\n\n" +
-                    "• The server never receives raw phone numbers (only SHA-256 hashes).\n" +
-                    "• The server never receives call audio or plaintext SMS.\n" +
-                    "• Every message is sealed with ECIES hybrid encryption via Google Tink before transmission."
+                    "• The server never receives raw phone numbers (only salted SHA-256 hashes).\n" +
+                    "• The server never receives call audio or plaintext SMS (base64 ECIES noise only; plaintext rejected).\n" +
+                    "• Every message is sealed with ECIES hybrid encryption via Google Tink before transmission.\n" +
+                    "• Safety numbers must match on both phones; Kill Switch bumps epoch and wipes queued powers."
             textSize = 14f
             setTextColor(Color.parseColor("#1B5E20"))
             setBackgroundColor(Color.parseColor("#E8F5E9"))
@@ -87,8 +88,11 @@ class AuditActivity : AppCompatActivity() {
                 Thread {
                     try {
                         val blobs = client.pullBlobs(hid, 0)
+                        val peer = store.getPeerPub()
+                        val epoch = store.getEpoch()
                         val display = buildString {
                             append("SERVER DATABASE DUMP (Household: $hid):\n")
+                            append("epoch=$epoch peer=${if (peer.isNullOrEmpty()) "MISSING — E2E off" else "sealed (${peer.length} chars)"}\n")
                             append("========================================\n\n")
                             if (blobs.length() == 0) {
                                 append("No remote blobs currently queued on blind relay.\n\n")
@@ -103,12 +107,15 @@ class AuditActivity : AppCompatActivity() {
                                 append("]\n\n")
                                 append("Notice: Even under server breach, zero plaintext is readable!")
                             } else {
+                                val leak = Regex("otp|aadhaar|password|http|\\+91", RegexOption.IGNORE_CASE)
                                 for (i in 0 until blobs.length()) {
                                     val b = blobs.getJSONObject(i)
-                                    append("Blob ID #${b.optInt("id")}:\n")
+                                    val ct = b.optString("ciphertext")
+                                    val flag = if (leak.containsMatchIn(ct)) " ⚠️ PLAINTEXT LEAK" else " [Opaque Noise ✓]"
+                                    append("Blob ID #${b.optInt("id")} epoch=${b.optInt("epoch")}:\n")
                                     append("• Sender: ${b.optString("sender")}\n")
                                     append("• Nonce: ${b.optString("nonce")}\n")
-                                    append("• Ciphertext: ${b.optString("ciphertext").take(32)}... [Opaque Noise]\n\n")
+                                    append("• Ciphertext: ${ct.take(32)}...$flag\n\n")
                                 }
                             }
                         }

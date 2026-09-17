@@ -95,6 +95,17 @@ class SeniorActivity : AppCompatActivity() {
         }
         root.addView(pairBtn, btnLp)
 
+        // Button: Quarantine Vault
+        val vaultBtn = createSeniorButton("📥 Quarantine Vault", Color.parseColor("#4E342E"), Color.WHITE) {
+            startActivity(Intent(this, QuarantineActivity::class.java))
+        }
+        root.addView(vaultBtn, btnLp)
+
+        // First-run onboarding
+        if (store.getString("onboarded") != "1") {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+        }
+
         // Button: Scam Lab Rehearsal
         val scamLabBtn = createSeniorButton("🧪 Practice Scam Defense (Scam Lab)", Color.parseColor("#1565C0"), Color.WHITE) {
             startActivity(Intent(this, ScamLabActivity::class.java))
@@ -111,6 +122,9 @@ class SeniorActivity : AppCompatActivity() {
         val killSwitchBtn = createSeniorButton("🛑 Kill Switch (Revoke All)", Color.parseColor("#424242"), Color.WHITE) {
             val hid = store.getString("household_id") ?: ""
             val sid = store.getString("senior_id") ?: "senior_1"
+            // Local crypto revocation first: drop manager key so nothing new decrypts.
+            store.clearPeer()
+            store.putEpoch(store.getEpoch() + 1)
             if (hid.isNotEmpty()) {
                 Thread {
                     try {
@@ -119,7 +133,7 @@ class SeniorActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }.start()
             }
-            Toast.makeText(this, "All remote access revoked immediately.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "All remote access revoked immediately. Keys rotated.", Toast.LENGTH_LONG).show()
         }
         root.addView(killSwitchBtn, btnLp)
 

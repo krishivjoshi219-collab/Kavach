@@ -78,13 +78,17 @@ In production, webhook validation:
 
 ---
 
-## 5. Stripe Web-to-App Caregiver Funnel (RevenueCat Funnels)
+## 5. Stripe Web-to-App Caregiver Funnel (Next Gen: TEST MODE ONLY)
 
 * **Entrypoint**: `simulator/web/public/funnel.html` (served at `/funnel.html`).
-* **Conversion Flow**:
+* **Next Gen rule for minors: no real money, no Stripe, no card.** The funnel is a
+  test-mode quiz → pairing QR demo. The button never charges; judges unlock Pro
+  in-app via promo `SHIPATON-JUDGE`. Funnel Vision prize (real Stripe volume) is
+  out of scope for Next Gen — do not enter it.
+* **Conversion Flow (test)**:
   1. 4-question scam vulnerability quiz targeting worried adult children.
   2. Dynamic Risk Assessment score (e.g. 84% High Risk).
-  3. Stripe Checkout integration for **Pro Shield ($4.99/mo)**.
+  3. Continue in Test Mode (no payment) → pairing QR.
   4. Instant QR code generation to pair the parent's Android device seamlessly with zero friction.
 
 ---

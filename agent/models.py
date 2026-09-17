@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS flows(
   incident_id INTEGER, data TEXT NOT NULL DEFAULT '{}', updated REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions(
   id TEXT PRIMARY KEY, history TEXT NOT NULL, updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS family_challenges(
+  id TEXT PRIMARY KEY, senior_id TEXT NOT NULL, claim_who TEXT NOT NULL DEFAULT '',
+  question TEXT NOT NULL DEFAULT '', nonce TEXT NOT NULL DEFAULT '',
+  state TEXT NOT NULL DEFAULT 'pending', decision TEXT NOT NULL DEFAULT '',
+  created REAL NOT NULL, expires REAL NOT NULL, resolved REAL);
 """
 
 
@@ -290,6 +295,57 @@ def clear_flow(session_id: str) -> None:
     try:
         conn.execute("DELETE FROM flows WHERE session_id=?", (session_id,))
         conn.commit()
+    finally:
+        conn.close()
+
+
+def create_challenge(senior_id: str, claim_who: str, question: str, ttl_s: int = 300) -> dict[str, Any]:
+    import uuid as _uuid
+    cid = "ch_" + _uuid.uuid4().hex[:12]
+    nonce = secrets.token_urlsafe(24)
+    now = _now()
+    conn = _connect()
+    try:
+        conn.execute("INSERT INTO family_challenges(id,senior_id,claim_who,question,nonce,"
+                     "state,created,expires) VALUES(?,?,?,?,?,?,?,?)",
+                     (cid, senior_id, claim_who[:200], question[:500], nonce,
+                      "pending", now, now + ttl_s))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"id": cid, "nonce": nonce, "state": "pending", "expires_in_s": ttl_s}
+
+
+def get_challenge(challenge_id: str) -> dict[str, Any] | None:
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        if d["state"] == "pending" and d["expires"] < _now():
+            conn.execute("UPDATE family_challenges SET state='expired' WHERE id=?", (challenge_id,))
+            conn.commit()
+            d["state"] = "expired"
+        return d
+    finally:
+        conn.close()
+
+
+def respond_challenge(challenge_id: str, decision: str) -> dict[str, Any] | None:
+    decision = decision.upper()
+    if decision not in ("APPROVE", "DENY", "NEED_HELP"):
+        return None
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone()
+        if not row or row["state"] != "pending" or row["expires"] < _now():
+            return None
+        conn.execute("UPDATE family_challenges SET state='resolved', decision=?, resolved=? WHERE id=?",
+                     (decision, _now(), challenge_id))
+        conn.commit()
+        out = dict(conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone())
+        return out
     finally:
         conn.close()
 

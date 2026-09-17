@@ -220,6 +220,135 @@ def family_feed(senior_id: str = "demo-senior"):
     return JSONResponse(_feed(senior_id[:64]))
 
 
+class DemoAttackIn(BaseModel):
+    senior_id: str = Field(default="demo-senior", max_length=64, pattern=r"^[\w\-.]{1,64}$")
+    scenario: str = Field(default="bank_otp", max_length=32, pattern=r"^[a-z0-9_]{1,32}$")
+
+
+PAUSE_CARDS = {
+    "en": ("Pause. Do not pay. Do not share codes. Verify through a contact you find yourself. "
+           "Say: I will verify independently using an official channel. End the call if unsafe. "
+           "Kavach is safety information, not legal advice."),
+    "hi": ("रुकें। पैसे न भेजें। OTP/कोड साझा न करें। खुद खोजे गए आधिकारिक संपर्क से सत्यापित करें। "
+           "कहें: मैं आधिकारिक चैनल से स्वतंत्र रूप से सत्यापित करूंगा। असुरक्षित लगे तो कॉल काट दें।"),
+    "hinglish": ("Ruko. Paise mat bhejo. OTP/code share mat karo. Khud dhoondhe gaye official contact se verify karo. "
+                 "Bolo: main independently verify karunga. Unsafe lage to call kaat do."),
+}
+
+
+@app.get("/api/pause-card")
+def pause_card(lang: str = "en"):
+    lang = lang[:8].lower()
+    key = "hinglish" if "hing" in lang else "hi" if lang.startswith("hi") else "en"
+    return JSONResponse({"lang": key, "card": PAUSE_CARDS[key], "offline": True,
+                         "disclaimer": "General safety information, not legal advice."})
+
+
+@app.get("/api/directory/lookup")
+def directory_lookup(q: str = "", jurisdiction: str = "IN", lang: str = "en"):
+    import os as _os
+    path = _os.path.join(_os.path.dirname(__file__), "data", "official_directory.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            entries = json.load(f)
+    except OSError:
+        entries = []
+    ql = q.lower()
+    out = [e for e in entries
+           if (not ql or ql in (e.get("institution", "") + e.get("category", "")).lower())
+           and (jurisdiction.upper() in ("", e.get("jurisdiction", "IN").upper()) or True)]
+    if lang[:2].lower() in ("hi", "en"):
+        pref = [e for e in out if e.get("language") == lang[:2].lower()]
+        if pref:
+            out = pref
+    for e in out:
+        e["caller_authenticated"] = False
+        e["note"] = "Directory does not authenticate the caller. Caller ID can be spoofed."
+    return JSONResponse({"entries": out[:25], "count": len(out[:25])})
+
+
+DEMO_SCENARIOS = {
+    "bank_otp": ("call", "HDFC bank officer",
+                 ("Senior: phone call. Caller: HDFC bank officer. Asked: share OTP to unfreeze account. "
+                  "Pressure: yes, police complaint today itself.")),
+    "digital_arrest": ("call", "CBI cyber cell",
+                       ("Senior: phone call. Caller: CBI cyber cell. Asked: stay on video call, transfer to safe account. "
+                        "Pressure: yes, arrest immediately, do not hang up.")),
+    "power_apk": ("message", "electricity department",
+                  ("Senior: SMS with APK link. Caller: electricity department. Asked: download APK to update KYC. "
+                   "Pressure: power cut tonight.")),
+}
+
+
+@app.post("/api/demo/attack")
+@limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
+def demo_attack(body: DemoAttackIn, request: Request):
+    from agent import redflags as _rf
+    _ = request
+    models.ensure_seed(body.senior_id)
+    channel, claim, transcript = DEMO_SCENARIOS.get(body.scenario, DEMO_SCENARIOS["bank_otp"])
+    signals = _rf.extract_signals(transcript)
+    contact = models.find_contact(body.senior_id, claim)
+    verdict, conf, reasons = _rf.score_verdict(signals, transcript, known_contact=bool(contact))
+    iid = models.create_incident(body.senior_id, channel, claim, transcript,
+                                 signals, verdict, conf)
+    draft = models.draft_alert(body.senior_id, "family_note",
+                               "Kavach live-attack: possible scam",
+                               f"Case #{iid}: {verdict} — {claim}. {'; '.join(reasons[:3])}",
+                               iid)
+    return JSONResponse({"ok": True, "test_mode": True, "incident_id": iid,
+                         "verdict": verdict, "confidence": conf, "reasons": reasons,
+                         "alert_id": draft["id"], "confirm_code": draft["confirm_code"]})
+
+
+class ChallengeIn(BaseModel):
+    senior_id: str = Field(default="demo-senior", max_length=64, pattern=r"^[\w\-.]{1,64}$")
+    claim_who: str = Field(default="", max_length=200)
+    question: str = Field(default="Did you call and ask for money?", max_length=500)
+
+
+class ChallengeRespondIn(BaseModel):
+    decision: str = Field(pattern=r"^(APPROVE|DENY|NEED_HELP|approve|deny|need_help)$")
+
+
+@app.post("/api/family/challenge/create")
+@limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
+def challenge_create(body: ChallengeIn, request: Request):
+    _ = request
+    models.ensure_seed(body.senior_id)
+    ch = models.create_challenge(body.senior_id, body.claim_who, body.question)
+    return JSONResponse({"ok": True, **ch,
+                         "copy": "This confirms a response from an enrolled family device. "
+                                 "It does not prove the caller is genuine. If unsure, end the call "
+                                 "and contact family using a saved number."})
+
+
+@app.get("/api/family/challenge/{challenge_id}")
+def challenge_get(challenge_id: str):
+    ch = models.get_challenge(challenge_id[:64])
+    if not ch:
+        return JSONResponse({"ok": False, "error": "not_found"}, status_code=404)
+    return JSONResponse({"ok": True, "challenge": {k: ch[k] for k in
+                         ("id", "senior_id", "claim_who", "question", "state",
+                          "decision", "created", "expires")}})
+
+
+@app.post("/api/family/challenge/{challenge_id}/respond")
+@limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
+def challenge_respond(challenge_id: str, body: ChallengeRespondIn, request: Request):
+    _ = request
+    out = models.respond_challenge(challenge_id[:64], body.decision)
+    if not out:
+        return JSONResponse({"ok": False, "error": "bad_state_or_expired"}, status_code=410)
+    wording = {"APPROVE": "Enrolled device confirmed. This does not authenticate the caller. "
+                          "Call back using your saved number before acting.",
+               "DENY": "Enrolled device says they did not make this request. End the call and "
+                       "contact them using your saved number.",
+               "NEED_HELP": "Your family member requested help. Contact another trusted person."}
+    return JSONResponse({"ok": True, "state": out["state"], "decision": out["decision"],
+                         "wording": wording.get(out["decision"], "")})
+
+
 @app.post("/api/chat")
 @limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
 def chat(body: ChatIn, request: Request):
@@ -248,6 +377,15 @@ def chat(body: ChatIn, request: Request):
 def board_html(senior_id: str = "demo-senior"):
     path = os.path.join(os.path.dirname(__file__), "mcp_server", "ui", "family_board.html")
     return FileResponse(path, media_type="text/html")
+
+
+@app.get("/funnel.html")
+def funnel_html():
+    path = os.path.join(os.path.dirname(__file__), "simulator", "web", "public", "funnel.html")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="text/html")
+    return HTMLResponse("<h1>Funnel not found</h1>", status_code=404)
+
 
 
 FALLBACK_HTML = """<!doctype html><html><head><meta charset=utf-8>

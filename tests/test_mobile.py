@@ -35,21 +35,75 @@ def test_pairing_flow_and_expiry():
     assert again["ok"] is False  # single-use codes
 
 
+def _noise(n: int = 96) -> str:
+    import base64
+    import os
+    return base64.b64encode(os.urandom(n)).decode()
+
+
 def test_blind_relay_never_sees_plaintext():
     hid = _household()
-    secret = "otp-is-123456-mom"
+    cipher = _noise()
     bid = client.post("/api/v1/sync/push",
                       json={"household_id": hid, "sender": "senior",
-                            "nonce": "n1", "ciphertext": "ENCRYPTED:" + secret}).json()
+                            "nonce": "nonce-001-abc", "ciphertext": cipher}).json()
     assert bid["ok"]
     blobs = client.get("/api/v1/sync/pull",
                        params={"household_id": hid}).json()["blobs"]
-    assert len(blobs) == 1 and blobs[0]["ciphertext"].startswith("ENCRYPTED:")
-    # server-side, the stored row must not contain interpretable content beyond the blob
-    assert secret not in blobs[0]["nonce"]
+    assert len(blobs) == 1 and blobs[0]["ciphertext"] == cipher
+    assert blobs[0]["epoch"] == 0
+    # plaintext is rejected: raw OTP words, fake ENCRYPTED prefix, short nonce
+    bad1 = client.post("/api/v1/sync/push",
+                       json={"household_id": hid, "sender": "senior",
+                             "nonce": "nonce-002-abc",
+                             "ciphertext": "ENCRYPTED:otp-is-123456-mom"}).json()
+    assert bad1["ok"] is False
+    bad2 = client.post("/api/v1/sync/push",
+                       json={"household_id": hid, "sender": "senior",
+                             "nonce": "n1", "ciphertext": cipher}).json()
+    assert bad2["ok"] is False
+    # nonce reuse = replay rejected
+    dup = client.post("/api/v1/sync/push",
+                      json={"household_id": hid, "sender": "senior",
+                            "nonce": "nonce-001-abc", "ciphertext": _noise()}).json()
+    assert dup["ok"] is False
     assert client.post("/api/v1/sync/push",
                        json={"household_id": hid, "sender": "alien",
-                             "nonce": "n", "ciphertext": "x"}).status_code == 422
+                             "nonce": "nonce-003-abc", "ciphertext": _noise()}).status_code == 422
+
+
+def test_pairing_grants_all_manager_powers_and_revoke_bumps_epoch():
+    hid = _household()
+    init = client.post("/api/v1/pair/init",
+                       json={"household_id": hid, "manager_pubkey": PUB_A}).json()
+    assert init["ok"]
+    done = client.post("/api/v1/pair/complete",
+                       json={"pairing_code": init["pairing_code"], "senior_pubkey": PUB_B,
+                             "senior_id": "e2e-senior"}).json()
+    assert done["ok"]
+    consent = client.get("/api/v1/consent",
+                         params={"household_id": hid, "senior_id": "e2e-senior"}).json()
+    assert consent["granted"] is True
+    assert all(consent["capabilities"].values()), consent["capabilities"]
+    assert consent["epoch"] == 0
+    # remote cut works with auto-grant
+    q = client.post("/api/v1/device/command",
+                    json={"household_id": hid, "senior_id": "e2e-senior", "target": "senior",
+                          "type": "cut_call"}).json()
+    assert q["ok"]
+    # kill switch: revoke bumps epoch, wipes queued commands, blocks new ones
+    assert client.post("/api/v1/consent/revoke",
+                       params={"household_id": hid, "senior_id": "e2e-senior"}).json()["ok"] is True
+    consent2 = client.get("/api/v1/consent",
+                          params={"household_id": hid, "senior_id": "e2e-senior"}).json()
+    assert consent2["granted"] is False and consent2["epoch"] == 1
+    pend = client.get("/api/v1/device/commands",
+                      params={"household_id": hid, "target": "senior"}).json()
+    assert pend["commands"] == []
+    r2 = client.post("/api/v1/device/command",
+                     json={"household_id": hid, "senior_id": "e2e-senior", "target": "senior",
+                           "type": "cut_call"}).json()
+    assert r2["ok"] is False
 
 
 def test_hash_screening_allow_block_unblock():

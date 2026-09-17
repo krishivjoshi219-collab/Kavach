@@ -97,6 +97,21 @@ export async function fetchFeed(seniorId: string): Promise<Feed> {
   return (await r.json()) as Feed
 }
 
+export type DemoAttack = {
+  ok: boolean; test_mode: boolean; incident_id: number; verdict: string
+  confidence: number; reasons: string[]; alert_id: number; confirm_code: string
+}
+
+export async function postDemoAttack(seniorId: string, scenario = 'bank_otp'): Promise<DemoAttack> {
+  const r = await fetch(`${getApiBase()}/api/demo/attack`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senior_id: seniorId, scenario })
+  })
+  if (!r.ok) throw new Error(`demo ${r.status}`)
+  return (await r.json()) as DemoAttack
+}
+
 export async function fetchHealth(): Promise<{ ok: boolean; ms: number }> {
   const t0 = Date.now()
   const r = await fetch(`${getApiBase()}/healthz`, { cache: 'no-store' })

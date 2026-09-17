@@ -68,4 +68,34 @@ class LocalStore(context: Context) {
         val f = File(dir, "kv_$key.txt")
         return if (f.exists()) f.readText() else null
     }
+
+    // --- True E2E peer state: public key of the other side + epoch ---
+
+    fun putPeerPub(b64: String) = putString("peer_pub_b64", b64)
+
+    fun getPeerPub(): String? = getString("peer_pub_b64")
+
+    fun clearPeer() {
+        File(dir, "kv_peer_pub_b64.txt").delete()
+    }
+
+    fun putEpoch(e: Int) = putString("epoch", e.toString())
+
+    fun getEpoch(): Int = getString("epoch")?.toIntOrNull() ?: 0
+
+    fun putFridgeCode(code: String) = putString("fridge_code", code)
+
+    fun getFridgeCode(): String? = getString("fridge_code")
+
+    // --- Quarantine inbox: scam SMS kept encrypted-at-rest locally ---
+
+    fun quarantineAdd(senderHash: String, verdict: String, summary: String) {
+        val arr = readList("quarantine")
+        arr.put(JSONObject().put("h", senderHash).put("verdict", verdict)
+            .put("summary", summary).put("ts", System.currentTimeMillis()))
+        while (arr.length() > 200) arr.remove(0)
+        writeList("quarantine", arr)
+    }
+
+    fun quarantine(): JSONArray = readList("quarantine")
 }

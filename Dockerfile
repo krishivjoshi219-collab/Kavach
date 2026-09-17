@@ -6,7 +6,9 @@ COPY mcp_server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY agent ./agent
 COPY mcp_server ./mcp_server
+COPY mobile_api.py .
 COPY app.py .
+COPY simulator/web/public ./simulator/web/public
 USER app
 EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=5s CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:7860/healthz')"

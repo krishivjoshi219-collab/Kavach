@@ -40,6 +40,47 @@ def test_family_feed_and_board():
     assert b.status_code == 200 and "kavach-family-board" in b.text
 
 
+def test_demo_attack_creates_scam_loop():
+    r = client.post("/api/demo/attack", json={"senior_id": "demo-senior", "scenario": "bank_otp"})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["ok"] and j["test_mode"] and j["verdict"] in ("SCAM", "SUSPICIOUS")
+    assert j["incident_id"] and len(j["confirm_code"]) == 6
+    f = client.get("/api/family-feed", params={"senior_id": "demo-senior"}).json()
+    assert any(i["id"] == j["incident_id"] for i in f["incidents"])
+
+
+def test_pause_directory_challenge_billing():
+    for lang, needle in (("en", "Pause"), ("hi", "रुकें"), ("hinglish", "Ruko")):
+        r = client.get("/api/pause-card", params={"lang": lang}).json()
+        assert needle in r["card"] and r["offline"] is True
+    d = client.get("/api/directory/lookup", params={"q": "hdfc"}).json()
+    assert d["count"] >= 1 and d["entries"][0]["caller_authenticated"] is False
+    c = client.post("/api/family/challenge/create",
+                    json={"senior_id": "demo-senior", "claim_who": "Priya",
+                          "question": "Did you ask for money?"}).json()
+    assert c["ok"] and c["state"] == "pending"
+    g = client.get(f"/api/family/challenge/{c['id']}").json()
+    assert g["ok"] and g["challenge"]["state"] == "pending"
+    r2 = client.post(f"/api/family/challenge/{c['id']}/respond",
+                     json={"decision": "DENY"}).json()
+    assert r2["ok"] and r2["decision"] == "DENY" and "saved number" in r2["wording"]
+    w = client.post("/api/v1/billing/webhook",
+                    json={"event_id": "evt-test-1", "household_id": "hh_x",
+                          "event_type": "TEST", "entitlement": "pro_caregiver"}).json()
+    # hh_x may not exist in isolated DB: create a household and retry for tier path
+    if not w.get("ok"):
+        hid = client.post("/api/v1/households").json()["household_id"]
+        w = client.post("/api/v1/billing/webhook",
+                        json={"event_id": "evt-test-1b", "household_id": hid,
+                              "event_type": "TEST", "entitlement": "pro_caregiver"}).json()
+    assert w["ok"] and w["test_mode"] is True
+    w2 = client.post("/api/v1/billing/webhook",
+                     json={"event_id": "evt-test-1", "household_id": "hh_x",
+                           "event_type": "TEST", "entitlement": "pro_caregiver"}).json()
+    assert w2["ok"] and w2.get("duplicate") is True
+
+
 def test_ready_mcp_resources_live():
     # Single lifespan session: session_manager.run() allows one entry per process.
     body = {"jsonrpc": "2.0", "id": 0, "method": "initialize",

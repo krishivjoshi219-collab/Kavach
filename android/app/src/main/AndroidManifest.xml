@@ -34,6 +34,8 @@
         <activity android:name=".ui.PaywallActivity" android:exported="false" />
         <activity android:name=".ui.ScamLabActivity" android:exported="false" />
         <activity android:name=".ui.AuditActivity" android:exported="false" />
+        <activity android:name=".ui.QuarantineActivity" android:exported="false" />
+        <activity android:name=".ui.OnboardingActivity" android:exported="false" />
         <activity
             android:name=".siren.SirenActivity"
             android:exported="false"

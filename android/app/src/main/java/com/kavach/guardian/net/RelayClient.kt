@@ -55,6 +55,9 @@ class RelayClient(private val base: String) {
             .put("senior_pubkey", seniorPubB64)
             .put("senior_id", seniorId))
 
+    fun pairPeer(householdId: String): JSONObject =
+        get("/api/v1/pair/peer", mapOf("household_id" to householdId))
+
     fun pushBlob(householdId: String, sender: String, nonce: String, cipherB64: String): JSONObject =
         post("/api/v1/sync/push", JSONObject()
             .put("household_id", householdId)

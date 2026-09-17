@@ -29,7 +29,7 @@ class KavachScreeningService : CallScreeningService() {
             val response = CallResponse.Builder()
                 .setDisallowCall(true)
                 .setRejectCall(true)
-                .setSkipCallLog(false)
+                .setSkipCallLog(true)
                 .setSkipNotification(true)
                 .build()
             respondToCall(callDetails, response)

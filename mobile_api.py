@@ -15,12 +15,12 @@ router = APIRouter(prefix="/api/v1")
 
 class PairInit(BaseModel):
     household_id: str = Field(max_length=64)
-    manager_pubkey: str = Field(max_length=200)
+    manager_pubkey: str = Field(max_length=8000)
 
 
 class PairComplete(BaseModel):
     pairing_code: str = Field(max_length=16)
-    senior_pubkey: str = Field(max_length=200)
+    senior_pubkey: str = Field(max_length=8000)
     senior_id: str = Field(max_length=64, pattern=r"^[\w\-.]{1,64}$")
 
 
@@ -91,6 +91,14 @@ def api_pair_complete(body: PairComplete):
     out = mobile.complete_pairing(body.pairing_code, body.senior_pubkey, body.senior_id)
     if not out:
         return {"ok": False, "error": "bad_or_expired_code"}
+    return {"ok": True, **out}
+
+
+@router.get("/pair/peer")
+def api_pair_peer(household_id: str):
+    out = mobile.get_pair_peer(household_id[:64])
+    if not out:
+        return {"ok": False, "error": "not_paired"}
     return {"ok": True, **out}
 
 
@@ -182,6 +190,41 @@ def api_tier(body: TierIn):
     # Demo/trust mode: tier set by client after RevenueCat purchase; server verifies
     # receipts in production (documented in docs/REVENUECAT.md).
     return {"ok": mobile.set_tier(body.household_id, body.tier)}
+
+
+class WebhookIn(BaseModel):
+    event_id: str = Field(max_length=128)
+    household_id: str = Field(max_length=64)
+    event_type: str = Field(max_length=64)
+    entitlement: str = Field(default="", max_length=64)
+
+
+_router_only = True  # placeholder to keep linters quiet about router-only module
+
+
+@router.post("/billing/webhook")
+def api_billing_webhook(body: WebhookIn, request: Request):
+    """RevenueCat webhook (server authority). TEST MODE label when no secret set."""
+    import os as _os
+    secret = _os.getenv("RC_WEBHOOK_AUTH", "")
+    if secret:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {secret}":
+            return {"ok": False, "error": "unauthorized"}
+    t = body.event_type.upper()
+    if t in ("INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE"):
+        tier = "ultra" if "family" in body.entitlement.lower() or "ultra" in body.entitlement.lower() else "pro"
+    elif t in ("CANCELLATION", "EXPIRATION", "BILLING_ISSUE"):
+        tier = "free"
+    elif t == "TEST":
+        tier = "pro"
+    else:
+        return {"ok": False, "error": "unknown_event"}
+    new = mobile.record_webhook("revenuecat", body.event_id, body.household_id, tier)
+    if not new:
+        return {"ok": True, "duplicate": True, "tier": tier}
+    ok = mobile.set_tier(body.household_id, tier)
+    return {"ok": ok, "tier": tier, "test_mode": not bool(secret)}
 
 
 @router.get("/household/tier")

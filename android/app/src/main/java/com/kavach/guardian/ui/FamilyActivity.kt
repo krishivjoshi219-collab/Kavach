@@ -54,7 +54,8 @@ class FamilyActivity : AppCompatActivity() {
         root.addView(title)
 
         val sub = TextView(this).apply {
-            text = "Household: $hid\nZero-knowledge encrypted guardian relay"
+            text = "Household: $hid\nZero-knowledge E2E relay · epoch ${store.getEpoch()} · " +
+                    if ((store.getPeerPub() ?: "").isEmpty()) "peer key MISSING" else "peer key sealed ✓"
             textSize = 14f
             setTextColor(Color.parseColor("#666666"))
             gravity = Gravity.CENTER

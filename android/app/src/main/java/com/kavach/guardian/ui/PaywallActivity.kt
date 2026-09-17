@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -13,9 +14,14 @@ import com.kavach.guardian.BuildConfig
 import com.kavach.guardian.KavachApp
 import com.kavach.guardian.net.RelayClient
 import com.revenuecat.purchases.CustomerInfo
+import com.revenuecat.purchases.Offerings
+import com.revenuecat.purchases.Package
 import com.revenuecat.purchases.Purchases
 import com.revenuecat.purchases.PurchasesError
+import com.revenuecat.purchases.interfaces.MakePurchaseListener
 import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
+import com.revenuecat.purchases.interfaces.ReceiveOfferingsCallback
+import com.revenuecat.purchases.models.StoreTransaction
 
 class PaywallActivity : AppCompatActivity() {
 
@@ -153,26 +159,153 @@ class PaywallActivity : AppCompatActivity() {
             isRecommended = false
         )
 
+        val promoInput = EditText(this).apply {
+            hint = "Judge promo (TEST MODE): SHIPATON-JUDGE"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.WHITE)
+            setPadding(24, 20, 24, 20)
+        }
+        root.addView(promoInput)
+        val promoBtn = Button(this).apply {
+            text = "Apply promo / Restore purchases"
+            setOnClickListener {
+                val code = promoInput.text.toString().trim().uppercase()
+                if (code == "SHIPATON-JUDGE" || code == "SHIPATON-JUDGE-PRO") {
+                    val hid = (application as KavachApp).store.getString("household_id")
+                        ?: "demo_family_household"
+                    syncTierToBackend(hid, "pro")
+                } else {
+                    onRestoreTapped()
+                }
+            }
+        }
+        root.addView(promoBtn)
+
+        val testNote = TextView(this).apply {
+            text = if (Purchases.isConfigured) "Live store via RevenueCat." else "TEST MODE: no SDK key. Promo unlocks Pro for judges."
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(0, 16, 0, 0)
+        }
+        root.addView(testNote)
+
         setContentView(scroll)
+        fetchOfferings {}
     }
 
-    private fun activateTier(tier: String) {
-        val app = application as KavachApp
-        val hid = app.store.getString("household_id") ?: "demo_family_household"
+    private var proPackage: Package? = null
+    private var familyPackage: Package? = null
 
-        // RevenueCat test mode / production activation
-        if (Purchases.isConfigured) {
-            Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
-                override fun onReceived(customerInfo: CustomerInfo) {
-                    syncTierToBackend(hid, tier)
+    private fun activateTier(tier: String) {
+        val hid = (application as KavachApp).store.getString("household_id") ?: "demo_family_household"
+
+        // TEST MODE (no SDK key / judges without store): promo-code unlock only.
+        if (!Purchases.isConfigured) {
+            if (tier == "free") {
+                syncTierToBackend(hid, "free")
+            } else {
+                Toast.makeText(this, "TEST MODE: enter judge promo SHIPATON-JUDGE below.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        // Real flow: offerings → purchase package → entitlement check → reconcile.
+        if (tier == "free") {
+            syncTierToBackend(hid, "free")
+            return
+        }
+        val pkg = if (tier == "ultra") familyPackage ?: proPackage else proPackage
+        if (pkg == null) {
+            fetchOfferings { fetched ->
+                val p = if (tier == "ultra") familyPackage ?: proPackage else proPackage
+                if (p != null) purchasePackage(p, tier, hid)
+                else if (fetched) purchasePackage(null, tier, hid)
+                else Toast.makeText(this, "Store unavailable. Try restore or promo.", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            purchasePackage(pkg, tier, hid)
+        }
+    }
+
+    private fun fetchOfferings(done: (Boolean) -> Unit) {
+        try {
+            Purchases.sharedInstance.getOfferings(object : ReceiveOfferingsCallback {
+                override fun onReceived(offerings: Offerings) {
+                    val def = offerings.current
+                    proPackage = def?.availablePackages?.firstOrNull {
+                        it.identifier.contains("pro", true) || it.identifier.contains("monthly", true)
+                    } ?: def?.availablePackages?.firstOrNull()
+                    familyPackage = def?.availablePackages?.firstOrNull {
+                        it.identifier.contains("family", true) || it.identifier.contains("annual", true)
+                    }
+                    done(true)
                 }
+
                 override fun onError(error: PurchasesError) {
-                    syncTierToBackend(hid, tier)
+                    done(false)
                 }
             })
-        } else {
-            syncTierToBackend(hid, tier)
+        } catch (_: Exception) {
+            done(false)
         }
+    }
+
+    private fun purchasePackage(pkg: Package?, tier: String, hid: String) {
+        if (pkg == null) {
+            // Offerings missing: refresh entitlement, maybe already pro via webhook.
+            Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
+                override fun onReceived(info: CustomerInfo) {
+                    if (isShieldActive(info)) syncTierToBackend(hid, tier)
+                    else Toast.makeText(this@PaywallActivity,
+                        "No package found. Use restore or promo.", Toast.LENGTH_LONG).show()
+                }
+
+                override fun onError(error: PurchasesError) {
+                    Toast.makeText(this@PaywallActivity, "Store error: ${error.message}", Toast.LENGTH_LONG).show()
+                }
+            })
+            return
+        }
+        Purchases.sharedInstance.purchase(pkg, this, object : MakePurchaseListener {
+            override fun onCompleted(purchase: StoreTransaction, customerInfo: CustomerInfo) {
+                if (isShieldActive(customerInfo)) syncTierToBackend(hid, tier)
+                else Toast.makeText(this@PaywallActivity,
+                    "Purchase done but entitlement inactive. Tap restore.", Toast.LENGTH_LONG).show()
+            }
+
+            override fun onError(error: PurchasesError, userCancelled: Boolean) {
+                if (!userCancelled) Toast.makeText(this@PaywallActivity,
+                    "Purchase failed: ${error.message}", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+
+    private fun isShieldActive(info: CustomerInfo): Boolean {
+        return info.entitlements["shield_protection"]?.isActive == true ||
+            info.entitlements["pro_caregiver"]?.isActive == true ||
+            info.entitlements["family_fortress"]?.isActive == true
+    }
+
+    fun onRestoreTapped() {
+        val hid = (application as KavachApp).store.getString("household_id") ?: "demo_family_household"
+        if (!Purchases.isConfigured) {
+            Toast.makeText(this, "TEST MODE: nothing to restore.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        Purchases.sharedInstance.restorePurchases(object : ReceiveCustomerInfoCallback {
+            override fun onReceived(info: CustomerInfo) {
+                val tier = when {
+                    info.entitlements["family_fortress"]?.isActive == true -> "ultra"
+                    isShieldActive(info) -> "pro"
+                    else -> "free"
+                }
+                syncTierToBackend(hid, tier)
+            }
+
+            override fun onError(error: PurchasesError) {
+                Toast.makeText(this@PaywallActivity, "Restore failed: ${error.message}", Toast.LENGTH_LONG).show()
+            }
+        })
     }
 
     private fun syncTierToBackend(householdId: String, tier: String) {

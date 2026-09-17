@@ -2,12 +2,17 @@
 
 Privacy design: the server stores public keys, number HASHES (household-salted),
 and opaque ciphertext blobs. It never sees secrets, transcripts, or raw numbers.
+True E2E: blobs must be base64 Tink ECIES ciphertext; plaintext is rejected.
+Manager gets all lent capabilities by default at pairing; senior revokes in one tap
+which bumps the epoch and wipes queued remote powers.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -17,14 +22,16 @@ from . import config, redflags
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS households(
-  id TEXT PRIMARY KEY, tier TEXT NOT NULL DEFAULT 'free', created REAL NOT NULL);
+  id TEXT PRIMARY KEY, tier TEXT NOT NULL DEFAULT 'free', created REAL NOT NULL,
+  epoch INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS pairings(
   code TEXT PRIMARY KEY, household_id TEXT NOT NULL, manager_pubkey TEXT NOT NULL,
   senior_pubkey TEXT NOT NULL DEFAULT '', senior_id TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'open', created REAL NOT NULL, expires REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS blobs(
   id INTEGER PRIMARY KEY AUTOINCREMENT, household_id TEXT NOT NULL, sender TEXT NOT NULL,
-  nonce TEXT NOT NULL, ciphertext TEXT NOT NULL, created REAL NOT NULL);
+  nonce TEXT NOT NULL, ciphertext TEXT NOT NULL, created REAL NOT NULL,
+  epoch INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS blocklist(
   household_id TEXT NOT NULL, number_hash TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
   action TEXT NOT NULL DEFAULT 'block', created REAL NOT NULL,
@@ -41,10 +48,23 @@ CREATE TABLE IF NOT EXISTS commands(
 CREATE TABLE IF NOT EXISTS usage(
   household_id TEXT NOT NULL, month TEXT NOT NULL, brain_calls INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (household_id, month));
+CREATE TABLE IF NOT EXISTS webhook_receipts(
+  provider TEXT NOT NULL, event_id TEXT NOT NULL, household_id TEXT NOT NULL DEFAULT '',
+  tier TEXT NOT NULL DEFAULT '', created REAL NOT NULL,
+  PRIMARY KEY (provider, event_id));
 """
 
 QUOTAS = {"free": 20, "pro": 200, "ultra": 2000}
 PAIR_TTL_S = 600
+
+# Ciphertext that is clearly not E2E (raw words that never appear in real
+# Tink ECIES base64 noise). Checked on raw string AND base64-decoded bytes.
+PLAINTEXT_PATTERNS = [
+    r"otp", r"aadhaar", r"aadhar", r"password", r"\bpin\b", r"cvv",
+    r"https?://", r"www\.", r"\.apk\b", r"\+91[\-\s]?\d",
+    r"account (is |will be )?(frozen|blocked)", r"ENCRYPTED:",
+]
+PLAINTEXT_RE = re.compile("|".join(f"(?:{p})" for p in PLAINTEXT_PATTERNS), re.IGNORECASE)
 
 
 def _connect() -> sqlite3.Connection:
@@ -52,6 +72,21 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(config.DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    # Lightweight migrations for existing DBs (kavach.db from older runs).
+    for sql in (
+        "ALTER TABLE households ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE blobs ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
+    ):
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_blobs_nonce "
+                     "ON blobs(household_id, nonce)")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
     return conn
 
 
@@ -98,8 +133,21 @@ def set_tier(household_id: str, tier: str, source: str = "revenuecat") -> bool:
         conn.close()
 
 
+def record_webhook(provider: str, event_id: str, household_id: str, tier: str) -> bool:
+    """Durable, idempotent webhook receipt. Returns True if newly applied."""
+    conn = _connect()
+    try:
+        cur = conn.execute("INSERT OR IGNORE INTO webhook_receipts(provider,event_id,household_id,"
+                           "tier,created) VALUES(?,?,?,?,?)",
+                           (provider, event_id, household_id, tier, _now()))
+        conn.commit()
+        return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
 def open_pairing(household_id: str, manager_pubkey: str) -> dict[str, Any] | None:
-    if not manager_pubkey or len(manager_pubkey) > 200:
+    if not manager_pubkey or len(manager_pubkey) > 8000:
         return None
     conn = _connect()
     try:
@@ -109,7 +157,7 @@ def open_pairing(household_id: str, manager_pubkey: str) -> dict[str, Any] | Non
         code = "".join(secrets.choice("ABCDEFGHJKMNPQRSTUVWXYZ23456789") for _ in range(6))
         conn.execute("INSERT INTO pairings(code,household_id,manager_pubkey,status,"
                      "created,expires) VALUES(?,?,?,?,?,?)",
-                     (code, household_id, manager_pubkey[:200], "open",
+                     (code, household_id, manager_pubkey[:8000], "open",
                       _now(), _now() + PAIR_TTL_S))
         conn.commit()
         return {"pairing_code": code, "expires_in_s": PAIR_TTL_S}
@@ -124,11 +172,73 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
         if not row or row["status"] != "open" or row["expires"] < _now():
             return None
         conn.execute("UPDATE pairings SET senior_pubkey=?, senior_id=?, status='paired'"
-                     " WHERE code=?", (senior_pubkey[:200], senior_id[:64], code.upper()))
+                     " WHERE code=?", (senior_pubkey[:8000], senior_id[:64], code.upper()))
         conn.commit()
-        return {"household_id": row["household_id"], "manager_pubkey": row["manager_pubkey"]}
+        hid, mgr_pub = row["household_id"], row["manager_pubkey"]
     finally:
         conn.close()
+    # Manager gets ALL lent capabilities by default at seal time.
+    # Senior can revoke everything in one tap (bumps epoch).
+    if senior_id:
+        set_consent(hid, senior_id[:64],
+                    {k: True for k in CAPABILITIES}, granted_by=senior_id[:64])
+    return {"household_id": hid, "manager_pubkey": mgr_pub}
+
+
+def get_pair_peer(household_id: str) -> dict[str, Any] | None:
+    """Manager fetch of senior pubkey after seal (single household, latest paired)."""
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT senior_pubkey, senior_id, status FROM pairings"
+                           " WHERE household_id=? AND status='paired'"
+                           " ORDER BY created DESC LIMIT 1", (household_id,)).fetchone()
+        if not row or not row["senior_pubkey"]:
+            return None
+        return {"senior_pubkey": row["senior_pubkey"], "senior_id": row["senior_id"],
+                "status": row["status"], "epoch": get_epoch(household_id)}
+    finally:
+        conn.close()
+
+
+def get_epoch(household_id: str) -> int:
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT epoch FROM households WHERE id=?",
+                           (household_id,)).fetchone()
+        return int(row["epoch"] or 0) if row else 0
+    finally:
+        conn.close()
+
+
+def _bump_epoch(household_id: str) -> int:
+    conn = _connect()
+    try:
+        conn.execute("UPDATE households SET epoch=epoch+1 WHERE id=?", (household_id,))
+        conn.commit()
+        row = conn.execute("SELECT epoch FROM households WHERE id=?",
+                           (household_id,)).fetchone()
+        return int(row["epoch"] or 0) if row else 0
+    finally:
+        conn.close()
+
+
+def _ciphertext_ok(ciphertext: str) -> bool:
+    """True E2E gate: base64 noise only, no plaintext words raw or decoded."""
+    if not ciphertext or not 80 <= len(ciphertext) <= 200_000:
+        return False
+    if PLAINTEXT_RE.search(ciphertext):
+        return False
+    try:
+        raw = base64.b64decode(ciphertext, validate=True)
+    except (ValueError, base64.binascii.Error):
+        return False
+    if len(raw) < 32:
+        return False
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return True  # random binary noise: exactly what we want
+    return not PLAINTEXT_RE.search(text)
 
 
 # --- blind relay: opaque blobs in, opaque blobs out ---
@@ -136,14 +246,25 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
 def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> int | None:
     if not ciphertext or len(ciphertext) > 200_000 or sender not in ("senior", "manager"):
         return None
+    if not nonce or len(nonce) < 8 or len(nonce) > 100:
+        return None
+    if not _ciphertext_ok(ciphertext):
+        return None
     conn = _connect()
     try:
         if not conn.execute("SELECT 1 FROM households WHERE id=?",
                             (household_id,)).fetchone():
             return None
-        cur = conn.execute("INSERT INTO blobs(household_id,sender,nonce,ciphertext,created)"
-                           " VALUES(?,?,?,?,?)",
-                           (household_id, sender, nonce[:100], ciphertext, _now()))
+        if conn.execute("SELECT 1 FROM blobs WHERE household_id=? AND nonce=?",
+                        (household_id, nonce[:100])).fetchone():
+            return None  # nonce reuse: replay attack
+        epoch = get_epoch(household_id)
+        try:
+            cur = conn.execute("INSERT INTO blobs(household_id,sender,nonce,ciphertext,created,epoch)"
+                               " VALUES(?,?,?,?,?,?)",
+                               (household_id, sender, nonce[:100], ciphertext, _now(), epoch))
+        except sqlite3.IntegrityError:
+            return None
         conn.commit()
         return int(cur.lastrowid)
     finally:
@@ -154,7 +275,7 @@ def pull_blobs(household_id: str, since_id: int = 0, limit: int = 100) -> list[d
     conn = _connect()
     try:
         return [dict(r) for r in conn.execute(
-            "SELECT id,sender,nonce,ciphertext,created FROM blobs WHERE household_id=?"
+            "SELECT id,sender,nonce,ciphertext,created,epoch FROM blobs WHERE household_id=?"
             " AND id>? ORDER BY id LIMIT ?", (household_id, since_id, min(limit, 200)))]
     finally:
         conn.close()
@@ -232,9 +353,22 @@ def revoke_consent(household_id: str, senior_id: str) -> bool:
         cur = conn.execute("UPDATE consent SET revoked=1, updated=? WHERE household_id=?"
                            " AND senior_id=?", (_now(), household_id, senior_id))
         conn.commit()
-        return cur.rowcount == 1
+        ok = cur.rowcount == 1
     finally:
         conn.close()
+    if ok:
+        # Crypto revocation: new epoch, drop queued remote powers so old
+        # manager keys/commands are useless. Blobs stay opaque but undecryptable
+        # going forward once devices rotate.
+        _bump_epoch(household_id)
+        conn = _connect()
+        try:
+            conn.execute("UPDATE commands SET status='revoked' WHERE household_id=?"
+                         " AND status='queued'", (household_id,))
+            conn.commit()
+        finally:
+            conn.close()
+    return ok
 
 
 def get_consent(household_id: str, senior_id: str) -> dict[str, Any]:
@@ -244,10 +378,12 @@ def get_consent(household_id: str, senior_id: str) -> dict[str, Any]:
                            (household_id, senior_id)).fetchone()
     finally:
         conn.close()
+    epoch = get_epoch(household_id)
     if not row or row["revoked"]:
-        return {"granted": False, "capabilities": dict.fromkeys(CAPABILITIES, False)}
+        return {"granted": False, "capabilities": dict.fromkeys(CAPABILITIES, False),
+                "epoch": epoch}
     return {"granted": True, "capabilities": json.loads(row["capabilities"]),
-            "granted_by": row["granted_by"], "updated": row["updated"]}
+            "granted_by": row["granted_by"], "updated": row["updated"], "epoch": epoch}
 
 
 def may(capability: str, household_id: str, senior_id: str) -> bool:

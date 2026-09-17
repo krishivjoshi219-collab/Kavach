@@ -16,6 +16,7 @@ import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.kavach.guardian.BuildConfig
 import com.kavach.guardian.KavachApp
+import com.kavach.guardian.crypto.SasFingerprint
 import com.kavach.guardian.crypto.ShieldCrypto
 import com.kavach.guardian.net.RelayClient
 
@@ -88,9 +89,9 @@ class PairingActivity : AppCompatActivity() {
         }
         root.addView(codeDisplay)
 
-        // Signal-style emoji verification fingerprint
+        // Signal-style emoji verification fingerprint (derived, not hardcoded)
         val fingerprintView = TextView(this).apply {
-            text = "Shield Verification Fingerprint:\n🛡️ 🔑 🌟 🔔 🐘"
+            text = "Shield Verification Fingerprint:\n(pair after both sides seal)"
             textSize = 16f
             setTextColor(Color.parseColor("#1B5E20"))
             setBackgroundColor(Color.parseColor("#E8F5E9"))
@@ -99,9 +100,25 @@ class PairingActivity : AppCompatActivity() {
         }
         root.addView(fingerprintView)
 
-        // Fridge recovery code card
+        fun refreshFingerprint() {
+            val myPub = try { ShieldCrypto.b64e(crypto.publicKeyBytes()) } catch (_: Exception) { "" }
+            val peer = store.getPeerPub() ?: ""
+            if (myPub.isNotEmpty() && peer.isNotEmpty()) {
+                // Order-independent: sort so both sides derive the same emojis.
+                val (a, b) = if (myPub < peer) myPub to peer else peer to myPub
+                fingerprintView.text = "Shield Verification Fingerprint:\n${SasFingerprint.of(a, b)}\nBoth screens must match."
+            }
+        }
+        refreshFingerprint()
+
+        // Fridge recovery code card (random per household, stored on-device)
+        var fridge = store.getFridgeCode()
+        if (fridge.isNullOrEmpty()) {
+            fridge = SasFingerprint.fridgeCode()
+            store.putFridgeCode(fridge)
+        }
         val fridgeCard = TextView(this).apply {
-            text = "🧊 Fridge Recovery Code:\nKAVACH-FRIDGE-8492-SEAL\n(Keep a copy on the fridge in case a device is lost)"
+            text = "🧊 Fridge Recovery Code:\n$fridge\n(Keep a copy on the fridge in case a device is lost)"
             textSize = 13f
             setTextColor(Color.parseColor("#424242"))
             setBackgroundColor(Color.parseColor("#FFF3E0"))
@@ -132,7 +149,12 @@ class PairingActivity : AppCompatActivity() {
                         val code = resp.optString("pairing_code", "ERROR")
 
                         val encoder = BarcodeEncoder()
-                        val qrPayload = "kavach://pair?hid=$hid&code=$code&pk=$pubB64"
+                        // Slim QR: hash of pubkey only (full keys exchange via relay).
+                        val pkHash = try {
+                            val md = java.security.MessageDigest.getInstance("SHA-256")
+                            md.digest(pubB64.toByteArray()).joinToString("") { "%02x".format(it) }.take(12)
+                        } catch (_: Exception) { "kavach" }
+                        val qrPayload = "kavach://pair?hid=$hid&code=$code&ph=$pkHash"
                         val bitmap: Bitmap = encoder.encodeBitmap(qrPayload, BarcodeFormat.QR_CODE, 400, 400)
 
                         runOnUiThread {
@@ -189,7 +211,22 @@ class PairingActivity : AppCompatActivity() {
                                     if (returnedHid.isNotEmpty()) {
                                         store.putString("household_id", returnedHid)
                                     }
-                                    Toast.makeText(this@PairingActivity, "Shield Sealed Successfully! 🛡️", Toast.LENGTH_LONG).show()
+                                    // True E2E: senior persists manager pubkey + epoch.
+                                    val mgrPub = res.optString("manager_pubkey", "")
+                                    if (mgrPub.isNotEmpty()) {
+                                        store.putPeerPub(mgrPub)
+                                        val myPub = try { ShieldCrypto.b64e(crypto.publicKeyBytes()) } catch (_: Exception) { "" }
+                                        if (myPub.isNotEmpty()) {
+                                            val (a, b) = if (myPub < mgrPub) myPub to mgrPub else mgrPub to myPub
+                                            fingerprintView.text = "Shield Verification Fingerprint:\n${SasFingerprint.of(a, b)}\nBoth screens must match."
+                                        }
+                                    }
+                                    try {
+                                        val c = client.consent(returnedHid.ifEmpty { store.getString("household_id") ?: "" }, seniorId)
+                                        store.putEpoch(c.optInt("epoch", store.getEpoch()))
+                                    } catch (_: Exception) {
+                                    }
+                                    Toast.makeText(this@PairingActivity, "Shield Sealed Successfully! 🛡️ Manager powers granted (revocable).", Toast.LENGTH_LONG).show()
                                     finish()
                                 } else {
                                     Toast.makeText(this@PairingActivity, "Pairing failed or code expired", Toast.LENGTH_LONG).show()
@@ -211,6 +248,43 @@ class PairingActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(0, 16, 0, 16) }
         root.addView(pairSeniorBtn, btnLp)
+
+        // Manager: fetch senior key after seal so BOTH sides can encrypt.
+        val fetchPeerBtn = Button(this).apply {
+            text = "⬇ Manager: Fetch Senior Key"
+            textSize = 15f
+            setBackgroundColor(Color.parseColor("#37474F"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                Thread {
+                    try {
+                        val hid = store.getString("household_id") ?: ""
+                        val peer = client.pairPeer(hid)
+                        val ok = peer.optBoolean("ok", false)
+                        val seniorPub = peer.optString("senior_pubkey", "")
+                        runOnUiThread {
+                            if (ok && seniorPub.isNotEmpty()) {
+                                store.putPeerPub(seniorPub)
+                                store.putEpoch(peer.optInt("epoch", store.getEpoch()))
+                                val myPub = try { ShieldCrypto.b64e(crypto.publicKeyBytes()) } catch (_: Exception) { "" }
+                                if (myPub.isNotEmpty()) {
+                                    val (a, b) = if (myPub < seniorPub) myPub to seniorPub else seniorPub to myPub
+                                    fingerprintView.text = "Shield Verification Fingerprint:\n${SasFingerprint.of(a, b)}\nBoth screens must match."
+                                }
+                                Toast.makeText(this@PairingActivity, "Senior key sealed. E2E live. 🛡️", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(this@PairingActivity, "Senior hasn't sealed yet.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@PairingActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }.start()
+            }
+        }
+        root.addView(fetchPeerBtn, btnLp)
 
         setContentView(scroll)
     }
