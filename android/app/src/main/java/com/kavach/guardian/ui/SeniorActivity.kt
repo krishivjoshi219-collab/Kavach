@@ -30,20 +30,20 @@ class SeniorActivity : AppCompatActivity() {
         }
         scroll.addView(root)
 
-        // Header / Logo
+        // Header / Logo — god-tier shield console
         val header = TextView(this).apply {
             text = "🛡️ Kavach"
-            textSize = 32f
-            setTextColor(Color.parseColor("#B3541E")) // Primary brand terracotta
+            textSize = KavachTheme.TITLE_SP
+            setTextColor(KavachTheme.c(KavachTheme.ACCENT_DEEP))
             gravity = Gravity.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         root.addView(header)
 
         val subtitle = TextView(this).apply {
-            text = "Protection for you, peace for family"
-            textSize = 16f
-            setTextColor(Color.parseColor("#555555"))
+            text = "Ruko. Verify karo. Parivaar ko bulao.\nPause pressure, verify independently."
+            textSize = KavachTheme.SMALL_SP
+            setTextColor(KavachTheme.c(KavachTheme.MUTED))
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 32)
         }
@@ -51,11 +51,11 @@ class SeniorActivity : AppCompatActivity() {
 
         // Status Card
         val statusCard = TextView(this).apply {
-            text = "✅ Shield is ACTIVE\nCall screening & SMS protection running"
-            textSize = 18f
-            setTextColor(Color.parseColor("#1B5E20"))
-            setBackgroundColor(Color.parseColor("#E8F5E9"))
-            setPadding(32, 24, 32, 24)
+            text = "✅ Shield is ACTIVE\nCall screening · SMS vault · E2E sealed"
+            textSize = KavachTheme.BODY_SP
+            setTextColor(KavachTheme.c(KavachTheme.GREEN))
+            setBackgroundColor(KavachTheme.c(KavachTheme.GREEN_BG))
+            setPadding(32, 28, 32, 28)
             gravity = Gravity.CENTER
         }
         val cardLp = LinearLayout.LayoutParams(
@@ -67,10 +67,11 @@ class SeniorActivity : AppCompatActivity() {
         fun createSeniorButton(label: String, bgColor: Int, textColor: Int, onClick: () -> Unit): Button {
             return Button(this).apply {
                 text = label
-                textSize = 20f
+                textSize = KavachTheme.BTN_SP
                 setBackgroundColor(bgColor)
                 setTextColor(textColor)
-                setPadding(24, 32, 24, 32)
+                setPadding(24, 40, 24, 40)
+                isAllCaps = false
                 setOnClickListener { onClick() }
             }
         }

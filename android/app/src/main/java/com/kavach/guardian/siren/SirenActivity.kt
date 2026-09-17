@@ -57,7 +57,7 @@ class SirenActivity : AppCompatActivity() {
 
         val titleView = TextView(this).apply {
             text = "⚠️ SCAM ALERT ⚠️"
-            textSize = 28f
+            textSize = 32f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -65,8 +65,8 @@ class SirenActivity : AppCompatActivity() {
         root.addView(titleView)
 
         val warningView = TextView(this).apply {
-            text = "HANG UP NOW!\nDo NOT share OTP, PIN, or send money."
-            textSize = 22f
+            text = "RUKO! HANG UP NOW!\nOTP, PIN, paise — kuch mat do."
+            textSize = 25f
             setTextColor(Color.parseColor("#FFFF00")) // High-contrast yellow
             gravity = Gravity.CENTER
             setPadding(0, 32, 0, 32)

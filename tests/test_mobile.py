@@ -212,7 +212,16 @@ def test_checkin_and_onesignal_notifications():
 def test_threat_radar():
     radar = client.get("/api/v1/threat-radar").json()
     assert radar["ok"] is True
-    assert "regional_stats" in radar
-    assert radar["regional_stats"]["total_threats_shielded"] > 0
+    assert "household_stats" in radar
+    assert radar["household_stats"]["total_threats_shielded"] >= 0
     assert radar["zero_knowledge_enforced"] is True
+    assert "Not carrier regional data" in radar["note"]
+
+
+def test_checkin_persists():
+    hid = _household()
+    c = client.post("/api/v1/checkin",
+                    json={"household_id": hid, "senior_id": "radar-senior",
+                          "status": "safe", "note": "morning ok"}).json()
+    assert c["ok"] and c["mood"] == "ok" and c["checkin_id"] is not None
 

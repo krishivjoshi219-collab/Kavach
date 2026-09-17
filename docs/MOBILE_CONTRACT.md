@@ -45,7 +45,8 @@ Senior Device                         Kavach Blind Relay Server               Fa
 2. **Senior Scan/Input**:
    * Senior inputs 6-char code or scans QR; keys exchange via single-use endpoint `/api/v1/pair/complete`.
 3. **Fridge Recovery Code**:
-   * Generates human-readable recovery code (`KAVACH-FRIDGE-8492-SEAL`) for offline retention on the refrigerator.
+   * Generates a random human-readable recovery code per household (e.g. `KVCH-XXXX-XXXX`,
+     see `SasFingerprint.fridgeCode()`), stored on-device for offline retention on the refrigerator.
 
 ---
 

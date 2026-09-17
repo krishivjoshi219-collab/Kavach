@@ -98,12 +98,6 @@ class QuarantineActivity : AppCompatActivity() {
     private fun maskOtp(s: String): String {
         var out = s.replace(Regex("\\b\\d{4,8}\\b"), "******")
         out = out.replace(Regex("(?i)otp[^.]{0,20}\\d+"), "OTP ******")
-        voidRule(out)
         return out
-    }
-
-    private fun voidRule(s: String) {
-        // Keep RuleEngine referenced so quarantine stays on the same verdict path.
-        RuleEngine.hashNumber("vault", s.take(8))
     }
 }

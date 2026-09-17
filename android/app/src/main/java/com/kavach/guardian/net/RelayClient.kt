@@ -114,4 +114,10 @@ class RelayClient(private val base: String) {
         post("/api/v1/household/tier", JSONObject()
             .put("household_id", householdId)
             .put("tier", tier))
+
+    fun getTier(householdId: String): JSONObject =
+        get("/api/v1/household/tier", mapOf("household_id" to householdId))
+
+    fun threatRadar(householdId: String): JSONObject =
+        get("/api/v1/threat-radar", mapOf("household_id" to householdId))
 }

@@ -1,6 +1,8 @@
 """Mobile contract routes: /api/v1/* — households, pairing, relay, screen, consent."""
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -187,8 +189,9 @@ def api_brain(body: BrainIn):
 
 @router.post("/household/tier")
 def api_tier(body: TierIn):
-    # Demo/trust mode: tier set by client after RevenueCat purchase; server verifies
-    # receipts in production (documented in docs/REVENUECAT.md).
+    # Sandbox path (Next Gen test mode): client reconciles after sandbox purchase.
+    # Production path: POST /billing/webhook (Bearer-authenticated, idempotent,
+    # server is authority). See docs/REVENUECAT.md.
     return {"ok": mobile.set_tier(body.household_id, body.tier)}
 
 
@@ -199,14 +202,10 @@ class WebhookIn(BaseModel):
     entitlement: str = Field(default="", max_length=64)
 
 
-_router_only = True  # placeholder to keep linters quiet about router-only module
-
-
 @router.post("/billing/webhook")
 def api_billing_webhook(body: WebhookIn, request: Request):
     """RevenueCat webhook (server authority). TEST MODE label when no secret set."""
-    import os as _os
-    secret = _os.getenv("RC_WEBHOOK_AUTH", "")
+    secret = os.getenv("RC_WEBHOOK_AUTH", "")
     if secret:
         auth = request.headers.get("authorization", "")
         if auth != f"Bearer {secret}":
@@ -250,11 +249,19 @@ class NotificationIn(BaseModel):
 
 @router.post("/checkin")
 def api_checkin(body: CheckinIn):
+    from agent import models
+    mood = "ok" if body.status == "safe" else "needs_care"
+    try:
+        cid = models.add_checkin(body.senior_id, "mobile", body.note or body.status, mood)
+    except OSError:
+        cid = None
     return {
         "ok": True,
         "household_id": body.household_id,
         "senior_id": body.senior_id,
         "status": body.status,
+        "mood": mood,
+        "checkin_id": cid,
         "acknowledged": True
     }
 
@@ -275,16 +282,13 @@ def api_notifications_send(body: NotificationIn):
 
 @router.get("/threat-radar")
 def api_threat_radar(household_id: str = "default"):
-    _ = household_id
+    stats = mobile.community_stats(household_id[:64])
+    level = "OPTIMAL" if stats["household_blocks"] > 0 else "LEARNING"
     return {
         "ok": True,
-        "regional_stats": {
-            "bank_impersonation_24h": 14,
-            "power_cutoff_scams_24h": 6,
-            "digital_arrest_threats_24h": 3,
-            "total_threats_shielded": 842
-        },
-        "community_shield_level": "OPTIMAL",
-        "zero_knowledge_enforced": True
+        "household_stats": stats,
+        "community_shield_level": level,
+        "zero_knowledge_enforced": True,
+        "note": "Counts from this relay only (household blocklist + blobs). Not carrier regional data."
     }
 

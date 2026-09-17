@@ -30,14 +30,14 @@ Kavach is purpose-built to excel against the official judging criteria for the m
 
 ---
 
-## ⚡ Live Demos & Fast Links
+## ⚡ Live Demos & Fast Links (Next Gen: TEST MODE, no charges)
 
-* 📱 **Native Android Debug APK**: [Download via GitHub Actions Artifacts (`kavach-debug-apk`)](https://github.com/krishivjoshi219-collab/Kavach/actions/runs/35124606128)
-* 🌐 **Web Simulator & Senior Console**: `https://REPLACE.pages.dev` *(or run locally at `http://localhost:5173`)*
-* 🛒 **Stripe Caregiver Web Funnel**: `https://REPLACE.pages.dev/funnel.html` *(or `simulator/web/public/funnel.html`)*
-* 🛰️ **FastAPI Blind Relay & MCP Backend**: `https://REPLACE.hf.space` · Swagger: `/docs` · MCP: `/mcp`
-* 🎬 **2-Minute Demo Video**: `https://youtube.com/REPLACE`
-* 📦 **GitHub Repository**: [`krishivjoshi219-collab/Kavach`](https://github.com/krishivjoshi219-collab/Kavach)
+* 📱 **Native Android Debug APK**: GitHub Actions artifact `kavach-debug-apk` (CI builds on every `main` push; install via `adb install app-debug.apk`)
+* 🌐 **Web Simulator & Senior Console**: run locally `cd simulator/web && npm install && npm run build`, backend `uvicorn app:app --port 7860`, open `http://localhost:7860` (or `http://localhost:5173` in dev). Public Pages/HF URLs are added here on deploy — no placeholder links shipped.
+* 🛒 **Caregiver Quiz Funnel (test only)**: `simulator/web/public/funnel.html` → served at `/funnel.html`. Test mode: no Stripe, no card — judges unlock Pro in-app via promo `SHIPATON-JUDGE`.
+* 🛰️ **FastAPI Blind Relay & MCP Backend**: local `http://localhost:7860` · Swagger `/docs` · MCP `/mcp` (spec 2025-11-25) · `GET /readyz` proves DB + MCP + board.
+* 🎬 **2-Minute Demo Video**: public YouTube/Vimeo link added at submission (script in `DEMO.md`, <2min for Shipaton).
+* 📦 **GitHub Repository**: public + MIT (`LICENSE` visible in About) with setup/run instructions in this README.
 
 ---
 
@@ -113,7 +113,7 @@ flowchart TD
 * Uses Google Tink audited hybrid encryption ([`ShieldCrypto.kt`](file:///home/k/Prototype/android/app/src/main/java/com/kavach/guardian/crypto/ShieldCrypto.kt)): `ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM`.
 * The server acts as a blind relay: it receives only encrypted Base64 blobs. Server operators, databases, and LLMs cannot read call records, transcripts, or contacts.
 * Built-in [**`AuditActivity.kt`**](file:///home/k/Prototype/android/app/src/main/java/com/kavach/guardian/ui/AuditActivity.kt) pulls raw server storage on-device to prove to judges and families that the database holds zero plaintext.
-* **Signal-Style Pairing**: QR code ceremony accompanied by 5 verification emojis (`🛡️ 🔑 🌟 🔔 🐘`) and a printable physical fridge recovery code (`KVCH-XXXX-XXXX`).
+* **Signal-Style Pairing**: QR ceremony with safety numbers derived from both public keys (see `SasFingerprint.of()`), plus a random per-household fridge recovery code (`KVCH-XXXX-XXXX`).
 
 ---
 

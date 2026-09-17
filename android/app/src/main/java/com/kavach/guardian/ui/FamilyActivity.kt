@@ -71,7 +71,7 @@ class FamilyActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         val tierText = TextView(this).apply {
-            text = "Plan: Pro Shield ⭐ (200 cloud queries/mo)"
+            text = "Plan: checking…"
             textSize = 15f
             setTextColor(Color.parseColor("#3E2723"))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -223,12 +223,9 @@ class FamilyActivity : AppCompatActivity() {
         }
         root.addView(blockBtn, btnLp)
 
-        // Section: Community Threat Radar
+        // Section: Household Threat Radar (live relay counts, honestly labeled)
         val threatRadar = TextView(this).apply {
-            text = "📡 Community Shield Radar:\n" +
-                    "• 14 Bank Impersonation calls blocked in your region today\n" +
-                    "• 6 Fake Electricity Bill APKs quarantined\n" +
-                    "• Household Shield status: 100% Protected"
+            text = "📡 Household Shield Radar: loading…"
             textSize = 14f
             setTextColor(Color.parseColor("#0D47A1"))
             setBackgroundColor(Color.parseColor("#E3F2FD"))
@@ -239,6 +236,35 @@ class FamilyActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(0, 16, 0, 16) }
         root.addView(threatRadar, radarLp)
+
+        // Live refresh: tier + radar + consent epoch (best-effort, labeled on failure).
+        Thread {
+            try {
+                val tierRes = client.getTier(hid)
+                val tier = tierRes.optString("tier", "free")
+                val quota = tierRes.optInt("quota", 20)
+                val radar = client.threatRadar(hid)
+                val stats = radar.optJSONObject("household_stats")
+                val blocks = stats?.optInt("household_blocks", 0) ?: 0
+                val blobs = stats?.optInt("household_blobs", 0) ?: 0
+                val consent = client.consent(hid, seniorId)
+                val epoch = consent.optInt("epoch", store.getEpoch())
+                store.putEpoch(epoch)
+                runOnUiThread {
+                    val label = tier.replaceFirstChar { it.uppercase() }
+                    tierText.text = "Plan: $label Shield ($quota cloud queries/mo)"
+                    threatRadar.text = "📡 Household Shield Radar (this relay only):\n" +
+                            "• $blocks number(s) blocked for this household\n" +
+                            "• $blobs encrypted alert(s) relayed\n" +
+                            "• Consent epoch $epoch · Kill Switch respected"
+                }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    tierText.text = "Plan: Free Shield (offline)"
+                    threatRadar.text = "📡 Household Shield Radar: offline — showing on-device blocklist only."
+                }
+            }
+        }.start()
 
         // Section: Pairing
         val pairBtn = Button(this).apply {

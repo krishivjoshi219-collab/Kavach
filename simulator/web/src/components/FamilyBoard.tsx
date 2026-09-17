@@ -83,8 +83,7 @@ export default function FamilyBoard({
   return (
     <div className="family">
       {warRoom && (
-        <div className="card" style={{ borderLeft: '6px solid #b3261e', background: '#fff1f1' }}
-          role="alert" aria-live="assertive">
+        <div className="warroom" role="alert" aria-live="assertive">
           <h4>🚨 War room — latest threat needs eyes</h4>
           <p>Case #{latest.id} {latest.verdict} via {latest.channel} · {timeAgo(latest.created)}. Open proof, block the hash, check the vault.</p>
         </div>
@@ -154,7 +153,7 @@ export default function FamilyBoard({
         </div>
       </div>
       <AppEmbed seniorId={seniorId} />
-      <div className="card">
+      <div className="card vault">
         <h4>📥 Quarantine vault (E2E full text, OTP masked)</h4>
         {feed.incidents.filter(c => c.verdict === 'SCAM' || c.verdict === 'SUSPICIOUS').length === 0
           && <p>Clean — run 🔴 Simulate live attack to test.</p>}

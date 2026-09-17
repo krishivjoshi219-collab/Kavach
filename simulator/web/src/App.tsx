@@ -24,17 +24,18 @@ export default function App() {
     <div className="wrap">
       <header className="hero">
         <div className="hero-top">
-          <div className="brand">🛡️ Kavach</div>
+          <div className="brand"><span className="mark">🛡️</span> Kavach</div>
           <span className="spacer" />
           <button className="iconbtn" onClick={() => setSettings(s => !s)} aria-expanded={settings}>
             ⚙ {settings ? 'hide' : 'settings'}
           </button>
         </div>
         <p className="sub">
-          A voice guardian for seniors — scam shield, daily rhythms, and proof for the family.
+          A voice guardian for seniors — pause pressure, verify independently, bring trusted family. No call uploads. Test mode: no charges.
         </p>
         <div className="badges">
-          <span className="badge hot">Alexa+ Track</span>
+          <span className="badge hot">Next Gen</span>
+          <span className="badge test">TEST MODE</span>
           <HealthPill llmMode={llmMode} />
         </div>
       </header>
@@ -62,11 +63,11 @@ export default function App() {
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={face === 'senior'}
           className={`tab${face === 'senior' ? ' active' : ''}`} onClick={() => setFace('senior')}>
-          🧓 Senior voice<small>big, calm, spoken</small>
+          🧓 Senior shield<small>big · calm · हिंदी + English</small>
         </button>
         <button role="tab" aria-selected={face === 'family'}
           className={`tab${face === 'family' ? ' active' : ''}`} onClick={() => setFace('family')}>
-          🏠 Family board<small>cases, rhythms, proofs</small>
+          🏠 Family war-room<small>cases · vault · proof</small>
         </button>
       </div>
 

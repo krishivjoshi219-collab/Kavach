@@ -146,6 +146,21 @@ def record_webhook(provider: str, event_id: str, household_id: str, tier: str) -
         conn.close()
 
 
+def community_stats(household_id: str) -> dict[str, Any]:
+    """Honest radar: counts from THIS relay only (household blocklist + blobs).
+    Never presented as regional carrier data."""
+    conn = _connect()
+    try:
+        blocked = conn.execute("SELECT COUNT(*) AS n FROM blocklist WHERE household_id=?",
+                               (household_id,)).fetchone()["n"]
+        blobs = conn.execute("SELECT COUNT(*) AS n FROM blobs WHERE household_id=?",
+                             (household_id,)).fetchone()["n"]
+    finally:
+        conn.close()
+    return {"household_blocks": int(blocked), "household_blobs": int(blobs),
+            "total_threats_shielded": int(blocked + blobs)}
+
+
 def open_pairing(household_id: str, manager_pubkey: str) -> dict[str, Any] | None:
     if not manager_pubkey or len(manager_pubkey) > 8000:
         return None
