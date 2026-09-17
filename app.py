@@ -24,15 +24,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse as StarletteJSON
 
 import mobile_api
 from agent import config as cfg
 from agent import models
 from agent.kavach_agent import run_agent_turn
+from agent.ratelimit import limiter
 from mcp_server.server import UI_URI, mcp
 
 logging.basicConfig(level=getattr(logging, cfg.LOG_LEVEL.upper(), logging.INFO),
@@ -65,7 +64,6 @@ async def lifespan(_: FastAPI):
     _log(event="shutdown")
 
 
-limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Kavach — voice guardian for seniors", version=cfg.APP_VERSION,
               lifespan=lifespan, docs_url="/docs", redoc_url=None)
 app.state.limiter = limiter
@@ -188,11 +186,13 @@ def readyz():
 
 @app.get("/metrics")
 def metrics():
+    from agent import mobile as _mobile
     with METRICS_LOCK:
         snap = dict(METRICS)
     chats = snap["chat_total"]
     avg = int(snap["chat_latency_ms_sum"] / chats) if chats else 0
-    return {"uptime_s": int(time.time() - START_TIME), "avg_chat_latency_ms": avg, **snap}
+    return {"uptime_s": int(time.time() - START_TIME), "avg_chat_latency_ms": avg,
+            **snap, "relay": _mobile.relay_stats()}
 
 
 def _feed(senior_id: str) -> dict:

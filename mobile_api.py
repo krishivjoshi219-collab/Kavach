@@ -5,13 +5,10 @@ import os
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from agent import mobile
-from agent.config import RATE_LIMIT_PER_MIN
+from agent.ratelimit import RELAY_LIMIT, limiter
 
-limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1")
 
 
@@ -71,17 +68,17 @@ class TierIn(BaseModel):
     tier: str = Field(pattern=r"^(free|pro|ultra)$")
 
 
-def _rl():
-    return limiter.limit(f"{RATE_LIMIT_PER_MIN}/minute")
-
-
 @router.post("/households")
-def api_household():
+@limiter.limit(RELAY_LIMIT)
+def api_household(request: Request):
+    _ = request
     return {"household_id": mobile.create_household()}
 
 
 @router.post("/pair/init")
-def api_pair_init(body: PairInit):
+@limiter.limit(RELAY_LIMIT)
+def api_pair_init(body: PairInit, request: Request):
+    _ = request
     out = mobile.open_pairing(body.household_id, body.manager_pubkey)
     if not out:
         return {"ok": False, "error": "unknown_household_or_key"}
@@ -89,7 +86,9 @@ def api_pair_init(body: PairInit):
 
 
 @router.post("/pair/complete")
-def api_pair_complete(body: PairComplete):
+@limiter.limit(RELAY_LIMIT)
+def api_pair_complete(body: PairComplete, request: Request):
+    _ = request
     out = mobile.complete_pairing(body.pairing_code, body.senior_pubkey, body.senior_id)
     if not out:
         return {"ok": False, "error": "bad_or_expired_code"}
@@ -105,6 +104,7 @@ def api_pair_peer(household_id: str):
 
 
 @router.post("/sync/push")
+@limiter.limit(RELAY_LIMIT)
 def api_push(body: BlobIn, request: Request):
     _ = request
     bid = mobile.push_blob(body.household_id, body.sender, body.nonce, body.ciphertext)
@@ -124,25 +124,33 @@ def api_lookup(body: LookupIn):
 
 
 @router.post("/screen/block")
-def api_block(body: BlockIn):
+@limiter.limit(RELAY_LIMIT)
+def api_block(body: BlockIn, request: Request):
+    _ = request
     ok = mobile.block_number(body.household_id, body.number_hash.lower(),
                              body.label, body.action)
     return {"ok": ok}
 
 
 @router.post("/screen/unblock")
-def api_unblock(body: LookupIn):
+@limiter.limit(RELAY_LIMIT)
+def api_unblock(body: LookupIn, request: Request):
+    _ = request
     return {"ok": mobile.unblock_number(body.household_id, body.number_hash.lower())}
 
 
 @router.post("/consent/set")
-def api_consent_set(body: ConsentIn):
+@limiter.limit(RELAY_LIMIT)
+def api_consent_set(body: ConsentIn, request: Request):
+    _ = request
     return {"ok": mobile.set_consent(body.household_id, body.senior_id,
                                      body.capabilities, body.granted_by)}
 
 
 @router.post("/consent/revoke")
-def api_consent_revoke(household_id: str, senior_id: str):
+@limiter.limit(RELAY_LIMIT)
+def api_consent_revoke(household_id: str, senior_id: str, request: Request):
+    _ = request
     return {"ok": mobile.revoke_consent(household_id[:64], senior_id[:64])}
 
 
@@ -152,7 +160,9 @@ def api_consent_get(household_id: str, senior_id: str):
 
 
 @router.post("/device/command")
-def api_command(body: CommandIn):
+@limiter.limit(RELAY_LIMIT)
+def api_command(body: CommandIn, request: Request):
+    _ = request
     # Remote powers require live consent: cut_call needs remote_cut, etc.
     need = {"cut_call": "remote_cut", "sound_siren": "screen_calls",
             "show_message": "forward_sms"}.get(body.type, "")
@@ -174,12 +184,16 @@ def api_commands(household_id: str, target: str = "senior"):
 
 
 @router.post("/device/commands/{command_id}/ack")
-def api_ack(command_id: int):
+@limiter.limit(RELAY_LIMIT)
+def api_ack(command_id: int, request: Request):
+    _ = request
     return {"ok": mobile.ack_command(command_id)}
 
 
 @router.post("/brain/ask")
-def api_brain(body: BrainIn):
+@limiter.limit(RELAY_LIMIT)
+def api_brain(body: BrainIn, request: Request):
+    _ = request
     # Cloud brain additionally requires the household's cloud_brain consent.
     if not mobile.may("cloud_brain", body.household_id, body.senior_id):
         return {"ok": False, "error": "consent_required",
@@ -188,7 +202,9 @@ def api_brain(body: BrainIn):
 
 
 @router.post("/household/tier")
-def api_tier(body: TierIn):
+@limiter.limit(RELAY_LIMIT)
+def api_tier(body: TierIn, request: Request):
+    _ = request
     # Sandbox path (Next Gen test mode): client reconciles after sandbox purchase.
     # Production path: POST /billing/webhook (Bearer-authenticated, idempotent,
     # server is authority). See docs/REVENUECAT.md.
@@ -203,6 +219,7 @@ class WebhookIn(BaseModel):
 
 
 @router.post("/billing/webhook")
+@limiter.limit(RELAY_LIMIT)
 def api_billing_webhook(body: WebhookIn, request: Request):
     """RevenueCat webhook (server authority). TEST MODE label when no secret set."""
     secret = os.getenv("RC_WEBHOOK_AUTH", "")
@@ -248,7 +265,9 @@ class NotificationIn(BaseModel):
 
 
 @router.post("/checkin")
-def api_checkin(body: CheckinIn):
+@limiter.limit(RELAY_LIMIT)
+def api_checkin(body: CheckinIn, request: Request):
+    _ = request
     from agent import models
     mood = "ok" if body.status == "safe" else "needs_care"
     try:
@@ -267,7 +286,9 @@ def api_checkin(body: CheckinIn):
 
 
 @router.post("/notifications/send")
-def api_notifications_send(body: NotificationIn):
+@limiter.limit(RELAY_LIMIT)
+def api_notifications_send(body: NotificationIn, request: Request):
+    _ = request
     from agent import notifications
     if body.journey == "morning_checkin":
         res = notifications.send_morning_checkin(body.household_id, body.senior_id)

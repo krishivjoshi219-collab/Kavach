@@ -35,10 +35,12 @@ def test_pairing_flow_and_expiry():
     assert again["ok"] is False  # single-use codes
 
 
-def _noise(n: int = 96) -> str:
+def _noise(n: int = 96, seed: int = 0) -> str:
     import base64
-    import os
-    return base64.b64encode(os.urandom(n)).decode()
+    # Deterministic non-UTF8 bytes: always valid E2E-shaped noise, never flaky.
+    # (os.urandom can randomly spell "otp"/"kyc" in base64 and get rejected.)
+    raw = bytes(((seed * 37 + i * 11) % 251 + 2) % 256 for i in range(n))
+    return base64.b64encode(raw).decode()
 
 
 def test_blind_relay_never_sees_plaintext():
@@ -224,4 +226,26 @@ def test_checkin_persists():
                     json={"household_id": hid, "senior_id": "radar-senior",
                           "status": "safe", "note": "morning ok"}).json()
     assert c["ok"] and c["mood"] == "ok" and c["checkin_id"] is not None
+
+
+def test_relay_stats_and_blob_cap():
+    before = client.get("/metrics").json()["relay"]["push_total"]
+    hid = _household()
+    for i in range(3):
+        r = client.post("/api/v1/sync/push",
+                        json={"household_id": hid, "sender": "senior",
+                              "nonce": f"stat-nonce-{i}-xyz",
+                              "ciphertext": _noise(96, seed=100 + i)}).json()
+        assert r["ok"]
+    after = client.get("/metrics").json()["relay"]
+    assert after["push_total"] == before + 3
+    assert after["households_total"] >= 1
+    # Flood past the per-household cap via direct calls (fast, no HTTP).
+    for i in range(505):
+        mobile.push_blob(hid, "senior", f"cap-{i:04d}-zzzz", _noise(96, seed=200 + i))
+    blobs = mobile.pull_blobs(hid, 0, limit=200)
+    assert len(blobs) == 200  # capped page
+    assert mobile.community_stats(hid)["household_blobs"] == mobile.MAX_BLOBS_PER_HOUSEHOLD
+    nonces = [b["nonce"] for b in mobile.pull_blobs(hid, 0, limit=200)]
+    assert "cap-0000-zzzz" not in nonces  # oldest pruned
 

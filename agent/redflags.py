@@ -75,7 +75,9 @@ def extract_signals(text: str) -> list[dict]:
     low = text.lower()
     hits: list[dict] = []
     for code, label, pat, weight, meaning in RULES:
-        found = sorted(set(re.findall(pat, low)))
+        # finditer + group(0): full matched text even when the pattern
+        # contains groups (findall would return group tuples like ('','')).
+        found = sorted({m.group(0) for m in re.finditer(pat, low) if m.group(0)})
         if found:
             hits.append({"code": code, "label": label, "weight": weight,
                          "examples": found[:4], "meaning": meaning})

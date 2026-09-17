@@ -15,6 +15,7 @@ import os
 import re
 import secrets
 import sqlite3
+import threading
 import time
 from typing import Any
 
@@ -56,6 +57,24 @@ CREATE TABLE IF NOT EXISTS webhook_receipts(
 
 QUOTAS = {"free": 20, "pro": 200, "ultra": 2000}
 PAIR_TTL_S = 600
+#: Cap stored blobs per household (DoS hygiene: oldest pruned past the cap).
+MAX_BLOBS_PER_HOUSEHOLD = 500
+
+_RELAY_LOCK = threading.Lock()
+RELAY_STATS: dict[str, int] = {
+    "households_total": 0, "pairings_total": 0, "push_total": 0,
+    "blocks_total": 0, "commands_total": 0,
+}
+
+
+def _bump(stat: str) -> None:
+    with _RELAY_LOCK:
+        RELAY_STATS[stat] = RELAY_STATS.get(stat, 0) + 1
+
+
+def relay_stats() -> dict[str, int]:
+    with _RELAY_LOCK:
+        return dict(RELAY_STATS)
 
 # Ciphertext that is clearly not E2E (raw words that never appear in real
 # Tink ECIES base64 noise). Checked on raw string AND base64-decoded bytes.
@@ -107,6 +126,7 @@ def create_household() -> str:
         conn.execute("INSERT INTO households(id,tier,created) VALUES(?,?,?)",
                      (hid, "free", _now()))
         conn.commit()
+        _bump("households_total")
         return hid
     finally:
         conn.close()
@@ -197,6 +217,7 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
     if senior_id:
         set_consent(hid, senior_id[:64],
                     {k: True for k in CAPABILITIES}, granted_by=senior_id[:64])
+    _bump("pairings_total")
     return {"household_id": hid, "manager_pubkey": mgr_pub}
 
 
@@ -281,7 +302,13 @@ def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> in
         except sqlite3.IntegrityError:
             return None
         conn.commit()
-        return int(cur.lastrowid)
+        bid = int(cur.lastrowid)
+        conn.execute("DELETE FROM blobs WHERE household_id=? AND id NOT IN"
+                     " (SELECT id FROM blobs WHERE household_id=? ORDER BY id DESC LIMIT ?)",
+                     (household_id, household_id, MAX_BLOBS_PER_HOUSEHOLD))
+        conn.commit()
+        _bump("push_total")
+        return bid
     finally:
         conn.close()
 
@@ -313,6 +340,7 @@ def block_number(household_id: str, number_hash: str, label: str = "",
                      "action,created) VALUES(?,?,?,?,?)",
                      (household_id, number_hash, label[:120], action, _now()))
         conn.commit()
+        _bump("blocks_total")
         return True
     finally:
         conn.close()
@@ -423,6 +451,7 @@ def queue_command(household_id: str, target: str, type_: str,
                            (household_id, target, type_, payload_cipher[:5000],
                             "queued", _now()))
         conn.commit()
+        _bump("commands_total")
         return {"command_id": int(cur.lastrowid)}
     finally:
         conn.close()

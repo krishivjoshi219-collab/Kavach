@@ -1,13 +1,17 @@
-# Local production-parity stack: backend on :7860 (HF serves the same image).
+# Local production-parity stack: E2E relay on :7860 (Render serves the same image).
+# 1-click: docker compose up --build   (no .env required; all keys optional)
 services:
   api:
     build: .
     image: kavach:local
-    ports: ["7860:7860"]
-    env_file: [.env]
+    ports: ["${PORT:-7860}:7860"]
     environment:
+      PORT: "7860"
       DB_PATH: /data/kavach.db
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:7860
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      RC_WEBHOOK_AUTH: ${RC_WEBHOOK_AUTH:-}
     volumes: ["kavach-data:/data"]
     restart: unless-stopped
     healthcheck:
