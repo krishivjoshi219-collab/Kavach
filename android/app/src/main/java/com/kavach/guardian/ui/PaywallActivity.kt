@@ -16,9 +16,10 @@ import com.kavach.guardian.net.RelayClient
 import com.revenuecat.purchases.CustomerInfo
 import com.revenuecat.purchases.Offerings
 import com.revenuecat.purchases.Package
+import com.revenuecat.purchases.PurchaseParams
 import com.revenuecat.purchases.Purchases
 import com.revenuecat.purchases.PurchasesError
-import com.revenuecat.purchases.interfaces.MakePurchaseListener
+import com.revenuecat.purchases.interfaces.PurchaseCallback
 import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
 import com.revenuecat.purchases.interfaces.ReceiveOfferingsCallback
 import com.revenuecat.purchases.models.StoreTransaction
@@ -266,8 +267,9 @@ class PaywallActivity : AppCompatActivity() {
             })
             return
         }
-        Purchases.sharedInstance.purchase(pkg, this, object : MakePurchaseListener {
-            override fun onCompleted(purchase: StoreTransaction, customerInfo: CustomerInfo) {
+        val params = PurchaseParams.Builder(this, pkg).build()
+        Purchases.sharedInstance.purchase(params, object : PurchaseCallback {
+            override fun onCompleted(storeTransaction: StoreTransaction, customerInfo: CustomerInfo) {
                 if (isShieldActive(customerInfo)) syncTierToBackend(hid, tier)
                 else Toast.makeText(this@PaywallActivity,
                     "Purchase done but entitlement inactive. Tap restore.", Toast.LENGTH_LONG).show()
