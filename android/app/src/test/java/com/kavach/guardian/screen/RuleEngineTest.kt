@@ -69,6 +69,28 @@ class RuleEngineTest {
     }
 
     @Test
+    fun testPackOverlayJudgesLikeBakedIn() {
+        val pack = listOf(
+            com.kavach.guardian.net.RulePack.PackRule(
+                "OTP_ASK", "Asked for OTP", "\\botp\\b", 3, ""),
+            com.kavach.guardian.net.RulePack.PackRule(
+                "THREAT", "Threats", "froze|arrest", 3, "")
+        )
+        val v = RuleEngine.judgeWithPack("Account frozen, share OTP now", pack)
+        assertEquals("SCAM", v.verdict)
+        val clean = RuleEngine.judgeWithPack("See you at dinner", pack)
+        assertEquals("UNCERTAIN", clean.verdict)
+    }
+
+    @Test
+    fun testPackBadPatternNeverBreaksJudging() {
+        val pack = listOf(
+            com.kavach.guardian.net.RulePack.PackRule("X", "Bad", "([invalid", 9, ""))
+        val v = RuleEngine.judgeWithPack("anything at all", pack)
+        assertEquals("UNCERTAIN", v.verdict)
+    }
+
+    @Test
     fun testNumberHashingDeterministicAndSalted() {
         val hid = "test_household_123"
         val phone = "+919876543210"

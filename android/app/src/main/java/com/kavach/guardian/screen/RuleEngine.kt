@@ -79,4 +79,32 @@ object RuleEngine {
         val bytes = md.digest(("kavach|$householdId|${e164.trim()}").toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }
+
+    /** Dynamic path: judge with a fetched rule pack (regex patterns, same
+     *  thresholds). Baked-in judge() above stays the offline fallback. */
+    fun judgeWithPack(text: String, pack: List<com.kavach.guardian.net.RulePack.PackRule>,
+                      knownContact: Boolean = false): Verdict {
+        val hits = pack.mapNotNull { r ->
+            try {
+                val m = Regex(r.pattern, RegexOption.IGNORE_CASE).find(text)
+                if (m != null) Hit(r.code, r.label, r.weight, m.value.take(24)) else null
+            } catch (_: Exception) {
+                null // a bad pack pattern never breaks judging; baked-in covers
+            }
+        }
+        val score = hits.sumOf { it.weight }
+        val codes = hits.map { it.code }.toSet()
+        val reasons = hits.map { "${it.label} (e.g. “${it.example}”)" }
+        if (knownContact && score == 0) {
+            return Verdict("LIKELY_SAFE", 0.8,
+                listOf("Caller is a saved safe contact; nothing suspicious asked."))
+        }
+        if (score >= 5 || (setOf("OTP_ASK", "THREAT").intersect(codes).isNotEmpty() && score >= 4)) {
+            return Verdict("SCAM", minOf(0.95, 0.65 + 0.05 * score), reasons)
+        }
+        if (score >= 3) return Verdict("SUSPICIOUS", 0.6, reasons)
+        if (hits.isNotEmpty()) return Verdict("UNCERTAIN", 0.45, reasons)
+        return Verdict("UNCERTAIN", 0.4,
+            listOf("Not enough detail yet — one or two more answers will settle it."))
+    }
 }

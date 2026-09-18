@@ -25,7 +25,10 @@ object SmsHandler {
     fun handleSms(context: Context, sender: String, body: String, demo: Boolean = false): Result {
         val app = context.applicationContext as? KavachApp ?: return Result("ERROR", false, false)
         val store = app.store
-        val verdict = RuleEngine.judge(body)
+        // Dynamic rules first (fetched pack, verified); baked-in judge is fallback.
+        val pack = com.kavach.guardian.net.RulePack.activePack(store)?.rules
+        val verdict = if (pack.isNullOrEmpty()) RuleEngine.judge(body)
+                      else RuleEngine.judgeWithPack(body, pack)
         if (verdict.verdict != "SCAM" && verdict.verdict != "SUSPICIOUS") {
             return Result(verdict.verdict, false, false)
         }

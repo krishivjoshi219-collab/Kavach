@@ -120,4 +120,7 @@ class RelayClient(private val base: String) {
 
     fun threatRadar(householdId: String): JSONObject =
         get("/api/v1/threat-radar", mapOf("household_id" to householdId))
+
+    fun fetchPack(): JSONObject =
+        get("/api/v1/rules/pack", mapOf())
 }

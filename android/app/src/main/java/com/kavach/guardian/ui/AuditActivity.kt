@@ -69,6 +69,43 @@ class AuditActivity : AppCompatActivity() {
         ).apply { setMargins(0, 0, 0, 24) }
         root.addView(auditCard, cardLp)
 
+        val rulesCard = TextView(this).apply {
+            val pack = com.kavach.guardian.net.RulePack.activePack(store)
+            text = if (pack == null) {
+                "📜 RULES: baked-in defaults (no pack fetched yet). " +
+                    "The shield works fully offline; tap below to learn today's rules."
+            } else {
+                "📜 RULES v${pack.version} · updated " +
+                    "${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(pack.updatedAt))} · " +
+                    "signature ${if (pack.sigOk) "OK ✓" else "UNVERIFIED"} · " +
+                    "${pack.rules.size} rules active."
+            }
+            textSize = 14f
+            setTextColor(Color.parseColor("#4E342E"))
+            setBackgroundColor(Color.parseColor("#FFF3E0"))
+            setPadding(28, 24, 28, 24)
+        }
+        root.addView(rulesCard, cardLp)
+
+        val rulesBtn = Button(this).apply {
+            text = "Refresh Shield Rules"
+            textSize = 15f
+            setBackgroundColor(Color.parseColor("#6D4C41"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                rulesCard.text = "📜 Fetching today's rules…"
+                Thread {
+                    val res = com.kavach.guardian.net.RulePack.refresh(client, store)
+                    runOnUiThread {
+                        rulesCard.text = "📜 ${res.note}"
+                        android.widget.Toast.makeText(this@AuditActivity,
+                            res.note, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }.start()
+            }
+        }
+        root.addView(rulesBtn, cardLp)
+
         val rawServerView = TextView(this).apply {
             text = "Tap 'Inspect Server Database' below to inspect live server records..."
             textSize = 13f

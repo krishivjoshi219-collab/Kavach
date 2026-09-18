@@ -58,7 +58,11 @@ def build_pack() -> dict:
 
 
 def _canonical(pack: dict) -> bytes:
-    return json.dumps(pack, sort_keys=True, separators=(",", ":")).encode()
+    # ensure_ascii=False: raw UTF-8 bytes, matching the Android writer which
+    # emits strings unescaped (org.json gives raw chars). ASCII-sort + no
+    # spaces on both sides. Any change here breaks device verification.
+    return json.dumps(pack, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
 
 
 def sign_pack(pack: dict) -> str:
