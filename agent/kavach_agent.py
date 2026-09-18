@@ -17,6 +17,9 @@ from .config import (
     GROQ_API_KEY,
     GROQ_MODEL,
     MAX_INPUT_CHARS,
+    ZEN_API_KEY,
+    ZEN_BASE,
+    ZEN_MODEL,
 )
 
 DEBRIEF_HINTS = ["scam", "fraud", "strange", "something happened", "unknown number",
@@ -42,8 +45,26 @@ def sanitize(text: str) -> str:
 
 
 def _llm_narrate(system: str, user: str) -> tuple[str, str]:
-    """Returns (provider, text). Never raises; empty text means use templates."""
+    """Returns (provider, text). Never raises; empty text means use templates.
+
+    Chain: Zen (free, OpenAI-compatible) -> Gemini -> Groq -> offline stub.
+    Narration only — verdicts are decided by rules before this is ever called.
+    """
     prompt = system + "\n\nContext:\n" + user[:2500]
+    if ZEN_API_KEY:
+        try:
+            import httpx
+            r = httpx.post(f"{ZEN_BASE}/chat/completions",
+                           headers={"Authorization": f"Bearer {ZEN_API_KEY}"},
+                           json={"model": ZEN_MODEL,
+                                 "messages": [{"role": "user", "content": prompt[:4000]}],
+                                 "temperature": 0.3, "max_tokens": 400}, timeout=40)
+            r.raise_for_status()
+            txt = r.json()["choices"][0]["message"]["content"].strip()
+            if txt:
+                return "zen", txt[:1500]
+        except Exception:  # noqa: BLE001, S110 - silent failover to Gemini below
+            pass
     if GEMINI_API_KEY:
         try:
             import google.generativeai as genai
