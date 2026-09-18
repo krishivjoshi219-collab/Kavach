@@ -1,3 +1,8 @@
+"""HTTP surface tests: health, version, chat validation, family feed, pause cards.
+
+Guards the demo-day contract: every endpoint judges touch must answer
+with the right shape and never 500 on bad input.
+"""
 from fastapi.testclient import TestClient
 
 import app as appmod

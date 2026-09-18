@@ -1,3 +1,8 @@
+"""Protocol governor tests: debrief walks, check-ins, alerts, memory, injection guard.
+
+Proves the agent can never skip stages, verdicts always cite evidence,
+and hostile input cannot hijack tools or alerts.
+"""
 from agent import models, protocols, redflags
 from agent.kavach_agent import run_agent_turn
 

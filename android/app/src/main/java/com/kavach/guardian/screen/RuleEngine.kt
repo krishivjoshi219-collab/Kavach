@@ -17,7 +17,7 @@ object RuleEngine {
                 "jail", "digital arrest", "closed", "suspended"), 3),
         Rule("URGENCY", "Artificial urgency",
             listOf("immediately", "right now", "urgent", "hurry", "at once",
-                "last warning", "last chance", "today itself", "don't hang"), 2),
+                "last warning", "last chance", "today itself", "tonight", "don't hang"), 2),
         Rule("IMPERSONATION", "Claims to be bank / police / government",
             listOf("bank", "reserve bank", "rbi", "cyber cell", "crime branch", "income tax",
                 "electricity", "gas agency", "insurance"), 2),

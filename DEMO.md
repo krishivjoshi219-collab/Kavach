@@ -1,5 +1,11 @@
 # Demo Script (<3 min video) — Kavach saves Asha from a scam call
 
+Step 0 — REQUIRED before filming any "SMS never buzzes" claim: set Kavach as the
+default SMS app on the senior device (Settings → Apps → Default apps → SMS app →
+Kavach) and verify it. Without the default-SMS role, the system Messages app also
+buzzes on incoming scam SMS, so the "SMS never buzzes" claim is only valid with
+Kavach as default.
+
 Cast: senior view (left) + family board (right), voice on.
 Seeded history shows 2 past cases so memory reads on camera.
 

@@ -23,8 +23,8 @@ RULES: list[tuple[str, str, list[str], int, str]] = [
     ("URGENCY",
      "Artificial urgency — act now or else",
      (
-     r"immediately|तुरंत|right now|within \d+ (minutes|hours)|urgent|hurry|at once|"
-     r"last (warning|chance)|today itself|don't (hang|cut|disconnect)"
+      r"immediately|तुरंत|right now|within \d+ (minutes|hours)|urgent|hurry|at once|"
+      r"last (warning|chance)|today itself|tonight|don't (hang|cut|disconnect)"
      ),
      2, "Scammers rush you so you cannot think or check with family."),
     ("IMPERSONATION",

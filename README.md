@@ -80,7 +80,7 @@ Senior phone                      Blind relay (FastAPI)              Manager pho
 
 **Free for the Senior. Paid by the Adult Child who worries.**
 
-| | Free Shield $0 | Pro Caregiver $4.99/mo | Family Fortress $9.99/mo · $79/yr |
+| | Free Shield $0 | Pro Caregiver $4.99/mo | Family Fortress $11.99/mo |
 |---|---|---|---|
 | On-device rules, quarantine, Scam Lab | ✅ | ✅ | ✅ |
 | Call screening auto-reject, remote cut, dual siren | manual | ✅ | ✅ priority |
