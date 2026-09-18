@@ -15,7 +15,7 @@ android {
         versionName = "0.1.0"
         // RevenueCat public SDK key (test mode). Replace per build flavor.
         buildConfigField("String", "REVENUECAT_KEY", "\"test_REPLACE_ME\"")
-        buildConfigField("String", "KAVACH_API", "\"https://REPLACE.hf.space\"")
+        buildConfigField("String", "KAVACH_API", "\"https://kavach-19v6.onrender.com\"")
     }
 
     buildTypes {
