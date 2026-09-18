@@ -98,4 +98,46 @@ class LocalStore(context: Context) {
     }
 
     fun quarantine(): JSONArray = readList("quarantine")
+
+    // --- Community shield: cached threat-feed hashes, manager-sovereign ---
+
+    fun syncCommunity(entries: List<Triple<String, Int, String>>) {
+        val arr = JSONArray()
+        for ((h, reports, cat) in entries) {
+            arr.put(JSONObject().put("h", h).put("reports", reports)
+                .put("cat", cat).put("ts", System.currentTimeMillis()))
+        }
+        writeList("community", arr)
+    }
+
+    fun communityHashes(): Map<String, Int> {
+        val arr = readList("community")
+        val out = LinkedHashMap<String, Int>()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            out[o.optString("h")] = o.optInt("reports")
+        }
+        return out
+    }
+
+    fun communityAllowOverride(hash: String) {
+        val arr = readList("community_allow")
+        for (i in 0 until arr.length()) {
+            if (arr.getJSONObject(i).optString("h") == hash) return
+        }
+        arr.put(JSONObject().put("h", hash).put("ts", System.currentTimeMillis()))
+        writeList("community_allow", arr)
+    }
+
+    fun isCommunityAllowed(hash: String): Boolean {
+        val arr = readList("community_allow")
+        for (i in 0 until arr.length()) {
+            if (arr.getJSONObject(i).optString("h") == hash) return true
+        }
+        return false
+    }
+
+    fun clearCommunity() {
+        writeList("community", JSONArray())
+    }
 }

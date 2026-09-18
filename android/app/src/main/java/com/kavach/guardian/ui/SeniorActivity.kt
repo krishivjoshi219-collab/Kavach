@@ -64,6 +64,25 @@ class SeniorActivity : AppCompatActivity() {
         ).apply { setMargins(0, 0, 0, 32) }
         root.addView(statusCard, cardLp)
 
+        // The shield learns: silent refresh of rule packs + community shield
+        // every launch. Seniors never wait; Audit screen shows the receipts.
+        Thread {
+            try {
+                val client = com.kavach.guardian.net.RelayClient(
+                    com.kavach.guardian.BuildConfig.KAVACH_API)
+                val pack = com.kavach.guardian.net.RulePack.refresh(client, store)
+                val feed = com.kavach.guardian.net.CommunityShield.sync(client, store)
+                val packV = store.getString("rules_pack_version") ?: "built-in"
+                val line = "✅ Shield is ACTIVE\nCall screening · SMS vault · E2E sealed\n" +
+                    "📜 Rules v$packV · 🛡️ ${feed.count} community protections" +
+                    if (pack.ok && pack.version > 0 &&
+                        pack.note.startsWith("rules v")) " · just learned ✓" else ""
+                runOnUiThread { statusCard.text = line }
+            } catch (_: Exception) {
+                // Offline: baked-in + last-good rules already active. Say nothing.
+            }
+        }.start()
+
         fun createSeniorButton(label: String, bgColor: Int, textColor: Int, onClick: () -> Unit): Button {
             return Button(this).apply {
                 text = label
@@ -125,6 +144,7 @@ class SeniorActivity : AppCompatActivity() {
             val sid = store.getString("senior_id") ?: "senior_1"
             // Local crypto revocation first: drop manager key so nothing new decrypts.
             store.clearPeer()
+            store.clearCommunity()
             store.putEpoch(store.getEpoch() + 1)
             if (hid.isNotEmpty()) {
                 Thread {

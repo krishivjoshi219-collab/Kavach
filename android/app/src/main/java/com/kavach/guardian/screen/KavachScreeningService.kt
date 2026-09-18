@@ -24,8 +24,12 @@ class KavachScreeningService : CallScreeningService() {
         } else ""
 
         val isBlocked = numberHash.isNotEmpty() && (store?.isBlockedHash(numberHash) == true)
+        val communityReason = if (!isBlocked && numberHash.isNotEmpty() && store != null) {
+            com.kavach.guardian.net.CommunityShield.screenHash(store, numberHash)
+        } else null
+        val blockedReason = if (isBlocked) "household list" else communityReason
 
-        if (isBlocked) {
+        if (blockedReason != null) {
             val response = CallResponse.Builder()
                 .setDisallowCall(true)
                 .setRejectCall(true)
@@ -34,12 +38,12 @@ class KavachScreeningService : CallScreeningService() {
                 .build()
             respondToCall(callDetails, response)
 
-            store?.logIncident("BLOCKED_CALL", "call", "Blocked call from blacklisted hash: ${numberHash.take(8)}...")
+            store?.logIncident("BLOCKED_CALL", "call", "Blocked call from blacklisted hash: ${numberHash.take(8)}... ($blockedReason)")
 
             // Launch siren/alert activity
             val sirenIntent = Intent(this, SirenActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("reason", "Blocked suspicious scam caller")
+                putExtra("reason", "Blocked suspicious scam caller ($blockedReason)")
                 putExtra("caller_hash", numberHash)
             }
             startActivity(sirenIntent)

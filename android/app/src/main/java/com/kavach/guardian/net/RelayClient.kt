@@ -123,4 +123,7 @@ class RelayClient(private val base: String) {
 
     fun fetchPack(): JSONObject =
         get("/api/v1/rules/pack", mapOf())
+
+    fun fetchThreatFeed(): JSONObject =
+        get("/api/v1/threat-feed", mapOf())
 }
