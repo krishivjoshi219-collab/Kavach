@@ -23,7 +23,7 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 
 ## 🎬 Watch it save Asha in 90 seconds
 
-```
+```text
 0:00  Senior idle. Manager war-room clean. Safety Score 86.
 0:15  🔴 Simulated attack: Bank-OTP SMS lands → zero buzz → siren on BOTH phones
 0:40  Manager opens the full decrypted text (server sees only noise) → taps Block hash
@@ -31,7 +31,7 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 1:15  Audit screen: relay dump = ciphertext + hashes. Kill Switch revokes everything.
 ```
 
-*Demo video (public YouTube/Vimeo, <2 min) linked at submission — script in [`DEMO.md`](./DEMO.md). Prefer reading code? Start at [The 3 killer features](#-the-3-killer-features), then [How the E2E actually works](#-true-e2e-no-theater).*
+*Demo video (public YouTube/Vimeo, <2 min) linked at submission — script in [`DEMO.md`](./DEMO.md). Prefer reading code? Start at [The 3 killer features](#-the-3-killer-features-acts-not-chats), then [How the E2E actually works](#-true-e2e-no-theater).*
 
 ---
 
@@ -39,15 +39,15 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 
 ### K1. 🔴 Live Attack Simulator — senior sitting, spam incoming
 One tap in Scam Lab (or the web war-room) fires a Bank-OTP / Digital-Arrest / Power-APK lure through the **same production path** as a real SMS — `SmsHandler → RuleEngine → quarantine → E2E forward → dual siren`. No fake UI. End the round by asking the same number to call: the second call dies pre-ring via the learned block hash.
-*Code: `android/.../sms/SmsHandler.kt`, `ui/ScamLabActivity.kt`, `POST /api/demo/attack`.*
+*Code: [`android/.../sms/SmsHandler.kt`](./android/app/src/main/java/com/kavach/guardian/sms/SmsHandler.kt), [`android/.../ui/ScamLabActivity.kt`](./android/app/src/main/java/com/kavach/guardian/ui/ScamLabActivity.kt), `POST /api/demo/attack`.*
 
 ### K2. 📥 Quarantine Vault — the inbox scams never reach
 Scam SMS are suppressed from notifications, kept in an encrypted on-device vault with OTPs masked (`******`), E2E-forwarded to the manager **only on SCAM/SUSPICIOUS with consent**, and one-tap Block+Report teaches the whole household. Clean messages? Untouched, unbuzzed-about, unforwarded.
-*Code: `ui/QuarantineActivity.kt`, `data/LocalStore.kt`, web vault in `FamilyBoard.tsx`.*
+*Code: [`ui/QuarantineActivity.kt`](./android/app/src/main/java/com/kavach/guardian/ui/QuarantineActivity.kt), [`data/LocalStore.kt`](./android/app/src/main/java/com/kavach/guardian/data/LocalStore.kt), web vault in [`FamilyBoard.tsx`](./simulator/web/src/components/FamilyBoard.tsx).*
 
 ### K3. 🏠 Family War-Room + Safety Score — proof, not panic
 Pulsing red banner on the latest threat, evidence-chained case file (every verdict cites its red flags), SVG Safety Score that climbs with check-ins and safe weeks, quarantine mirror with masked OTPs. The manager sees **minimum necessary**: verdict + sender-hash + timestamp always, full body only on scam-like with consent.
-*Code: `simulator/web/src/components/FamilyBoard.tsx`, `GET /api/family-feed`.*
+*Code: [`simulator/web/src/components/FamilyBoard.tsx`](./simulator/web/src/components/FamilyBoard.tsx), `GET /api/family-feed`.*
 
 ### Astra-grade depth behind them
 * **Family Proof challenge** — verify the *enrolled device*, not the voice/number: `POST /api/family/challenge/create|respond`. Grandchild voice-clone dies here. Copy never claims `caller verified`.
@@ -58,7 +58,7 @@ Pulsing red banner on the latest threat, evidence-chained case file (every verdi
 
 ## 🔐 True E2E, no theater
 
-```
+```text
 Senior phone                      Blind relay (FastAPI)              Manager phone
 [Tink keypair, Keystore]          [hashes + noise ONLY]              [Tink keypair, Keystore]
   QR pair (code+pubHash) ────────▶ single-use code, 10-min expiry ──▶ fetch senior key
@@ -68,11 +68,11 @@ Senior phone                      Blind relay (FastAPI)              Manager pho
   Kill Switch ──revoke───────────▶ epoch+1, queued powers wiped ────▶ peer key dropped
 ```
 
-* Google Tink `ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM` — audited primitives, never home-rolled (`crypto/ShieldCrypto.kt`).
+* Google Tink `ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM` — audited primitives, never home-rolled ([`crypto/ShieldCrypto.kt`](./android/app/src/main/java/com/kavach/guardian/crypto/ShieldCrypto.kt)).
 * Server **rejects** plaintext (`otp/aadhaar/http` raw or decoded), short nonces, replayed nonces; blobs capped at 500/household with oldest-pruned; all relay mutations rate-limited (60/min, shared limiter — reads stay open for 8s command polls).
 * Numbers travel as `SHA-256("kavach|household|number")` — raw numbers never leave the phone.
 * Kill Switch = crypto revocation: epoch bump + peer wipe + queued commands voided. Future sharing stops (already-decrypted copies can't be un-read — the UI says exactly that).
-* Prove it yourself: `ui/AuditActivity.kt` pulls the raw relay dump on-device — noise + leak-scanner included.
+* Prove it yourself: [`ui/AuditActivity.kt`](./android/app/src/main/java/com/kavach/guardian/ui/AuditActivity.kt) pulls the raw relay dump on-device — noise + leak-scanner included.
 
 ---
 
@@ -91,7 +91,7 @@ Senior phone                      Blind relay (FastAPI)              Manager pho
 * 14-day Pro trial. Judges: promo `SHIPATON-JUDGE` (no card, TEST MODE badge on screen).
 * RevenueCat done right: offerings → `purchase(package)` → entitlement `shield_protection`/`pro_caregiver`/`family_fortress` check → server reconcile; `restorePurchases()` always; **webhook is the server authority** (`POST /api/v1/billing/webhook`, Bearer + idempotent receipts + downgrade path). Client `CustomerInfo` is UI hint only. Urgent actions, consent screens, revoke, and export are **never paywalled**.
 * Zero-marginal-cost engine: 95% of verdicts never leave the phone — paid tiers fund inference at high contribution margins. Honest math in [`docs/REVENUECAT.md`](./docs/REVENUECAT.md).
-* Acquisition: test-mode quiz funnel (`simulator/web/public/funnel.html` → `/funnel.html`) ends at QR pairing. **No Stripe, no charges** — Funnel Vision is out of scope for Next Gen; noted as roadmap.
+* Acquisition: test-mode quiz funnel ([`simulator/web/public/funnel.html`](./simulator/web/public/funnel.html) → `/funnel.html`) ends at QR pairing. **No Stripe, no charges** — Funnel Vision is out of scope for Next Gen; noted as roadmap.
 
 ---
 
@@ -137,7 +137,7 @@ Android `RuleEngineTest` (OTP-threat SCAM, safe-contact clear, salted-hash deter
 
 ## 📁 Repository map
 
-```
+```text
 Kavach/
 ├── app.py                    # FastAPI: chat, feed, demo-attack, pause, directory,
 │                             #   challenges, MCP at /mcp + /mcp/, metrics, funnel
