@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:15,000
+[A1] Elder fraud now costs families over ten billion dollars a year. Threats. Fake arrests. Stolen passwords. In Vadodara, one family decided to fight back.
+
+2
+00:00:15,000 --> 00:00:24,550
+[D1] Beta, a bank message came. They want my OTP. What do I do?
+
+3
+00:00:24,550 --> 00:00:34,390
+[K1] Ruko, Dadaji. Do nothing. Look, the phone never even buzzed. Kavach locked the scam away before you could touch it.
+
+4
+00:00:34,390 --> 00:00:50,090
+[K2] See? Every reason cited. Asked for OTP. Threatened arrest. Fake urgency. I blocked the number from my office. When they called back, the phone killed it before the first ring.
+
+5
+00:00:50,090 --> 00:01:04,060
+[K3] And it learns. Signed rules, fresh this morning, verified on the phone itself. One family's block now protects every family. Hashes only. Never phone numbers.
+
+6
+00:01:04,060 --> 00:01:13,420
+[K4] The server? It holds nothing but noise. Ciphertext and hashes. There is nothing here worth stealing.
+
+7
+00:01:13,420 --> 00:01:26,910
+[A2] Protection for dadaji. Peace for papa. Kavach, built by thirteen year old Krishiv Joshi of Vadodara. Open source. MIT licensed.
