@@ -307,6 +307,13 @@ def api_notifications_send(body: NotificationIn, request: Request):
     return res
 
 
+@router.get("/threat-feed")
+def api_threat_feed():
+    """Community shield: hashes reported by 3+ independent households. Hashes only."""
+    return {"ok": True, "threshold": mobile.COMMUNITY_THRESHOLD,
+            "entries": mobile.threat_feed()}
+
+
 @router.get("/threat-radar")
 def api_threat_radar(household_id: str = "default"):
     stats = mobile.community_stats(household_id[:64])

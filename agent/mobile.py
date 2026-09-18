@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS webhook_receipts(
   provider TEXT NOT NULL, event_id TEXT NOT NULL, household_id TEXT NOT NULL DEFAULT '',
   tier TEXT NOT NULL DEFAULT '', created REAL NOT NULL,
   PRIMARY KEY (provider, event_id));
+CREATE TABLE IF NOT EXISTS community_reports(
+  household_id TEXT NOT NULL, number_hash TEXT NOT NULL, category TEXT NOT NULL DEFAULT '',
+  created REAL NOT NULL, PRIMARY KEY (household_id, number_hash));
 """
 
 QUOTAS = {"free": 20, "pro": 200, "ultra": 2000}
@@ -330,6 +333,12 @@ def hash_number(household_id: str, e164: str) -> str:
     return hashlib.sha256((salt + e164.strip()).encode()).hexdigest()
 
 
+#: Community shield: a hash ships to all households after this many
+#: INDEPENDENT households report it. Anti-poisoning: one report per
+#: household (PRIMARY KEY), household list always wins, unblock retracts.
+COMMUNITY_THRESHOLD = 3
+
+
 def block_number(household_id: str, number_hash: str, label: str = "",
                  action: str = "block") -> bool:
     if len(number_hash) != 64 or action not in ("block", "silence", "allow"):
@@ -339,6 +348,11 @@ def block_number(household_id: str, number_hash: str, label: str = "",
         conn.execute("INSERT OR REPLACE INTO blocklist(household_id,number_hash,label,"
                      "action,created) VALUES(?,?,?,?,?)",
                      (household_id, number_hash, label[:120], action, _now()))
+        if action == "block":
+            # Community report: hash + category only. Raw numbers never exist here.
+            conn.execute("INSERT OR IGNORE INTO community_reports(household_id,"
+                         "number_hash,category,created) VALUES(?,?,?,?)",
+                         (household_id, number_hash, label[:40], _now()))
         conn.commit()
         _bump("blocks_total")
         return True
@@ -351,8 +365,28 @@ def unblock_number(household_id: str, number_hash: str) -> bool:
     try:
         cur = conn.execute("DELETE FROM blocklist WHERE household_id=? AND number_hash=?",
                            (household_id, number_hash))
+        # Sovereignty: unblocking retracts MY community report too.
+        conn.execute("DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
+                     (household_id, number_hash))
         conn.commit()
         return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
+def threat_feed(limit: int = 200) -> list[dict[str, Any]]:
+    """Hashes reported by >= THRESHOLD independent households. Hashes only."""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT number_hash, COUNT(DISTINCT household_id) AS reports,"
+            " MIN(created) AS first_seen, MAX(category) AS category"
+            " FROM community_reports GROUP BY number_hash"
+            " HAVING reports >= ? ORDER BY reports DESC LIMIT ?",
+            (COMMUNITY_THRESHOLD, max(1, min(limit, 200)))).fetchall()
+        return [{"number_hash": r["number_hash"], "reports": r["reports"],
+                 "first_seen": r["first_seen"], "category": r["category"] or "scam"}
+                for r in rows]
     finally:
         conn.close()
 
@@ -367,6 +401,13 @@ def lookup_number(household_id: str, number_hash: str) -> dict[str, Any]:
     if row:
         return {"action": row["action"], "reason": row["label"] or "household list",
                 "source": "household"}
+    feed = {f["number_hash"]: f for f in threat_feed()}
+    hit = feed.get(number_hash)
+    if hit:
+        return {"action": "block",
+                "reason": f"community shield ({hit['reports']} households)"
+                          + (f": {hit['category']}" if hit["category"] else ""),
+                "source": "community"}
     return {"action": "allow", "reason": "not on any list", "source": "none"}
 
 
