@@ -2,6 +2,7 @@ package com.kavach.guardian.sms
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.kavach.guardian.BuildConfig
 import com.kavach.guardian.KavachApp
 import com.kavach.guardian.crypto.ShieldCrypto
@@ -67,7 +68,8 @@ object SmsHandler {
                     putExtra("caller_hash", senderHash)
                 }
                 context.startActivity(siren)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("SmsHandler", "siren start failed", e)
             }
         }
         return Result(verdict.verdict, forwarded, true)

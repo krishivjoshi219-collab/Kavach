@@ -34,6 +34,42 @@ def test_legit_call_stays_safe():
     assert verdict == "LIKELY_SAFE"
 
 
+def test_shopping_does_not_fire_otp():
+    sig = redflags.extract_signals("I love shopping for groceries with mom")
+    assert "OTP_ASK" not in {s["code"] for s in sig}
+
+
+def test_upi_txn_alert_not_scam():
+    sig = redflags.extract_signals("Your UPI txn of Rs 500 is successful. UPI ref 123456.")
+    verdict, _, _ = redflags.score_verdict(sig, "Your UPI txn of Rs 500 is successful.")
+    assert verdict in ("UNCERTAIN", "LIKELY_SAFE")
+
+
+def test_upi_collect_request_still_fires():
+    sig = redflags.extract_signals("Pay safety fee over UPI collect request now")
+    assert "PAYMENT_EXTORT" in {s["code"] for s in sig}
+
+
+def test_bare_share_does_not_fire_remote_access():
+    sig = redflags.extract_signals("Please share the family photos from lunch")
+    assert "REMOTE_ACCESS" not in {s["code"] for s in sig}
+
+
+def test_power_apk_is_scam():
+    sig = redflags.extract_signals(
+        "Dear customer, your electricity power will be disconnected tonight. "
+        "Download the APK file immediately to update your KYC.")
+    verdict, _, _ = redflags.score_verdict(sig, "power apk kyc")
+    assert verdict == "SCAM"
+
+
+def test_bijli_paise_seeds_fire():
+    assert "IMPERSONATION" in {
+        s["code"] for s in redflags.extract_signals("bijli bill cut tonight")}
+    assert "PAYMENT_EXTORT" in {
+        s["code"] for s in redflags.extract_signals("send paise now")}
+
+
 def test_full_debrief_walk_reaches_scam_verdict():
     sess = "walk1"
     first = protocols.start_debrief(sess, SID)

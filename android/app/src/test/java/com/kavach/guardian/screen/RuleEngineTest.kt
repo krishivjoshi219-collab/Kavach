@@ -31,6 +31,44 @@ class RuleEngineTest {
     }
 
     @Test
+    fun testShoppingDoesNotFireOtpAsk() {
+        val codes = RuleEngine.extract("I love shopping for groceries with mom").map { it.code }
+        assertFalse(codes.contains("OTP_ASK"))
+    }
+
+    @Test
+    fun testUpiTxnAlertNotQuarantined() {
+        val verdict = RuleEngine.judge("Your UPI txn of Rs 500 is successful. UPI ref 123456.")
+        assertTrue(verdict.verdict in listOf("UNCERTAIN", "LIKELY_SAFE"))
+    }
+
+    @Test
+    fun testUpiCollectRequestStillFires() {
+        val codes = RuleEngine.extract("Pay safety fee over UPI collect request now").map { it.code }
+        assertTrue(codes.contains("PAYMENT_EXTORT"))
+    }
+
+    @Test
+    fun testPowerApkIsScam() {
+        val verdict = RuleEngine.judge(
+            "Dear customer, your electricity power will be disconnected tonight. " +
+                "Download the APK file immediately to update your KYC.")
+        assertEquals("SCAM", verdict.verdict)
+    }
+
+    @Test
+    fun testBareShareDoesNotFireRemoteAccess() {
+        val codes = RuleEngine.extract("Please share the family photos from lunch").map { it.code }
+        assertFalse(codes.contains("REMOTE_ACCESS"))
+    }
+
+    @Test
+    fun testBijliPaiseSeedsFire() {
+        assertTrue(RuleEngine.extract("bijli bill cut tonight").map { it.code }.contains("IMPERSONATION"))
+        assertTrue(RuleEngine.extract("send paise now").map { it.code }.contains("PAYMENT_EXTORT"))
+    }
+
+    @Test
     fun testNumberHashingDeterministicAndSalted() {
         val hid = "test_household_123"
         val phone = "+919876543210"

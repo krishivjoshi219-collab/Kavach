@@ -20,13 +20,13 @@ object RuleEngine {
                 "last warning", "last chance", "today itself", "tonight", "don't hang"), 2),
         Rule("IMPERSONATION", "Claims to be bank / police / government",
             listOf("bank", "reserve bank", "rbi", "cyber cell", "crime branch", "income tax",
-                "electricity", "gas agency", "insurance"), 2),
+                "electricity", "bijli", "gas agency", "insurance"), 2),
         Rule("PAYMENT_EXTORT", "Demands money",
             listOf("gift card", "google play", "voucher", "wire", "western union", "crypto",
-                "bitcoin", "usdt", "upi", "qr code", "collect request", "processing fee", "fine"), 3),
+                "bitcoin", "usdt", "upi collect", "upi request", "collect request",
+                "qr code", "processing fee", "fine", "paise"), 3),
         Rule("REMOTE_ACCESS", "Asks to install a screen-sharing app",
-            listOf("anydesk", "teamviewer", "rustdesk", "screen shar", "remote access",
-                "install", "share", "screen"), 3),
+            listOf("anydesk", "teamviewer", "rustdesk", "screen shar", "remote access"), 3),
         Rule("KYC_PRIZE", "KYC update / prize lure with a link",
             listOf("kyc", "lottery", "prize", "reward points", "lucky draw", "click",
                 "link", "whatsapp", "apk"), 2),
@@ -35,10 +35,22 @@ object RuleEngine {
                 "debit card", "credit card", "date of birth"), 2),
     )
 
+    /** Short tokens need word-boundary matching: bare contains() overmatches
+     * ("pin" in "shopping", "otp" in "photography", "link" in "linked"). */
+    private val WORD_TOKENS = setOf("otp", "pin", "upi", "kyc", "link", "apk")
+
+    private fun matches(low: String, pattern: String): Boolean {
+        return if (pattern in WORD_TOKENS) {
+            Regex("\\b${Regex.escape(pattern)}\\b").containsMatchIn(low)
+        } else {
+            low.contains(pattern)
+        }
+    }
+
     fun extract(text: String): List<Hit> {
         val low = text.lowercase()
         return RULES.mapNotNull { r ->
-            val found = r.patterns.firstOrNull { low.contains(it) }
+            val found = r.patterns.firstOrNull { matches(low, it) }
             if (found != null) Hit(r.code, r.label, r.weight, found) else null
         }
     }

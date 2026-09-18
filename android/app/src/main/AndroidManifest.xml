@@ -39,6 +39,7 @@
         <activity
             android:name=".siren.SirenActivity"
             android:exported="false"
+            android:launchMode="singleTask"
             android:showOnLockScreen="true"
             android:turnScreenOn="true" />
 

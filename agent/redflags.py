@@ -11,7 +11,7 @@ import re
 RULES: list[tuple[str, str, list[str], int, str]] = [
     ("OTP_ASK",
      "Asked for OTP / password / PIN",
-     r"otp|ओटीपी|one[- ]time|password|पासवर्ड|pin\b|पिन|cvv|expir\w* date",
+     r"\botp\b|ओटीपी|one[- ]time|password|पासवर्ड|\bpin\b|पिन|\bcvv\b|expir\w* date",
      3, "No real bank or official ever asks for your OTP or PIN. Never share it."),
     ("THREAT",
      "Threats — freeze, arrest, legal action",
@@ -31,14 +31,15 @@ RULES: list[tuple[str, str, list[str], int, str]] = [
      "Claims to be bank / police / government",
      (
      r"\bbank\b|बैंक|reserve bank|rbi|cyber ?cell|crime branch|income tax|cbi|"
-     r"electricity (board|department)|बिजली|gas agency|insurance (officer|company)"
+     r"electricity|बिजली|bijli|gas agency|insurance (officer|company)"
      ),
      2, "Anyone can *claim* to be your bank. The safe move: hang up, call the printed number."),
     ("PAYMENT_EXTORT",
      "Demands money — gift cards, wire, crypto, instant transfer",
      (
      r"gift ?card|google play|voucher|wire|western union|crypto|bitcoin|usdt|"
-     r"upi|यूपीआई|qr ?code|क्यूआर|collect request|processing fee|refundable deposit|pay .* fine|पैसा"
+     r"\bupi (collect|request)\b|\bcollect request\b|यूपीआई|qr ?code|क्यूआर|"
+     r"processing fee|refundable deposit|pay .* fine|पैसा|paise"
      ),
      3, "Officials never collect fines over gift cards, QR codes, or instant transfers."),
     ("REMOTE_ACCESS",
@@ -52,7 +53,7 @@ RULES: list[tuple[str, str, list[str], int, str]] = [
      "KYC update / prize / lottery lure with a link",
      (
      r"\bkyc\b|केवाईसी|update.*(account|pan|aadhaar)|lottery|लॉटरी|prize|इनाम|reward points|lucky draw|"
-     r"click.*link|sms.*link|whatsapp.*link|apk\b"
+     r"click.*\blink\b|sms.*\blink\b|whatsapp.*\blink\b|\bapk\b"
      ),
      2, "Links in surprise messages install theft apps. Never tap them."),
     ("ID_HARVEST",
