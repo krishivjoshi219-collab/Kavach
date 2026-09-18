@@ -6,7 +6,7 @@ import os
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
-from agent import mobile
+from agent import mobile, rulepack
 from agent.ratelimit import RELAY_LIMIT, limiter
 
 router = APIRouter(prefix="/api/v1")
@@ -241,6 +241,12 @@ def api_billing_webhook(body: WebhookIn, request: Request):
         return {"ok": True, "duplicate": True, "tier": tier}
     ok = mobile.set_tier(body.household_id, tier)
     return {"ok": ok, "tier": tier, "test_mode": not bool(secret)}
+
+
+@router.get("/rules/pack")
+def api_rules_pack():
+    """Versioned signed rule pack. Reads stay open; the app caches + verifies."""
+    return {"ok": True, **rulepack.serve_pack()}
 
 
 @router.get("/household/tier")
