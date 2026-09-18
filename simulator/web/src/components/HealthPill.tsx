@@ -32,7 +32,7 @@ export default function HealthPill({ llmMode }: { llmMode: string }) {
   }, [])
 
   const label =
-    state === 'on' ? `online${ms != null ? ` · ${ms}ms` : ''}` : state === 'off' ? 'offline' : 'checking…'
+    state === 'on' ? `online${ms !== null ? ` · ${ms}ms` : ''}` : state === 'off' ? 'offline' : 'checking…'
   return (
     <span className="health" title={ver || 'backend health'}>
       <span className={`dot ${state}`} aria-hidden />

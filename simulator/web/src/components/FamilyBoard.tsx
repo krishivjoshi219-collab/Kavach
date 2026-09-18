@@ -85,7 +85,10 @@ export default function FamilyBoard({
       {warRoom && (
         <div className="warroom" role="alert" aria-live="assertive">
           <h4>🚨 War room — latest threat needs eyes</h4>
-          <p>Case #{latest.id} {latest.verdict} via {latest.channel} · {timeAgo(latest.created)}. Open proof, block the hash, check the vault.</p>
+          <p>
+            Case #{latest.id} {latest.verdict} via {latest.channel} · {timeAgo(latest.created)}.
+            Open proof, block the hash, check the vault.
+          </p>
         </div>
       )}
       <div className="famhead">
@@ -148,7 +151,9 @@ export default function FamilyBoard({
           </div>
           <div className="card">
             <h4>Safe contacts</h4>
-            {feed.contacts.map((c, i) => <p key={i}>• {c.label} <span style={{ color: '#7a6a55' }}>({c.kind})</span></p>)}
+            {feed.contacts.map((c, i) => (
+              <p key={i}>• {c.label} <span style={{ color: '#7a6a55' }}>({c.kind})</span></p>
+            ))}
           </div>
         </div>
       </div>

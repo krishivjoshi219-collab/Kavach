@@ -102,7 +102,7 @@ async def _request_context(request: Request, call_next):
             METRICS["mcp_total"] += 1
     try:
         response = await call_next(request)
-    except Exception:
+    except Exception:  # noqa: BLE001 - middleware logging interceptor re-raises
         _log(event="middleware_error", rid=rid, path=request.url.path)
         raise
     latency = int((time.time() - t0) * 1000)
@@ -272,7 +272,8 @@ DEMO_SCENARIOS = {
                  ("Senior: phone call. Caller: HDFC bank officer. Asked: share OTP to unfreeze account. "
                   "Pressure: yes, police complaint today itself.")),
     "digital_arrest": ("call", "CBI cyber cell",
-                       ("Senior: phone call. Caller: CBI cyber cell. Asked: stay on video call, transfer to safe account. "
+                       ("Senior: phone call. Caller: CBI cyber cell. "
+                        "Asked: stay on video call, transfer to safe account. "
                         "Pressure: yes, arrest immediately, do not hang up.")),
     "power_apk": ("message", "electricity department",
                   ("Senior: SMS with APK link. Caller: electricity department. Asked: download APK to update KYC. "
@@ -408,7 +409,8 @@ const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'applicat
 body:JSON.stringify({text:document.getElementById('q').value,session_id:'demo'})});
 const j=await r.json();document.getElementById('lat').textContent=' '+(Date.now()-t0)+'ms';
 document.getElementById('out').innerHTML='<div class=card><b>Kavach says:</b> '+j.spoken+'</div>'+
-(j.cards||[]).map(c=>'<div class=card><b>'+c.title+'</b><pre>'+(c.body||'').slice(0,2000)+'</pre></div>').join('');}</script>
+(j.cards||[]).map(c=>'<div class=card><b>'+c.title+'</b><pre>'+
+(c.body||'').slice(0,2000)+'</pre></div>').join('');}</script>
 </body></html>"""
 
 

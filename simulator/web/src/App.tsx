@@ -31,7 +31,8 @@ export default function App() {
           </button>
         </div>
         <p className="sub">
-          A voice guardian for seniors — pause pressure, verify independently, bring trusted family. No call uploads. Test mode: no charges.
+          A voice guardian for seniors — pause pressure, verify independently, bring trusted family.
+          No call uploads. Test mode: no charges.
         </p>
         <div className="badges">
           <span className="badge hot">Next Gen</span>

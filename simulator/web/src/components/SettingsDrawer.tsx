@@ -48,7 +48,13 @@ export default function SettingsDrawer({
         <a href={`${base}/readyz`} target="_blank" rel="noreferrer">readyz</a>
         <a href={`${base}/metrics`} target="_blank" rel="noreferrer">metrics</a>
         <a href={`${base}/version`} target="_blank" rel="noreferrer">version</a>
-        <a href={`${base}/api/family-feed?senior_id=${encodeURIComponent(seniorId)}`} target="_blank" rel="noreferrer">family-feed</a>
+        <a
+          href={`${base}/api/family-feed?senior_id=${encodeURIComponent(seniorId)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          family-feed
+        </a>
         <a href={`${base}/apps/family-board.html`} target="_blank" rel="noreferrer">board app</a>
         <a href={mcpUrl()} target="_blank" rel="noreferrer" title="MCP endpoint (POST Streamable HTTP)">mcp</a>
         <a href={`${base}/docs`} target="_blank" rel="noreferrer">api docs</a>

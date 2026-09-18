@@ -87,7 +87,9 @@ export default function SeniorView({
           <p className="kavach-says">🛡️ {last.resp.spoken}</p>
           <div className="senior-said">🧑 {last.q}</div>
           <div className="meta">
-            {last.resp.latency_ms != null && <span>{(last.resp.latency_ms / 1000).toFixed(1)}s</span>}
+            {last.resp.latency_ms !== null && last.resp.latency_ms !== undefined && (
+              <span>{(last.resp.latency_ms / 1000).toFixed(1)}s</span>
+            )}
             <button onClick={() => speak(last.resp.spoken)}>🔊 hear again</button>
           </div>
           {code && (

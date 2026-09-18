@@ -202,8 +202,14 @@ a { color: var(--gold); }
 .drawer .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; }
 .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
 footer { margin-top: 22px; font-size: 13px; color: #a68e6c; text-align: center; }
-.meta { font-size: 13px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
-.meta button { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 6px 8px; font-size: 13px; font-weight: 800; }
+.meta {
+  font-size: 13px; color: var(--muted); display: flex; gap: 12px;
+  flex-wrap: wrap; margin-top: 10px; align-items: center;
+}
+.meta button {
+  background: none; border: 0; color: var(--accent); cursor: pointer;
+  padding: 6px 8px; font-size: 13px; font-weight: 800;
+}
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 button:focus-visible, textarea:focus-visible, input:focus-visible {
   outline: 4px solid var(--gold); outline-offset: 2px;

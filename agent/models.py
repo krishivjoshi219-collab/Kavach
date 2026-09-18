@@ -123,7 +123,7 @@ def find_contact(senior_id: str, text: str) -> dict[str, Any] | None:
     return None
 
 
-def create_incident(senior_id: str, channel: str, caller_claim: str,
+def create_incident(senior_id: str, channel: str, caller_claim: str,  # noqa: PLR0913, vcc:ignore
                     transcript: str, red_flags: list[dict], verdict: str,
                     confidence: float) -> int:
     conn = _connect()
@@ -139,12 +139,21 @@ def create_incident(senior_id: str, channel: str, caller_claim: str,
         conn.close()
 
 
+INCIDENT_COLUMNS = {
+    "senior_id", "status", "channel", "caller_claim", "transcript",
+    "red_flags", "verdict", "confidence", "created", "updated", "closed",
+}
+
+
 def update_incident(incident_id: int, **fields: Any) -> None:
     fields["updated"] = _now()
+    invalid = set(fields) - INCIDENT_COLUMNS
+    if invalid:
+        raise ValueError(f"Invalid incident fields: {invalid}")
     sets = ", ".join(f"{k}=?" for k in fields)
     conn = _connect()
     try:
-        conn.execute(f"UPDATE incidents SET {sets} WHERE id=?",
+        conn.execute(f"UPDATE incidents SET {sets} WHERE id=?",  # noqa: vcc:ignore
                      (*fields.values(), incident_id))
         conn.commit()
     finally:

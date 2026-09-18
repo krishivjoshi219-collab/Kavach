@@ -92,7 +92,8 @@ export async function postChat(text: string, sessionId: string, seniorId: string
 }
 
 export async function fetchFeed(seniorId: string): Promise<Feed> {
-  const r = await fetch(`${getApiBase()}/api/family-feed?senior_id=${encodeURIComponent(seniorId)}`, { cache: 'no-store' })
+  const url = `${getApiBase()}/api/family-feed?senior_id=${encodeURIComponent(seniorId)}`
+  const r = await fetch(url, { cache: 'no-store' })
   if (!r.ok) throw new Error(`feed ${r.status}`)
   return (await r.json()) as Feed
 }

@@ -18,6 +18,7 @@ import base64
 import json
 import os
 import random
+import secrets
 import sys
 import time
 import urllib.request
@@ -41,7 +42,7 @@ def http(method, base, path, body=None, timeout=20):
     except Exception as e:  # noqa: BLE001 - chaos harness must not die on app errors
         try:
             return e.code, json.loads(e.read().decode())
-        except Exception:
+        except (AttributeError, OSError, ValueError):  # noqa: BLE001 - parse fallback
             return "ERR", str(e)[:200]
 
 
@@ -98,9 +99,10 @@ def do_action(base, household_id, action, detail):
         return http("POST", base, "/api/v1/household/tier",
                     {"household_id": household_id, "tier": random.choice(["free", "pro", "ultra"])})
     if action == "brain":
+        mock_otp = f"{secrets.randbelow(100000):05d}"
         return http("POST", base, "/api/v1/brain/ask",
                     {"household_id": household_id, "senior_id": "demo-senior",
-                     "snippet": "caller says bank officer needs OTP " + str(random.randint(0, 99999))})
+                     "snippet": f"caller says bank officer needs OTP {mock_otp}"})
     if action == "pause":
         return http("GET", base, f"/api/pause-card?lang={random.choice(['en', 'hi', 'hinglish'])}")
     return http("GET", base, "/api/directory/lookup?q=bank&jurisdiction=IN&lang=en")
