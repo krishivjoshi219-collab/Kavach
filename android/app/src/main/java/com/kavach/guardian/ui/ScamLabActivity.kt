@@ -75,96 +75,95 @@ class ScamLabActivity : AppCompatActivity() {
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(Color.parseColor("#FAF6EC"))
+            setBackgroundColor(KavachTheme.DARK_BG)
         }
+        val pad = KavachTheme.dp(this, 20f)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(36, 40, 36, 44)
+            setPadding(pad, KavachTheme.dp(this@ScamLabActivity, 24f), pad, pad)
         }
         scroll.addView(root)
 
         val title = TextView(this).apply {
-            text = "🧪 Interactive Scam Lab"
-            textSize = 24f
-            setTextColor(Color.parseColor("#B3541E"))
+            text = "Scam Defense Lab 🧪"
+            textSize = 20f
+            setTextColor(KavachTheme.DARK_TEXT)
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 6)
+            setPadding(0, 0, 0, KavachTheme.dp(this@ScamLabActivity, 6f))
         }
         root.addView(title)
 
         val subtitle = TextView(this).apply {
             text = "Rehearse fraud scenarios safely. Test the on-device RuleEngine, silent quarantine, and E2E family alerts."
-            textSize = 14f
-            setTextColor(Color.parseColor("#666666"))
+            textSize = 13f
+            setTextColor(KavachTheme.DARK_MUTED)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 24)
+            setLineSpacing(3f, 1.2f)
+            setPadding(0, 0, 0, KavachTheme.dp(this@ScamLabActivity, 20f))
         }
         root.addView(subtitle)
 
         val resultBox = TextView(this).apply {
             text = "Select a scenario below to run live on-device analysis."
-            textSize = 14f
-            setTextColor(Color.parseColor("#333333"))
-            background = KavachTheme.rounded(this@ScamLabActivity, Color.WHITE, 14f, Color.parseColor("#E0D7C7"), 1f)
-            setPadding(28, 24, 28, 24)
-            setLineSpacing(3f, 1.15f)
+            textSize = 13f
+            setTextColor(KavachTheme.DARK_TEXT)
+            background = KavachTheme.rounded(this@ScamLabActivity, KavachTheme.DARK_SURFACE, 14f, KavachTheme.DARK_BORDER, 1f)
+            val p = KavachTheme.dp(this@ScamLabActivity, 16f)
+            setPadding(p, p, p, p)
+            setLineSpacing(3f, 1.2f)
         }
         val resultLp = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 0, 0, 20) }
+        ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@ScamLabActivity, 16f)) }
         root.addView(resultBox, resultLp)
 
         // Live attack simulation button
-        val liveAttackBtn = Button(this).apply {
-            text = "🔴 SIMULATE LIVE ATTACK (Senior Sitting + Scam Incoming)"
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            background = KavachTheme.rounded(this@ScamLabActivity, Color.parseColor("#C62828"), 12f)
-            setPadding(24, 32, 24, 32)
-            isAllCaps = false
-            setOnClickListener {
-                Thread {
-                    val r = SmsHandler.handleSms(
-                        this@ScamLabActivity,
-                        "+91-98XXX-BANK1",
-                        "Your bank account has been frozen due to suspicious activity. Immediately share your OTP or our police officer will arrest you.",
-                        demo = true)
-                    val hid = store.getString("household_id") ?: "default"
-                    val hash = RuleEngine.hashNumber(hid, "+91-98XXX-BANK1")
-                    runOnUiThread {
-                        resultBox.text = "🔴 LIVE ATTACK INTERCEPTED:\n" +
-                            "• Verdict: ${r.verdict}\n" +
-                            "• Senior Screen: 100% QUIET (SMS never buzzed)\n" +
-                            "• Quarantined: ${r.quarantined} (Stored in encrypted vault)\n" +
-                            "• E2E Forwarded: ${r.forwarded} (Alert sent to adult child)\n" +
-                            "• Sender Hash: ${hash.take(12)}… auto-learned.\n\n" +
-                            "If the scammer calls back now, the call terminates PRE-RING."
-                        resultBox.setTextColor(Color.parseColor("#C62828"))
-                        resultBox.background = KavachTheme.rounded(this@ScamLabActivity, Color.parseColor("#FFEBEE"), 14f, Color.parseColor("#EF9A9A"), 1f)
-                    }
-                }.start()
-            }
+        val liveAttackBtn = KavachTheme.button(
+            this,
+            "🔴 SIMULATE LIVE ATTACK (Senior Sitting + Scam Incoming)",
+            KavachTheme.DANGER_RED,
+            Color.WHITE,
+            12f,
+            48f
+        ) {
+            Thread {
+                val r = SmsHandler.handleSms(
+                    this@ScamLabActivity,
+                    "+91-98XXX-BANK1",
+                    "Your bank account has been frozen due to suspicious activity. Immediately share your OTP or our police officer will arrest you.",
+                    demo = true
+                )
+                val hid = store.getString("household_id") ?: "default"
+                val hash = RuleEngine.hashNumber(hid, "+91-98XXX-BANK1")
+                runOnUiThread {
+                    resultBox.text = "🔴 LIVE ATTACK INTERCEPTED:\n" +
+                        "• Verdict: ${r.verdict}\n" +
+                        "• Senior Screen: 100% QUIET (SMS never buzzed)\n" +
+                        "• Quarantined: ${r.quarantined} (Stored in encrypted vault)\n" +
+                        "• E2E Forwarded: ${r.forwarded} (Alert sent to adult child)\n" +
+                        "• Sender Hash: ${hash.take(12)}… auto-learned.\n\n" +
+                        "If the scammer calls back now, the call terminates PRE-RING."
+                    resultBox.setTextColor(KavachTheme.DANGER_RED)
+                    resultBox.background = KavachTheme.rounded(this@ScamLabActivity, KavachTheme.DANGER_RED_BG, 14f, KavachTheme.DANGER_RED, 1f)
+                }
+            }.start()
         }
         root.addView(liveAttackBtn, resultLp)
 
+        val marginBot14 = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@ScamLabActivity, 14f)) }
+
         for (scenario in scenarios) {
-            val card = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = KavachTheme.rounded(this@ScamLabActivity, Color.WHITE, 14f, Color.parseColor("#E0D7C7"), 1f)
-                setPadding(26, 22, 26, 22)
-            }
-            val cardLp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 0, 0, 14) }
+            val card = KavachTheme.card(this, isDark = true, radiusDp = 14f, paddingDp = 16)
 
             val scTitle = TextView(this).apply {
                 text = scenario.title
-                textSize = 16f
-                setTextColor(Color.parseColor("#212121"))
+                textSize = 15f
+                setTextColor(KavachTheme.DARK_TEXT)
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
             card.addView(scTitle)
@@ -172,68 +171,62 @@ class ScamLabActivity : AppCompatActivity() {
             val scCaller = TextView(this).apply {
                 text = "Simulated Sender: ${scenario.caller}"
                 textSize = 12f
-                setTextColor(Color.parseColor("#757575"))
-                setPadding(0, 4, 0, 6)
+                setTextColor(KavachTheme.DARK_MUTED)
+                setPadding(0, KavachTheme.dp(this@ScamLabActivity, 3f), 0, KavachTheme.dp(this@ScamLabActivity, 4f))
             }
             card.addView(scCaller)
 
             val scBody = TextView(this).apply {
                 text = "\"${scenario.text}\""
                 textSize = 13f
-                setTextColor(Color.parseColor("#424242"))
+                setTextColor(Color.parseColor("#CBD5E1"))
                 setTypeface(null, android.graphics.Typeface.ITALIC)
-                setPadding(0, 0, 0, 12)
+                setPadding(0, 0, 0, KavachTheme.dp(this@ScamLabActivity, 10f))
             }
             card.addView(scBody)
 
-            val runBtn = Button(this).apply {
-                text = "▶ Run Scenario Analysis"
-                textSize = 13f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setTextColor(Color.WHITE)
-                background = KavachTheme.rounded(
-                    this@ScamLabActivity,
-                    if (scenario.expectedVerdict == "SCAM") Color.parseColor("#B3541E") else Color.parseColor("#2E7D32"),
-                    10f
+            val runBtn = KavachTheme.button(
+                this,
+                "▶ Run Scenario Analysis",
+                if (scenario.expectedVerdict == "SCAM") Color.parseColor("#B45309") else KavachTheme.EMERALD_PRO,
+                if (scenario.expectedVerdict == "SCAM") Color.WHITE else Color.BLACK,
+                10f,
+                38f
+            ) {
+                val verdict = RuleEngine.judge(scenario.text, knownContact = (scenario.expectedVerdict == "LIKELY_SAFE"))
+                val hits = RuleEngine.extract(scenario.text)
+
+                store.logIncident(
+                    verdict = verdict.verdict,
+                    channel = "scam_lab",
+                    summary = "${scenario.title}: ${verdict.verdict} (${hits.size} triggers)"
                 )
-                setPadding(20, 16, 20, 16)
-                isAllCaps = false
-                setOnClickListener {
-                    val verdict = RuleEngine.judge(scenario.text, knownContact = (scenario.expectedVerdict == "LIKELY_SAFE"))
-                    val hits = RuleEngine.extract(scenario.text)
 
-                    store.logIncident(
-                        verdict = verdict.verdict,
-                        channel = "scam_lab",
-                        summary = "${scenario.title}: ${verdict.verdict} (${hits.size} triggers)"
-                    )
-
-                    val summaryText = buildString {
-                        append("VERDICT: ${verdict.verdict} (Confidence: ${(verdict.confidence * 100).toInt()}%)\n\n")
-                        append("Red Flags Identified:\n")
-                        for (hit in hits) {
-                            append("• ${hit.label} (code: ${hit.code}, weight: +${hit.weight})\n")
-                        }
-                        append("\nContext:\n${scenario.explanation}")
+                val summaryText = buildString {
+                    append("VERDICT: ${verdict.verdict} (Confidence: ${(verdict.confidence * 100).toInt()}%)\n\n")
+                    append("Red Flags Identified:\n")
+                    for (hit in hits) {
+                        append("• ${hit.label} (code: ${hit.code}, weight: +${hit.weight})\n")
                     }
-                    resultBox.text = summaryText
+                    append("\nContext:\n${scenario.explanation}")
+                }
+                resultBox.text = summaryText
 
-                    if (verdict.verdict == "SCAM") {
-                        resultBox.setTextColor(Color.parseColor("#C62828"))
-                        resultBox.background = KavachTheme.rounded(this@ScamLabActivity, Color.parseColor("#FFEBEE"), 14f, Color.parseColor("#EF9A9A"), 1f)
+                if (verdict.verdict == "SCAM") {
+                    resultBox.setTextColor(KavachTheme.DANGER_RED)
+                    resultBox.background = KavachTheme.rounded(this@ScamLabActivity, KavachTheme.DANGER_RED_BG, 14f, KavachTheme.DANGER_RED, 1f)
 
-                        val testSiren = Intent(this@ScamLabActivity, SirenActivity::class.java).apply {
-                            putExtra("reason", "[SCAM LAB TEST] ${scenario.title}")
-                        }
-                        startActivity(testSiren)
-                    } else {
-                        resultBox.setTextColor(Color.parseColor("#1B5E20"))
-                        resultBox.background = KavachTheme.rounded(this@ScamLabActivity, Color.parseColor("#E8F5E9"), 14f, Color.parseColor("#A5D6A7"), 1f)
+                    val testSiren = Intent(this@ScamLabActivity, SirenActivity::class.java).apply {
+                        putExtra("reason", "[SCAM LAB TEST] ${scenario.title}")
                     }
+                    startActivity(testSiren)
+                } else {
+                    resultBox.setTextColor(KavachTheme.EMERALD_PRO)
+                    resultBox.background = KavachTheme.rounded(this@ScamLabActivity, KavachTheme.EMERALD_PRO_BG, 14f, KavachTheme.EMERALD_PRO, 1f)
                 }
             }
             card.addView(runBtn)
-            root.addView(card, cardLp)
+            root.addView(card, marginBot14)
         }
 
         setContentView(scroll)
