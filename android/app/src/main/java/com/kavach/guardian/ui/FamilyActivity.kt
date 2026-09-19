@@ -234,7 +234,7 @@ class FamilyActivity : AppCompatActivity() {
             setPadding(0, 8, 0, 8)
         }
         val redFlags = TextView(this).apply {
-            text = "CITED RED FLAGS:\n• Asked for OTP/password\n• Artificial urgency ('FROZEN')\n• Police/government threat",
+            text = "CITED RED FLAGS:\n• Asked for OTP/password\n• Artificial urgency ('FROZEN')\n• Police/government threat"
             textSize = 12f
             setTextColor(Color.parseColor("#FFCDD2"))
             setLineSpacing(2f, 1.15f)

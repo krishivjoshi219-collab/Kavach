@@ -102,7 +102,7 @@ async def _request_context(request: Request, call_next):
             METRICS["mcp_total"] += 1
     try:
         response = await call_next(request)
-    except Exception:  # noqa: BLE001 - middleware logging interceptor re-raises
+    except Exception:
         _log(event="middleware_error", rid=rid, path=request.url.path)
         raise
     latency = int((time.time() - t0) * 1000)
