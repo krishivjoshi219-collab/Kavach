@@ -105,7 +105,7 @@ class SeniorActivity : AppCompatActivity() {
         statusCard.addView(shieldPill)
 
         val statusHeading = TextView(this).apply {
-            text = "Guarding Your Calls & Messages"
+            text = "Pre-Ring Number & SMS Shield"
             textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(KavachTheme.SENIOR_GREEN)
@@ -113,7 +113,7 @@ class SeniorActivity : AppCompatActivity() {
             setPadding(0, KavachTheme.dp(this@SeniorActivity, 10f), 0, KavachTheme.dp(this@SeniorActivity, 4f))
         }
         val statusDesc = TextView(this).apply {
-            text = "Scams and fake bank calls are quietly blocked before ringing. You don't need to do anything."
+            text = "Known scam numbers are rejected pre-ring. Suspicious SMS messages are evaluated locally on your phone."
             textSize = 14f
             setTextColor(Color.parseColor("#166534"))
             gravity = Gravity.CENTER

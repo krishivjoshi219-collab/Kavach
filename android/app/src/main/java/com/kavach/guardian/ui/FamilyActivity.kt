@@ -244,9 +244,10 @@ class FamilyActivity : AppCompatActivity() {
 
         // Technical enclave specs row
         val techSpecs = TextView(this).apply {
-            text = "• Keystore: AndroidKeystore AES-256-GCM Master Key (TEE / StrongBox)\n" +
+            text = "• Keystore: AndroidKeystore AES-256-GCM Master Key (TEE / StrongBox) encrypts keyset at rest\n" +
                    "• Cryptosystem: Google Tink ECIES (P-256 + HKDF-SHA256 + AES-128-GCM)\n" +
-                   "• Privacy Guarantee: Zero-Knowledge Relay. Server only holds encrypted ciphertext envelopes. Zero call audio or SMS text leaves parent device unencrypted."
+                   "• Call Defense: Telecom CallScreeningService matches caller numbers pre-ring (no live audio tapped due to OS sandboxing)\n" +
+                   "• Privacy: Zero-Knowledge Relay. Server holds only encrypted ciphertext envelopes."
             textSize = 12f
             setTextColor(Color.parseColor("#94A3B8"))
             setLineSpacing(2f, 1.2f)

@@ -41,8 +41,8 @@ SCENES = [
                     </div>
                     <div class="senior-card-green">
                         <div class="pill-green">SHIELD ACTIVE</div>
-                        <div class="card-title-green">Guarding Calls & Messages</div>
-                        <div class="card-desc-green">Scams and fake bank calls are quietly blocked before ringing. Zero panic.</div>
+                        <div class="card-title-green">Pre-Ring Number & SMS Shield</div>
+                        <div class="card-desc-green">Known scam numbers rejected pre-ring via CallScreeningService. Suspicious SMS evaluated locally.</div>
                     </div>
                     <div class="senior-card-amber">
                         <div class="row">
@@ -153,8 +153,8 @@ SCENES = [
                     </div>
                     <div class="senior-card-green">
                         <div class="pill-green">SHIELD ACTIVE</div>
-                        <div class="card-title-green">Guarding Your Calls & Messages</div>
-                        <div class="card-desc-green">Scams and fake bank calls are quietly blocked before ringing. You don't need to do anything.</div>
+                        <div class="card-title-green">Pre-Ring Number & SMS Shield</div>
+                        <div class="card-desc-green">Known scam numbers rejected pre-ring via CallScreeningService. Suspicious SMS evaluated locally.</div>
                     </div>
                     <div class="senior-card-amber">
                         <div class="row">
@@ -178,7 +178,7 @@ SCENES = [
             </div>
 
             <div class="caption-bar">
-                <div class="caption-text">🎙️ "We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once. For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, no false alarms."</div>
+                <div class="caption-text">🎙️ "We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once. For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, and calibrated rules to minimize false alarms."</div>
             </div>
         </div>
         """
@@ -187,7 +187,7 @@ SCENES = [
         "id": "act3_e2e",
         "audio": os.path.join(AUDIO_DIR, "act3_e2e.mp3"),
         "title": "Act 3: Extensive E2E Cryptographic Linking (Google Tink ECIES)",
-        "caption": "Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware with mutual 6-emoji SAS fingerprint.",
+        "caption": "Google Tink ECIES-P256 hybrid encryption with master keyset encrypted at rest by Android Keystore hardware.",
         "html": """
         <div class="container">
             <div class="top-nav">
@@ -214,9 +214,9 @@ SCENES = [
                         </div>
 
                         <div class="crypto-specs">
-                            <div>• <b>Keystore:</b> AndroidKeystore AES-256-GCM Master Key (TEE / StrongBox)</div>
-                            <div>• <b>Cryptosystem:</b> Google Tink ECIES (P-256 + HKDF-SHA256 + AES-128-GCM)</div>
-                            <div>• <b>Relay Guarantee:</b> Server relay holds ciphertext envelopes only. Never sees plaintext.</div>
+                            <div>• <b>Keystore Master Key:</b> AndroidKeystore AES-256-GCM (TEE / StrongBox) encrypts keyset at rest</div>
+                            <div>• <b>Cryptosystem:</b> Google Tink ECIES (P-256 + HKDF-SHA256 + AES-128-GCM) in userspace library</div>
+                            <div>• <b>Relay Guarantee:</b> Server relay holds ciphertext envelopes only. Zero access to plaintext.</div>
                         </div>
                     </div>
 
@@ -248,7 +248,7 @@ SCENES = [
             </div>
 
             <div class="caption-bar">
-                <div class="caption-text">🎙️ "On the adult child command console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes, never listening to calls or reading personal messages."</div>
+                <div class="caption-text">🎙️ "On the adult child command console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption, with its master keyset encrypted at rest by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes, never listening to calls or reading personal messages."</div>
             </div>
         </div>
         """

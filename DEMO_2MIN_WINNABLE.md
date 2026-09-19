@@ -39,7 +39,7 @@
 | Timecode | Visual Display | On-Screen Action | Spoken Voiceover Narration |
 | :--- | :--- | :--- | :--- |
 | **0:15 – 0:25** | Cut to `RoleSelectionActivity`. | Show the first-launch setup: Choose "Protected Parent" vs "Family Guardian". Tap "Protected Parent". | *"We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once."* |
-| **0:25 – 0:35** | Full screen on Left: `SeniorActivity` (Senior Sanctuary). | Tap "Ask Kavach / Something Feels Wrong" → shows 1-tap Hindi/English scam guidance. | *"For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, no false alarms."* |
+| **0:25 – 0:35** | Full screen on Left: `SeniorActivity` (Senior Sanctuary). | Tap "Ask Kavach / Something Feels Wrong" → shows 1-tap Hindi/English scam guidance. | *"For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, and calibrated rules to minimize false alarms."* |
 
 ---
 
@@ -47,7 +47,7 @@
 
 | Timecode | Visual Display | On-Screen Action | Spoken Voiceover Narration |
 | :--- | :--- | :--- | :--- |
-| **0:35 – 0:45** | Full screen on Right: `FamilyActivity`. Scroll to **"🔐 End-to-End Cryptographic Link"**. | Highlight Google Tink ECIES-P256 specs and hardware Android Keystore enclave badge. | *"On the adult child's console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware."* |
+| **0:35 – 0:45** | Full screen on Right: `FamilyActivity`. Scroll to **"🔐 End-to-End Cryptographic Link"**. | Highlight Google Tink ECIES-P256 specs and Android Keystore Master Key badge. | *"On the adult child's console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption, with its master keyset encrypted at rest by Android Keystore hardware."* |
 | **0:45 – 0:55** | Both screens show matching **SAS Verification Fingerprint**: `🛡️ ⚡ 🌊 🦅 🌲 🔑`. | Point camera / tap "Seal Shield" in `PairingActivity`. Screen flashes: `🎉 PARENT SEALED!`. | *"Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes—never listening to calls or reading personal SMS."* |
 
 ---
@@ -88,9 +88,9 @@
 > 
 > We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once.
 > 
-> For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, no false alarms.
+> For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, and calibrated rules to minimize false alarms.
 > 
-> On the adult child command console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes—never listening to calls or reading personal messages.
+> On the adult child command console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption, with its master keyset encrypted at rest by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes—never listening to calls or reading personal messages.
 > 
 > To test defense without waiting for an actual criminal, Kavach includes an on-device Scam Defense Lab. When we trigger a simulated bank attack, the local Rule Engine extracts the red flags: OTP demand, freeze threat, and urgency. The senior phone stays quiet, while an encrypted E2E alert hits the adult child's console with masked OTPs and one-tap hash blocking.
 > 
@@ -99,6 +99,21 @@
 > Adult children can remotely dispatch encrypted whisper warnings and trigger the emergency siren via our live zero-knowledge Render relay.
 > 
 > Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."*
+
+---
+
+## 🔬 Technical Realities & Architectural Integrity
+
+1. **Pre-Ring Number Screening vs. Call Audio:**
+   - Android's Telecom `CallScreeningService` (`KavachScreeningService.kt`) evaluates incoming caller numbers and caller ID metadata against salted SHA-256 blocklists before the first ring.
+   - It does **not** tap, stream, or inspect live carrier call audio due to Android OS security boundaries and privacy sandboxing.
+2. **Heuristic Rule Engine & False-Alarm Minimization:**
+   - `RuleEngine.kt` runs weighted heuristic pattern matching on-device.
+   - To minimize false alarms on routine utility notices or courier OTPs, trusted contacts are allowlisted and thresholds require multi-flag correlation (e.g. OTP + Freeze Urgency) before classifying an SMS as a high-threat scam.
+3. **Cryptographic Keystore Implementation Nuance:**
+   - Android Keystore hardware (TEE / StrongBox) generates and stores the AES-256-GCM Master Key.
+   - This Master Key encrypts the private keyset at rest via Google Tink's `AndroidKeysetManager`.
+   - The asymmetric ECIES P-256 curve calculations and HKDF/AES-GCM encryption run within Tink's userspace cryptography library.
 
 ---
 
