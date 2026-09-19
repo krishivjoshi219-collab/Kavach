@@ -1,5 +1,6 @@
-# Kavach 🛡️ — 90-Second Hackathon Winning Demo Script
-**RevenueCat Shipaton 2026 Submission Blueprint**
+# Kavach 🛡️ — 2-Minute Hackathon Winning Demo Script
+**RevenueCat Shipaton 2026 Official Submission Blueprint (<120s)**
+*(Full beat-by-beat timeline and recording guide in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md))*
 
 ---
 
