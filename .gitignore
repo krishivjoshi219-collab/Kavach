@@ -26,3 +26,5 @@ ASTRA_6_PRO_*.md
 
 # External standalone projects
 vibe code checker/
+report.json
+report.md

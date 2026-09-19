@@ -23,12 +23,13 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false">
 
-        <activity android:name=".ui.SeniorActivity" android:exported="true">
+        <activity android:name=".ui.RoleSelectionActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ui.SeniorActivity" android:exported="false" />
         <activity android:name=".ui.FamilyActivity" android:exported="false" />
         <activity android:name=".ui.PairingActivity" android:exported="false" />
         <activity android:name=".ui.PaywallActivity" android:exported="false" />

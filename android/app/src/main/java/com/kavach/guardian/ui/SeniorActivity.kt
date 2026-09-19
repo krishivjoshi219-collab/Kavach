@@ -245,19 +245,6 @@ class SeniorActivity : AppCompatActivity() {
         }
         root.addView(privacyFootnote)
 
-        // Subtle switch to Adult Child Mode
-        val switchBtn = Button(this).apply {
-            text = "Family Guardian Console (Adult Child) →"
-            textSize = 13f
-            setTextColor(KavachTheme.SENIOR_AMBER)
-            setBackgroundColor(Color.TRANSPARENT)
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(this@SeniorActivity, FamilyActivity::class.java))
-            }
-        }
-        root.addView(switchBtn)
-
         setContentView(scroll)
     }
 
@@ -266,7 +253,8 @@ class SeniorActivity : AppCompatActivity() {
             "🏦 Bank Officer asking for OTP to unfreeze account",
             "⚡ Electricity disconnection threat tonight",
             "👮 Police / Customs calling about seized parcel",
-            "🧪 Practice test in Scam Lab"
+            "🧪 Practice test in Scam Lab",
+            "⚙️ Device Settings & Re-Pairing"
         )
 
         AlertDialog.Builder(this)
@@ -289,9 +277,36 @@ class SeniorActivity : AppCompatActivity() {
                         "Stay calm. Disconnect the call and let your family know."
                     )
                     3 -> startActivity(Intent(this, ScamLabActivity::class.java))
+                    4 -> showDeviceSettingsDialog()
                 }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showDeviceSettingsDialog() {
+        val app = application as KavachApp
+        val items = arrayOf(
+            "🔗 Pair with Son / Daughter's Device",
+            "🔄 Switch Device Role (Parent / Guardian)",
+            "🛡️ Test Threat Siren"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Device Settings")
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> startActivity(Intent(this, PairingActivity::class.java))
+                    1 -> {
+                        app.store.putString("app_role", "")
+                        startActivity(Intent(this, RoleSelectionActivity::class.java))
+                        finish()
+                    }
+                    2 -> startActivity(Intent(this, com.kavach.guardian.siren.SirenActivity::class.java).apply {
+                        putExtra("reason", "Safety Siren Rehearsal")
+                    })
+                }
+            }
+            .setNegativeButton("Back", null)
             .show()
     }
 

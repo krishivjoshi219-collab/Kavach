@@ -56,7 +56,9 @@ export default function FamilyBoard({
     setDemoMsg('')
     try {
       const r = await postDemoAttack(seniorId, 'bank_otp')
-      setDemoMsg(`🔴 LIVE ATTACK: case #${r.incident_id} ${r.verdict} — code ${r.confirm_code}. Screen stays quiet; E2E alert sent to war room.`)
+      const msg = `🔴 LIVE ATTACK: case #${r.incident_id} ${r.verdict} — code ${r.confirm_code}. ` +
+        'Screen stays quiet; E2E alert sent to war room.'
+      setDemoMsg(msg)
       await load()
       setOpen(r.incident_id)
     } catch (e) {
@@ -121,12 +123,20 @@ export default function FamilyBoard({
           </button>
         </div>
         <p style={{ margin: '8px 0 4px 0', fontSize: 13, color: '#e0e0e0' }}>
-          <b>Household Protection Plan:</b> Covers Mom & Dad's devices with on-device quarantine, instant dual-siren alert, and daily signed threat updates.
+          <b>Household Protection Plan:</b> Covers Mom & Dad's devices with on-device quarantine,
+          instant dual-siren alert, and daily signed threat updates.
         </p>
       </div>
 
       {actionNotice && (
-        <div style={{ background: '#e8f5e9', color: '#1b5e20', padding: '8px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
+        <div style={{
+          background: '#e8f5e9',
+          color: '#1b5e20',
+          padding: '8px 14px',
+          borderRadius: 8,
+          marginBottom: 14,
+          fontSize: 13
+        }}>
           {actionNotice}
         </div>
       )}
@@ -197,7 +207,9 @@ export default function FamilyBoard({
                   ))}
                   <li style={{ marginTop: 6 }}>
                     <button className="mini" style={{ background: '#c62828', color: '#fff' }} onClick={() => {
-                      setActionNotice(`Blocked sender hash for case #${c.id}. Household devices will kill calls pre-ring.`)
+                      setActionNotice(
+                        `Blocked sender hash for case #${c.id}. Household devices will kill calls pre-ring.`
+                      )
                     }}>
                       🛡️ Block hash for household
                     </button>
@@ -212,13 +224,19 @@ export default function FamilyBoard({
           <div className="card">
             <h4>Remote Safety Actions (Consent-Gated)</h4>
             <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-              <button className="mini" onClick={() => setActionNotice('💬 Safety whisper sent to parent screen: "Do not share OTP. Checking caller."')}>
+              <button className="mini" onClick={() => {
+                setActionNotice('💬 Safety whisper sent to parent screen: "Do not share OTP. Checking caller."')
+              }}>
                 💬 Whisper Alert to Dad's Screen
               </button>
-              <button className="mini" onClick={() => setActionNotice('🔐 Dispatched 6-letter Family Proof Challenge to parent phone. Kills AI voice clones.')}>
+              <button className="mini" onClick={() => {
+                setActionNotice('🔐 Dispatched 6-letter Family Proof Challenge to parent phone. Kills AI voice clones.')
+              }}>
                 🔐 Send Anti-Clone Device Challenge
               </button>
-              <button className="mini" style={{ color: '#c62828' }} onClick={() => setActionNotice('🚨 Emergency Siren triggered on parent phone to interrupt scammer pressure.')}>
+              <button className="mini" style={{ color: '#c62828' }} onClick={() => {
+                setActionNotice('🚨 Emergency Siren triggered on parent phone to interrupt scammer pressure.')
+              }}>
                 🚨 Sound Remote Siren
               </button>
             </div>

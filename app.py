@@ -23,9 +23,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from mcp.server.fastmcp.server import StreamableHTTPASGIApp
 from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import JSONResponse as StarletteJSON
+from starlette.routing import Route
 
 import mobile_api
 from agent import config as cfg
@@ -127,8 +129,6 @@ app.add_middleware(
 # Real MCP over Streamable HTTP at /mcp AND /mcp/ (spec 2025-11-25).
 _mcp_init_app = mcp.streamable_http_app()  # creates mcp.session_manager
 del _mcp_init_app
-from mcp.server.fastmcp.server import StreamableHTTPASGIApp
-from starlette.routing import Route
 
 _mcp_asgi = StreamableHTTPASGIApp(mcp.session_manager)
 app.router.routes.append(Route("/mcp", endpoint=_mcp_asgi, methods=["GET", "POST", "DELETE"]))
