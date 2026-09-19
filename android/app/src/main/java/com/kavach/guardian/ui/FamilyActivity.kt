@@ -29,6 +29,9 @@ class FamilyActivity : AppCompatActivity() {
 
     private lateinit var client: RelayClient
     private lateinit var crypto: ShieldCrypto
+    private lateinit var cryptoBadge: TextView
+    private lateinit var epochText: TextView
+    private lateinit var sasEmojis: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -174,13 +177,13 @@ class FamilyActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val cryptoBadge = KavachTheme.badge(
+        cryptoBadge = KavachTheme.badge(
             this,
             if (isEnclavePaired) "🟢 ECIES P-256 SESSION ACTIVE" else "🟢 ENCLAVE SEALED (READY)",
             if (isEnclavePaired) KavachTheme.EMERALD_PRO else KavachTheme.GOLD_VIP,
             if (isEnclavePaired) KavachTheme.EMERALD_PRO_BG else KavachTheme.GOLD_VIP_BG
         )
-        val epochText = TextView(this).apply {
+        epochText = TextView(this).apply {
             val epoch = store.getEpoch()
             text = "Channel Epoch #$epoch • Forward Secrecy"
             textSize = 11f
@@ -222,7 +225,7 @@ class FamilyActivity : AppCompatActivity() {
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#64748B"))
         }
-        val sasEmojis = TextView(this).apply {
+        sasEmojis = TextView(this).apply {
             text = sasCode
             textSize = 22f
             gravity = Gravity.CENTER
@@ -470,5 +473,35 @@ class FamilyActivity : AppCompatActivity() {
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun refreshCryptoState() {
+        val app = application as KavachApp
+        val store = app.store
+        val peerPub = store.getPeerPub() ?: ""
+        val isEnclavePaired = peerPub.isNotEmpty()
+
+        cryptoBadge.text = if (isEnclavePaired) "🟢 ECIES P-256 SESSION ACTIVE" else "🟢 ENCLAVE SEALED (READY)"
+        cryptoBadge.setTextColor(if (isEnclavePaired) KavachTheme.EMERALD_PRO else KavachTheme.GOLD_VIP)
+        cryptoBadge.background = KavachTheme.rounded(this, if (isEnclavePaired) KavachTheme.EMERALD_PRO_BG else KavachTheme.GOLD_VIP_BG, 12f)
+
+        val epoch = store.getEpoch()
+        epochText.text = "Channel Epoch #$epoch • Forward Secrecy"
+
+        val myPub = try { ShieldCrypto.b64e(crypto.publicKeyBytes()) } catch (_: Exception) { "" }
+        val sasCode = if (myPub.isNotEmpty() && peerPub.isNotEmpty()) {
+            val (a, b) = if (myPub < peerPub) myPub to peerPub else peerPub to myPub
+            SasFingerprint.of(a, b)
+        } else {
+            "🛡️ ⚡ 🌊 🦅 🌲 🔑"
+        }
+        sasEmojis.text = sasCode
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::cryptoBadge.isInitialized && ::epochText.isInitialized && ::sasEmojis.isInitialized) {
+            refreshCryptoState()
+        }
     }
 }
