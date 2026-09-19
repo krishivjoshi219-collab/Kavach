@@ -20,6 +20,9 @@ android/local.properties
 *.apk
 *.aab
 
+# Media & Videos (Uploaded to YouTube)
+*.mp4
+
 # Local logs
 opencode_conversation.txt
 ASTRA_6_PRO_*.md
