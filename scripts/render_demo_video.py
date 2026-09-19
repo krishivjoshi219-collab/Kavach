@@ -11,7 +11,7 @@ import glob
 
 OUTPUT_DIR = "/tmp/kavach_render"
 ASSETS_DIR = "/home/k/Prototype/Kavach/assets"
-AUDIO_DIR = "/tmp/kavach_audio_fast"
+AUDIO_DIR = "/tmp/kavach_audio_real"
 FINAL_VIDEO = os.path.join(ASSETS_DIR, "kavach-demo-2min.mp4")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -256,43 +256,64 @@ SCENES = [
     {
         "id": "act4_attack",
         "audio": os.path.join(AUDIO_DIR, "act4_attack.mp3"),
-        "title": "Act 4: Live Attack & Pre-Ring Firewall Defense",
-        "caption": "Dad's phone never buzzes. Daughter decrypts threat on-device and blocks hash. Scammer call dies pre-ring.",
+        "title": "Act 4: On-Device Scam Lab & Threat Quarantine",
+        "caption": "To test defense without waiting for an actual criminal, Kavach includes an on-device Scam Defense Lab.",
         "html": """
         <div class="container">
             <div class="top-nav">
                 <div class="logo">🛡️ Kavach</div>
-                <div class="badge-alert">LIVE SCAM INTERCEPT SIMULATION</div>
-                <div class="badge-active">PRE-RING CALL FIREWALL ACTIVE</div>
+                <div class="badge-alert">ON-DEVICE SCAM DEFENSE LAB</div>
+                <div class="badge-active">REAL RULE ENGINE HEURISTICS</div>
             </div>
             
             <div class="split-view">
-                <!-- Left Phone: Dad's Phone Silenced -->
-                <div class="phone-frame senior-phone" style="background: #1C1917; border-color: #44403C;">
-                    <div class="phone-notch" style="background: #292524;"></div>
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 75%; text-align: center; padding: 20px;">
-                        <div style="font-size: 64px;">🌙</div>
-                        <div style="font-size: 22px; font-weight: bold; color: white; margin-top: 14px;">Dad's Phone Stays Silent</div>
-                        <div style="font-size: 14px; color: #A8A29E; margin-top: 8px; line-height: 1.4;">Fake Bank SMS intercepted by on-device RuleEngine pre-notification.<br><br><b>ZERO BUZZ • ZERO PANIC</b></div>
-                        <div style="background: #292524; color: #86EFAC; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-top: 24px;">
-                            🛡️ Threat Quarantined to Vault
+                <!-- Left Phone: ScamLabActivity -->
+                <div class="phone-frame guardian-phone" style="width: 480px; padding: 20px;">
+                    <div class="phone-notch dark-notch"></div>
+                    <div style="text-align: center; margin-bottom: 12px;">
+                        <div style="font-size: 18px; font-weight: 800; color: white;">Scam Defense Lab 🧪</div>
+                        <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;">On-Device RuleEngine & Threat Quarantine</div>
+                    </div>
+
+                    <div style="background: #7F1D1D; border: 1.5px solid #EF4444; border-radius: 12px; padding: 12px; text-align: center; font-size: 12px; font-weight: 800; color: white; margin-bottom: 12px;">
+                        🔴 SIMULATE LIVE ATTACK
+                    </div>
+
+                    <div style="background: #1C1917; border: 1px solid #EF4444; border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 800; color: #EF4444;">🔴 LIVE ATTACK INTERCEPTED:</div>
+                        <div style="font-size: 11px; color: #E2E8F0; margin-top: 6px; line-height: 1.5;">
+                            • <b>Verdict:</b> SCAM (Confidence: 95%)<br>
+                            • <b>Senior Screen:</b> 100% QUIET (SMS never buzzed)<br>
+                            • <b>Quarantined:</b> Stored in encrypted vault<br>
+                            • <b>E2E Forwarded:</b> Sealed alert sent to guardian<br>
+                            • <b>Sender Hash:</b> <code>sha256(hid+num)</code> auto-learned
                         </div>
+                    </div>
+
+                    <div style="font-size: 10px; font-weight: bold; color: #64748B; margin-bottom: 6px;">BUILT-IN TEST VECTORS:</div>
+                    <div style="background: #13151A; border: 1px solid #22262F; border-radius: 10px; padding: 10px; margin-bottom: 6px;">
+                        <div style="font-size: 12px; font-weight: bold; color: white;">1. Fake Bank / Account Frozen</div>
+                        <div style="font-size: 10px; color: #94A3B8;">Sender: +91-98XXX-BANK1 • OTP Demand (+3)</div>
+                    </div>
+                    <div style="background: #13151A; border: 1px solid #22262F; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 12px; font-weight: bold; color: white;">2. Electricity Disconnection APK</div>
+                        <div style="font-size: 10px; color: #94A3B8;">Sender: +91-91XXX-POWER • APK Link (+2)</div>
                     </div>
                 </div>
 
                 <!-- Right Phone: Guardian Alert & 1-Tap Block -->
-                <div class="phone-frame guardian-phone" style="width: 520px;">
+                <div class="phone-frame guardian-phone" style="width: 500px;">
                     <div class="phone-notch dark-notch"></div>
                     <div class="threat-alert-card">
                         <div class="badge-alert" style="display: inline-block;">🔴 SCAM INTERCEPTED & QUARANTINED</div>
                         <div class="threat-lure">
-                            "Dear Customer, your bank account is FROZEN. Immediately share OTP ****** or police will arrest today."
+                            "Dear Customer, your bank account has been frozen due to suspicious activity. Share OTP ****** or police will arrest you."
                         </div>
                         <div class="red-flags-box">
-                            <b>CITED RED FLAGS:</b><br>
-                            • OTP demand (+3)<br>
-                            • Artificial freeze urgency (+3)<br>
-                            • Police impersonation threat (+2)<br>
+                            <b>RULE ENGINE THREAT BREAKDOWN:</b><br>
+                            • OTP demand (weight: +3)<br>
+                            • Artificial freeze urgency (weight: +3)<br>
+                            • Police threat (weight: +2)<br>
                             <b>OTP Masked:</b> <span style="background: #000; padding: 2px 8px; border-radius: 4px; color: #FCA5A5;">******</span>
                         </div>
                         <div class="btn-block-hash">
@@ -302,18 +323,18 @@ SCENES = [
 
                     <div class="prering-action-card">
                         <div class="row-between">
-                            <span style="color: #F8FAFC; font-weight: bold; font-size: 14px;">Scammer Callback Result:</span>
-                            <span class="badge-alert">CALL TERMINATED</span>
+                            <span style="color: #F8FAFC; font-weight: bold; font-size: 14px;">Household Security Result:</span>
+                            <span class="badge-active">PROTECTED</span>
                         </div>
                         <div style="font-size: 13px; color: #94A3B8; margin-top: 6px;">
-                            Scammer attempts voice call from +91-98XXX → Matched blocked hash → <b>Auto-rejected pre-ring</b>. Dad's phone never rang.
+                            Sender hash auto-pushed to parent blocklist. Subsequent scam calls auto-rejected pre-ring. Parent remains in peaceful sanctuary.
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="caption-bar">
-                <div class="caption-text">🎙️ "Now, watch a live attack. A fake bank message arrives: Your account is frozen, share OTP or police will arrest. Dad's phone never buzzes, protecting him from panic. In the office, the daughter decrypts the threat on-device, seeing the red flags and masked OTP. She taps Block Sender Hash. When the scammer calls back, Kavach terminates the call before the first ring. Dad never even knew they tried."</div>
+                <div class="caption-text">🎙️ "To test defense without waiting for an actual criminal, Kavach includes an on-device Scam Defense Lab. When we trigger a simulated bank attack, the local Rule Engine extracts the red flags: OTP demand, freeze threat, and urgency. The senior phone stays quiet, while an encrypted E2E alert hits the adult child's console with masked OTPs and one-tap hash blocking."</div>
             </div>
         </div>
         """
@@ -400,8 +421,8 @@ SCENES = [
     {
         "id": "act6_close",
         "audio": os.path.join(AUDIO_DIR, "act6_close.mp3"),
-        "title": "Act 6: Consent-Gated Remote Defense & The Close",
-        "caption": "Built by a 13-year-old student for RevenueCat Shipaton 2026. Dignified protection for parents, peace for families.",
+        "title": "Act 6: Remote Defense & Verified Architecture",
+        "caption": "Adult children can remotely dispatch encrypted whisper warnings and trigger the emergency siren via our live zero-knowledge Render relay.",
         "html": """
         <div class="container">
             <div class="top-nav">
@@ -418,18 +439,18 @@ SCENES = [
                 <div class="tools-grid">
                     <div class="tool-card">
                         <div class="tool-icon">💬</div>
-                        <div class="tool-title">Whisper Alert</div>
-                        <div class="tool-desc">Dispatches silent lockscreen warning during suspected scams: "Dad, do not share OTP."</div>
-                    </div>
-                    <div class="tool-card">
-                        <div class="tool-icon">🔐</div>
-                        <div class="tool-title">Anti-Clone Challenge</div>
-                        <div class="tool-desc">6-character emoji challenge kills grandchild AI voice deepfakes instantly.</div>
+                        <div class="tool-title">Encrypted Whisper Alert</div>
+                        <div class="tool-desc">Dispatches remote lockscreen advisory to parent screen: "Maa, this is fake, ignore it" via live Render relay.</div>
                     </div>
                     <div class="tool-card">
                         <div class="tool-icon">🚨</div>
-                        <div class="tool-title">Dual Remote Siren</div>
-                        <div class="tool-desc">Signed emergency alarm interrupts high-pressure coercion in progress.</div>
+                        <div class="tool-title">Remote Emergency Siren</div>
+                        <div class="tool-desc">Signed emergency alarm interrupts high-pressure coercion in progress and alerts guardians.</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">🔒</div>
+                        <div class="tool-title">Zero-Knowledge Relay</div>
+                        <div class="tool-desc">Live Render backend routes encrypted ECIES blobs without access to user plaintext.</div>
                     </div>
                 </div>
 
@@ -445,7 +466,7 @@ SCENES = [
             </div>
 
             <div class="caption-bar">
-                <div class="caption-text">🎙️ "Adult children can remotely dispatch encrypted whisper warnings and anti-clone challenges to defeat AI voice deepfakes. Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."</div>
+                <div class="caption-text">🎙️ "Adult children can remotely dispatch encrypted whisper warnings and trigger the emergency siren via our live zero-knowledge Render relay. Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."</div>
             </div>
         </div>
         """
@@ -1167,8 +1188,7 @@ def main():
         clip_path = os.path.join(OUTPUT_DIR, f"{s['id']}.mp4")
         
         render_scene_html(s, html_path)
-        if not os.path.exists(png_path):
-            capture_screenshot(html_path, png_path)
+        capture_screenshot(html_path, png_path)
         print(f"  ✓ Screenshot ready: {png_path}")
         
         make_clip(png_path, s['audio'], clip_path)

@@ -52,13 +52,13 @@
 
 ---
 
-### [0:55 – 1:20] ACT 4: LIVE ATTACK & PRE-RING FIREWALL DEFENSE (25s)
+### [0:55 – 1:20] ACT 4: ON-DEVICE SCAM LAB & THREAT QUARANTINE (25s)
 
 | Timecode | Visual Display | On-Screen Action | Spoken Voiceover Narration |
 | :--- | :--- | :--- | :--- |
-| **0:55 – 1:05** | Split Screen. Incoming simulated bank scam attack hits Dad's phone. | **Left (Dad):** Phone stays 100% SILENT. Screen stays dark.<br>**Right (Daughter):** Red card lights up: `🔴 SCAM INTERCEPTED & QUARANTINED`. | *"Now, watch a live attack. A fake bank SMS arrives: 'Your account is frozen. Share OTP or police will arrest.' Dad's phone never buzzes—protecting him from panic."* |
-| **1:05 – 1:12** | Right screen zooms into the threat card. | Show red flags: *OTP demand (+3), Freeze urgency (+3), Police threat (+2)*. OTP is masked: `******`. | *"In the office, the daughter decrypts the threat on-device, seeing the red flags and masked OTP."* |
-| **1:12 – 1:20** | Right screen taps **"🛡️ Block Sender Hash for Household"**. Simulated callback attempt. | Incoming call dies instantly before ringing (`pre-ring rejected`). | *"She taps 'Block Sender Hash'. When the scammer calls back, Kavach terminates the call before the first ring. Dad never even knew they tried."* |
+| **0:55 – 1:05** | Left Phone: `ScamLabActivity` (Scam Defense Lab). Tap **"🔴 SIMULATE LIVE ATTACK"**. | Attack triggers `SmsHandler.handleSms()`.<br>**Left (Dad):** Phone stays 100% SILENT. SMS quarantined.<br>**Right (Daughter):** Red card lights up: `🔴 SCAM INTERCEPTED & QUARANTINED`. | *"To test defense without waiting for an actual criminal, Kavach includes an on-device Scam Defense Lab. When we trigger a simulated bank attack..."* |
+| **1:05 – 1:12** | Right screen zooms into the threat card. | Show red flags: *OTP demand (+3), Freeze urgency (+3), Urgency (+2)*. OTP is masked: `******`. | *"...the local Rule Engine extracts the red flags: OTP demand, freeze threat, and urgency."* |
+| **1:12 – 1:20** | Right screen taps **"🛡️ Block Sender Hash for Household"**. | Hash `sha256(hid + caller)` auto-learned and added to blocklist. | *"The senior phone stays quiet, while an encrypted E2E alert hits the adult child's console with masked OTPs and one-tap hash blocking."* |
 
 ---
 
@@ -71,34 +71,34 @@
 
 ---
 
-### [1:45 – 2:00] ACT 6: CONSENT-GATED REMOTE ACTIONS & THE CLOSE (15s)
+### [1:45 – 2:00] ACT 6: REMOTE DEFENSE & VERIFIED ARCHITECTURE (15s)
 
 | Timecode | Visual Display | On-Screen Action | Spoken Voiceover Narration |
 | :--- | :--- | :--- | :--- |
-| **1:45 – 1:53** | Right screen taps **"💬 Whisper Alert to Dad's Screen"** and shows **"🔐 Anti-Clone Device Challenge"**. | Ephemeral safety message appears gently on Dad's screen. | *"Adult children can remotely dispatch encrypted whisper warnings and six-character anti-clone challenges to defeat AI voice deepfakes."* |
+| **1:45 – 1:53** | Right screen taps **"💬 Whisper Alert to Dad's Screen"** and **"🚨 Remote Emergency Siren"**. | Ephemeral safety message appears gently on Dad's screen via Render cloud relay. | *"Adult children can remotely dispatch encrypted whisper warnings and trigger the emergency siren via our live zero-knowledge Render relay."* |
 | **1:53 – 2:00** | Final Hero Shot: Kavach Logo `🛡️`, GitHub URL, and live Render backend badge. | Screen fades to clean black with submission details. | *"Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."* |
 
 ---
 
 ## 🎙️ Complete Voiceover Script (Word-for-Word)
 
-> *"Elder fraud steals over ten billion dollars every year. The victims are our parents, but the ones who worry—and pay—are adult children.*
+> *"Elder fraud steals over ten billion dollars every year. The victims are our parents, but the ones who worry—and pay—are adult children.
 > 
-> *Meet Kavach: a two-sided fraud defense shield built specifically around RevenueCat's multi-device family subscription model.*
+> Meet Kavach: a two-sided fraud defense shield built specifically around RevenueCat's multi-device family subscription model.
 > 
-> *We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once.*
+> We eliminated confusing mode switchers. On first launch, each phone selects its sovereign role once.
 > 
-> *For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, no false alarms.*
+> For parents, Kavach is a peaceful sanctuary: high-contrast, large touch targets, and warm Hindi and English reassurance. No technical jargon, no false alarms.
 > 
-> *On the adult child's console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes—never listening to calls or reading personal SMS.*
+> On the adult child command console, the link to parents' devices is protected by Google Tink ECIES-P256 hybrid encryption backed by Android Keystore hardware. Both devices share a mutual six-emoji verification fingerprint. The server relay holds only encrypted ciphertext envelopes—never listening to calls or reading personal messages.
 > 
-> *Now, watch a live attack. A fake bank SMS arrives: 'Your account is frozen. Share OTP or police will arrest.' Dad's phone never buzzes—protecting him from panic. In the office, the daughter decrypts the threat on-device, seeing the red flags and masked OTP. She taps 'Block Sender Hash'. When the scammer calls back, Kavach terminates the call before the first ring. Dad never even knew they tried.*
+> To test defense without waiting for an actual criminal, Kavach includes an on-device Scam Defense Lab. When we trigger a simulated bank attack, the local Rule Engine extracts the red flags: OTP demand, freeze threat, and urgency. The senior phone stays quiet, while an encrypted E2E alert hits the adult child's console with masked OTPs and one-tap hash blocking.
 > 
-> *Here is why RevenueCat makes this business viable: one paying adult child subscription covers up to three parent devices across the entire household. For hackathon evaluation, judges can use promo code SHIPATON-JUDGE to unlock full Pro multi-seat entitlements instantly without entering a credit card.*
+> Here is why RevenueCat makes this business viable: one paying adult child subscription covers up to three parent devices across the entire household. For hackathon evaluation, judges can use promo code SHIPATON-JUDGE to unlock full Pro multi-seat entitlements instantly without entering a credit card.
 > 
-> *Adult children can remotely dispatch encrypted whisper warnings and six-character anti-clone challenges to defeat AI voice deepfakes.*
+> Adult children can remotely dispatch encrypted whisper warnings and trigger the emergency siren via our live zero-knowledge Render relay.
 > 
-> *Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."*
+> Built by a thirteen-year-old student for the RevenueCat Shipaton 2026. Dignified protection for our parents, total peace of mind for families. This is Kavach."*
 
 ---
 
