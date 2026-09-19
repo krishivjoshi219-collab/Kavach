@@ -38,6 +38,7 @@ object KavachTheme {
     val EMERALD_PRO = Color.parseColor("#10B981")      // Emerald Glow
     val EMERALD_PRO_BG = Color.parseColor("#064E3B")   // Deep Emerald Surface
     val GOLD_VIP = Color.parseColor("#F59E0B")         // Amber / Gold Accent
+    val GOLD_VIP_BG = Color.parseColor("#451A03")      // Deep Amber Surface
     val DANGER_RED = Color.parseColor("#EF4444")       // Crisp Alert Red
     val DANGER_RED_BG = Color.parseColor("#3B1010")    // Deep Crimson Surface
 
