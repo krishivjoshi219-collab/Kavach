@@ -2,11 +2,10 @@ package com.kavach.guardian.ui
 
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -16,13 +15,12 @@ import androidx.appcompat.app.AppCompatActivity
 import com.kavach.guardian.BuildConfig
 import com.kavach.guardian.KavachApp
 import com.kavach.guardian.net.RelayClient
-import com.kavach.guardian.screen.RuleEngine
 
 /**
- * Adult Child / Family Guardian Command Center:
- * Sleek, high-craft dark/slate war-room console for the paying adult child.
- * Shows fleet device health, RevenueCat seat-based subscription,
- * live threat interception log, and consent-gated remote safety interventions.
+ * Family Guardian Command Center:
+ * Production-grade dark mode console for the paying adult child.
+ * Multi-device fleet tracking, RevenueCat household subscription state,
+ * zero-buzz threat logs with masked OTPs, and consent-gated remote safety interventions.
  */
 class FamilyActivity : AppCompatActivity() {
 
@@ -44,309 +42,241 @@ class FamilyActivity : AppCompatActivity() {
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(Color.parseColor("#121417")) // Sophisticated command-center dark
+            setBackgroundColor(KavachTheme.DARK_BG)
         }
 
+        val pad = KavachTheme.dp(this, 20f)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(36, 40, 36, 44)
+            setPadding(pad, KavachTheme.dp(this@FamilyActivity, 24f), pad, pad)
         }
         scroll.addView(root)
 
-        fun createCard(bgColor: Int, radiusDp: Float = 16f, strokeColor: Int = Color.TRANSPARENT, strokeWidthDp: Float = 0f): GradientDrawable {
-            return GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = radiusDp * resources.displayMetrics.density
-                setColor(bgColor)
-                if (strokeWidthDp > 0) {
-                    setStroke((strokeWidthDp * resources.displayMetrics.density).toInt(), strokeColor)
-                }
-            }
-        }
-
-        val cardLp = LinearLayout.LayoutParams(
+        val marginBot12 = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 0, 0, 20) }
+        ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 12f)) }
 
-        // 1. Header Bar
-        val headerRow = LinearLayout(this).apply {
+        val marginBot20 = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 20f)) }
+
+        // 1. Navigation Header
+        val navHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, 20)
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 16f))
         }
         val headerTitle = TextView(this).apply {
-            text = "🛡️ Guardian Command Center"
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            text = "Guardian Command Center"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(KavachTheme.DARK_TEXT)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        val seniorSwitchBtn = Button(this).apply {
+        val seniorModeBtn = Button(this).apply {
             text = "Senior View 🧓"
             textSize = 12f
-            setTextColor(Color.parseColor("#FFD54F"))
-            background = createCard(Color.parseColor("#262930"), 12f, Color.parseColor("#FFD54F"), 1f)
-            setPadding(20, 8, 20, 8)
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(KavachTheme.GOLD_VIP)
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE_ELEVATED, 8f, KavachTheme.DARK_BORDER, 1f)
+            val px = KavachTheme.dp(this@FamilyActivity, 12f)
+            val py = KavachTheme.dp(this@FamilyActivity, 6f)
+            setPadding(px, py, px, py)
             isAllCaps = false
             setOnClickListener {
                 startActivity(Intent(this@FamilyActivity, SeniorActivity::class.java))
                 finish()
             }
         }
-        headerRow.addView(headerTitle)
-        headerRow.addView(seniorSwitchBtn)
-        root.addView(headerRow)
+        navHeader.addView(headerTitle)
+        navHeader.addView(seniorModeBtn)
+        root.addView(navHeader)
 
-        // 2. RevenueCat Pro Entitlement Banner
-        val subCard = LinearLayout(this).apply {
+        // 2. RevenueCat Pro Entitlement Card
+        val proCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = createCard(Color.parseColor("#1B231B"), 16f, Color.parseColor("#4CAF50"), 1.5f)
-            setPadding(28, 24, 28, 24)
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 16f, KavachTheme.EMERALD_PRO, 1.5f)
+            val p = KavachTheme.dp(this@FamilyActivity, 20f)
+            setPadding(p, p, p, p)
         }
-        val tierBadgeRow = LinearLayout(this).apply {
+        val proBadgeRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val tierBadge = TextView(this).apply {
-            val tier = store.getString("tier") ?: "pro"
-            text = if (tier == "pro" || tier == "ultra") "✨ REVENUECAT PRO SHIELD" else "FREE TIER"
-            textSize = 11f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#81C784"))
-            background = createCard(Color.parseColor("#243324"), 8f)
-            setPadding(16, 6, 16, 6)
-        }
-        val seatCounter = TextView(this).apply {
-            text = "2 of 3 Parent Seats Protected"
+        val proBadge = KavachTheme.badge(this, "REVENUECAT FAMILY PRO", KavachTheme.EMERALD_PRO, KavachTheme.EMERALD_PRO_BG)
+        val seatText = TextView(this).apply {
+            text = "2 of 3 Parent Seats Active"
             textSize = 12f
-            setTextColor(Color.parseColor("#C8E6C9"))
-            setPadding(16, 0, 0, 0)
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.parseColor("#A7F3D0"))
+            setPadding(KavachTheme.dp(this@FamilyActivity, 12f), 0, 0, 0)
         }
-        tierBadgeRow.addView(tierBadge)
-        tierBadgeRow.addView(seatCounter)
-        subCard.addView(tierBadgeRow)
+        proBadgeRow.addView(proBadge)
+        proBadgeRow.addView(seatText)
+        proCard.addView(proBadgeRow)
 
-        val subTitle = TextView(this).apply {
-            text = "Family Protection Plan Active"
+        val proTitle = TextView(this).apply {
+            text = "Household Protection Plan"
             textSize = 17f
-            setTextColor(Color.WHITE)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(0, 10, 0, 4)
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(KavachTheme.DARK_TEXT)
+            setPadding(0, KavachTheme.dp(this@FamilyActivity, 10f), 0, KavachTheme.dp(this@FamilyActivity, 4f))
         }
-        val subDesc = TextView(this).apply {
-            text = "Multi-device E2E encrypted shield covering parents. Automatic zero-buzz SMS quarantine and daily signed rule updates enabled."
+        val proSubtitle = TextView(this).apply {
+            text = "End-to-end encrypted fraud shield for parents. On-device silent SMS quarantine and daily signed rule updates active."
             textSize = 13f
-            setTextColor(Color.parseColor("#A5D6A7"))
-            setLineSpacing(3f, 1.15f)
-            setPadding(0, 0, 0, 12)
+            setTextColor(KavachTheme.DARK_MUTED)
+            setLineSpacing(3f, 1.2f)
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 14f))
         }
-        val manageSubBtn = Button(this).apply {
-            text = "Manage Subscription / Add Parent Device →"
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.BLACK)
-            background = createCard(Color.parseColor("#81C784"), 10f)
-            setPadding(20, 16, 20, 16)
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
-            }
+        val manageBtn = KavachTheme.button(this, "Manage Subscription / Add Parent Device →", KavachTheme.EMERALD_PRO, Color.BLACK, 10f, 44f) {
+            startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
         }
-        subCard.addView(subTitle)
-        subCard.addView(subDesc)
-        subCard.addView(manageSubBtn)
-        root.addView(subCard, cardLp)
+        proCard.addView(proTitle)
+        proCard.addView(proSubtitle)
+        proCard.addView(manageBtn)
+        root.addView(proCard, marginBot20)
 
-        // 3. Section: Protected Fleet Devices
-        val sectionFleet = TextView(this).apply {
-            text = "📱 Protected Parent Devices"
-            textSize = 16f
-            setTextColor(Color.parseColor("#CFD8DC"))
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(0, 8, 0, 10)
-        }
-        root.addView(sectionFleet)
+        // 3. Section: Protected Devices (Fleet)
+        root.addView(KavachTheme.sectionHeader(this, "Protected Parent Devices", true))
 
-        fun createDeviceCard(deviceName: String, holder: String, statusText: String, alertCount: Int): LinearLayout {
+        fun createDeviceRow(name: String, model: String, status: String, hasAlert: Boolean): LinearLayout {
             return LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                background = createCard(Color.parseColor("#1C2026"), 14f, Color.parseColor("#2C3440"), 1f)
-                setPadding(24, 20, 24, 20)
-                addView(LinearLayout(this@FamilyActivity).apply {
+                background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 14f, KavachTheme.DARK_BORDER, 1f)
+                val p = KavachTheme.dp(this@FamilyActivity, 16f)
+                setPadding(p, p, p, p)
+
+                val row = LinearLayout(this@FamilyActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    val nameTv = TextView(this@FamilyActivity).apply {
-                        text = "$holder ($deviceName)"
-                        textSize = 15f
-                        setTextColor(Color.WHITE)
-                        typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    }
-                    val statTv = TextView(this@FamilyActivity).apply {
-                        text = if (alertCount > 0) "⚠️ $alertCount Alert" else "🟢 Shield Active"
-                        textSize = 12f
-                        setTextColor(if (alertCount > 0) Color.parseColor("#FFB74D") else Color.parseColor("#81C784"))
-                        typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    }
-                    addView(nameTv)
-                    addView(statTv)
-                })
+                }
+                val label = TextView(this@FamilyActivity).apply {
+                    text = "$name ($model)"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(KavachTheme.DARK_TEXT)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                val statPill = KavachTheme.badge(
+                    this@FamilyActivity,
+                    if (hasAlert) "1 ALERT" else "ACTIVE",
+                    if (hasAlert) KavachTheme.DANGER_RED else KavachTheme.EMERALD_PRO,
+                    if (hasAlert) KavachTheme.DANGER_RED_BG else KavachTheme.EMERALD_PRO_BG
+                )
+                row.addView(label)
+                row.addView(statPill)
+                addView(row)
+
                 addView(TextView(this@FamilyActivity).apply {
-                    text = statusText
+                    text = status
                     textSize = 13f
-                    setTextColor(Color.parseColor("#90A4AE"))
-                    setPadding(0, 6, 0, 0)
+                    setTextColor(KavachTheme.DARK_MUTED)
+                    setPadding(0, KavachTheme.dp(this@FamilyActivity, 6f), 0, 0)
                 })
             }
         }
 
-        val dev1 = createDeviceCard("Pixel 8", "Dad (Dadaji)", "Screening active · 0 scam attempts today · battery 84%", 0)
-        val dev2 = createDeviceCard("Galaxy S22", "Mom (Mummy)", "1 scam SMS quarantined at 11:42 AM · phone kept silent ✓", 1)
-        root.addView(dev1, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 10) })
-        root.addView(dev2, cardLp)
+        val dadDevice = createDeviceRow("Dad (Dadaji)", "Pixel 8", "Incoming call screening active • 0 threats today • Battery 82%", false)
+        val momDevice = createDeviceRow("Mom (Mummy)", "Galaxy S22", "1 fake bank SMS quarantined at 11:40 AM • Phone kept silent", true)
+        root.addView(dadDevice, marginBot12)
+        root.addView(momDevice, marginBot20)
 
-        // 4. Section: Live Threat & Intercept Feed
-        val sectionThreats = TextView(this).apply {
-            text = "🚨 Recent Threat Intercepts (Masked for Privacy)"
-            textSize = 16f
-            setTextColor(Color.parseColor("#CFD8DC"))
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(0, 8, 0, 10)
-        }
-        root.addView(sectionThreats)
+        // 4. Section: Recent Threat Intercepts
+        root.addView(KavachTheme.sectionHeader(this, "Recent Intercepts (Decrypted for Manager)", true))
 
         val threatCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = createCard(Color.parseColor("#2B1B1B"), 14f, Color.parseColor("#EF5350"), 1f)
-            setPadding(24, 20, 24, 20)
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 16f, Color.parseColor("#7F1D1D"), 1.5f)
+            val p = KavachTheme.dp(this@FamilyActivity, 18f)
+            setPadding(p, p, p, p)
         }
-        val threatBadge = TextView(this).apply {
-            text = "🔴 INTERCEPTED & QUARANTINED ON MOM'S DEVICE"
-            textSize = 11f
-            setTextColor(Color.parseColor("#FF8A80"))
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-        }
-        val threatBody = TextView(this).apply {
-            text = "Lure: 'Dear Customer, your bank account is FROZEN. Immediately share OTP ****** or police will arrest today.'"
-            textSize = 14f
-            setTextColor(Color.WHITE)
-            setPadding(0, 8, 0, 8)
-        }
-        val redFlags = TextView(this).apply {
-            text = "CITED RED FLAGS:\n• Asked for OTP/password\n• Artificial urgency ('FROZEN')\n• Police/government threat"
-            textSize = 12f
-            setTextColor(Color.parseColor("#FFCDD2"))
-            setLineSpacing(2f, 1.15f)
-        }
-        val blockHashBtn = Button(this).apply {
-            text = "🛡️ Block Hash for Entire Household"
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            background = createCard(Color.parseColor("#C62828"), 8f)
-            setPadding(20, 12, 20, 12)
-            isAllCaps = false
-            setOnClickListener {
-                Toast.makeText(this@FamilyActivity, "Sender hash added to family blocklist. Future calls/SMS killed pre-ring.", Toast.LENGTH_LONG).show()
-            }
-        }
+        val threatBadge = KavachTheme.badge(this, "🔴 SCAM INTERCEPTED & QUARANTINED", KavachTheme.DANGER_RED, KavachTheme.DANGER_RED_BG)
         threatCard.addView(threatBadge)
-        threatCard.addView(threatBody)
-        threatCard.addView(redFlags)
+
+        val threatText = TextView(this).apply {
+            text = "Lure: \"Dear Customer, your bank account is FROZEN. Immediately share OTP ****** or police will arrest today.\""
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(KavachTheme.DARK_TEXT)
+            setPadding(0, KavachTheme.dp(this@FamilyActivity, 10f), 0, KavachTheme.dp(this@FamilyActivity, 6f))
+        }
+        val redFlagsSummary = TextView(this).apply {
+            text = "CITED RED FLAGS:\n• OTP demand\n• Artificial freeze urgency\n• Police impersonation threat"
+            textSize = 12f
+            setTextColor(Color.parseColor("#FCA5A5"))
+            setLineSpacing(2f, 1.2f)
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 12f))
+        }
+        val blockHashBtn = KavachTheme.button(this, "🛡️ Block Sender Hash for Household", KavachTheme.DANGER_RED, Color.WHITE, 10f, 40f) {
+            Toast.makeText(this@FamilyActivity, "Sender hash blocked. Calls & SMS from this sender will auto-reject pre-ring.", Toast.LENGTH_LONG).show()
+        }
+        threatCard.addView(threatText)
+        threatCard.addView(redFlagsSummary)
         threatCard.addView(blockHashBtn)
-        root.addView(threatCard, cardLp)
+        root.addView(threatCard, marginBot20)
 
-        // 5. Section: Consent-Gated Remote Interventions
-        val sectionRemote = TextView(this).apply {
-            text = "⚡ Consent-Gated Family Actions"
-            textSize = 16f
-            setTextColor(Color.parseColor("#CFD8DC"))
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(0, 8, 0, 10)
-        }
-        root.addView(sectionRemote)
+        // 5. Section: Consent-Gated Remote Actions
+        root.addView(KavachTheme.sectionHeader(this, "Consent-Gated Remote Safety Actions", true))
 
-        fun createActionBtn(label: String, colorHex: String, onClick: () -> Unit): Button {
-            return Button(this).apply {
-                text = label
-                textSize = 14f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setTextColor(Color.WHITE)
-                background = createCard(Color.parseColor(colorHex), 10f)
-                setPadding(20, 20, 20, 20)
-                isAllCaps = false
-                setOnClickListener { onClick() }
-            }
-        }
-
-        val btnLp = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 0, 0, 10) }
-
-        // Whisper Alert Button
-        val whisperBtn = createActionBtn("💬 Whisper Safety Alert to Parent Screen", "#00796B") {
+        val whisperBtn = KavachTheme.button(this, "💬 Whisper Alert to Dad's Screen", Color.parseColor("#0E7490"), Color.WHITE, 10f, 46f) {
             Thread {
                 try {
-                    val payload = "Dad, do NOT share OTP or transfer money. I am looking into this caller right now."
-                    client.sendCommand(hid, seniorId, "senior", "show_message", payload)
-                    runOnUiThread {
-                        Toast.makeText(this, "Safety whisper dispatched to senior screen!", Toast.LENGTH_SHORT).show()
-                    }
+                    val msg = "Dad, do not share OTP or transfer money. I am verifying this caller now."
+                    client.sendCommand(hid, seniorId, "senior", "show_message", msg)
+                    runOnUiThread { Toast.makeText(this, "Safety message sent to parent screen.", Toast.LENGTH_SHORT).show() }
                 } catch (_: Exception) {}
             }.start()
         }
-        root.addView(whisperBtn, btnLp)
+        root.addView(whisperBtn, marginBot12)
 
-        // Family Proof Challenge (Kills AI Voice Clone)
-        val proofBtn = createActionBtn("🔐 Send Family Proof Challenge (Anti-Clone)", "#5E35B1") {
+        val challengeBtn = KavachTheme.button(this, "🔐 Anti-Clone Device Challenge", Color.parseColor("#6366F1"), Color.WHITE, 10f, 46f) {
             AlertDialog.Builder(this)
-                .setTitle("Family Proof Challenge")
-                .setMessage("Verify your parent's enrolled cryptographic device (kills grandchild voice-clones). Dispatches 6-character visual challenge.")
-                .setPositiveButton("Send Challenge") { _, _ ->
-                    Toast.makeText(this, "Challenge sent to parent screen. Must match safety emojis.", Toast.LENGTH_SHORT).show()
+                .setTitle("Anti-Clone Challenge")
+                .setMessage("Verifies your parent's enrolled cryptographic device (kills grandchild voice-clones). Dispatches a 6-character emoji challenge.")
+                .setPositiveButton("Dispatch Challenge") { _, _ ->
+                    Toast.makeText(this, "Challenge dispatched. Parent screen will display verification emojis.", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
-        root.addView(proofBtn, btnLp)
+        root.addView(challengeBtn, marginBot12)
 
-        // Emergency Siren Trigger
-        val sirenBtn = createActionBtn("🚨 Trigger Emergency Reassurance Siren", "#D32F2F") {
+        val sirenBtn = KavachTheme.button(this, "🚨 Remote Emergency Siren", Color.parseColor("#B91C1C"), Color.WHITE, 10f, 46f) {
             Thread {
                 try {
                     client.sendCommand(hid, seniorId, "senior", "sound_siren")
-                    runOnUiThread {
-                        Toast.makeText(this, "Siren triggered on parent device to break caller pressure!", Toast.LENGTH_SHORT).show()
-                    }
+                    runOnUiThread { Toast.makeText(this, "Siren triggered on parent device.", Toast.LENGTH_SHORT).show() }
                 } catch (_: Exception) {}
             }.start()
         }
-        root.addView(sirenBtn, cardLp)
+        root.addView(sirenBtn, marginBot20)
 
         // 6. Zero-Knowledge Cryptographic Audit Card
         val auditCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = createCard(Color.parseColor("#171A21"), 12f, Color.parseColor("#262C38"), 1f)
-            setPadding(24, 20, 24, 20)
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 14f, KavachTheme.DARK_BORDER, 1f)
+            val p = KavachTheme.dp(this@FamilyActivity, 16f)
+            setPadding(p, p, p, p)
         }
         val auditTitle = TextView(this).apply {
-            text = "🔒 Zero-Knowledge Cryptographic Audit"
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#90CAF9"))
-            setPadding(0, 0, 0, 6)
+            text = "🔒 Zero-Knowledge Architecture"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.parseColor("#60A5FA"))
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 4f))
         }
         val auditDesc = TextView(this).apply {
-            text = "Relay holds ciphertext & salted hashes only (Google Tink ECIES P-256). Audio and raw SMS never touch the cloud. Senior holds the Kill Switch."
+            text = "Audio & raw messages never touch the cloud. The relay holds ciphertext and salted hashes only (Google Tink ECIES P-256). Senior maintains sovereign Kill Switch."
             textSize = 12f
-            setTextColor(Color.parseColor("#B0BEC5"))
-            setLineSpacing(2f, 1.15f)
+            setTextColor(KavachTheme.DARK_MUTED)
+            setLineSpacing(2f, 1.2f)
         }
         auditCard.addView(auditTitle)
         auditCard.addView(auditDesc)
-        root.addView(auditCard, cardLp)
+        root.addView(auditCard, marginBot20)
 
         setContentView(scroll)
     }
