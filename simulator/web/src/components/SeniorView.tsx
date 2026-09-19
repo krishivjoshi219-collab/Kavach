@@ -76,12 +76,29 @@ export default function SeniorView({
   const code = last?.resp.confirm_code
   return (
     <div className="senior">
+      {/* Calm Senior Reassurance Header */}
+      <div className="card" style={{
+        background: '#e6f4ec',
+        border: '1px solid #a8dfbc',
+        borderRadius: 14,
+        padding: '16px 20px',
+        textAlign: 'center',
+        marginBottom: 16
+      }}>
+        <div style={{ fontSize: 28, marginBottom: 2 }}>🛡️</div>
+        <h3 style={{ margin: '0 0 4px 0', color: '#1b5e20', fontSize: 18 }}>Kavach is Guarding You</h3>
+        <p style={{ margin: 0, fontSize: 14, color: '#2e7d32' }}>
+          Scam calls and fake bank messages are quietly blocked. Private calls & chats never leave this phone.
+        </p>
+      </div>
+
       {!last && (
         <p className="kavach-says">
           Namaste 🙏 I am <b>Kavach</b>, your shield. If any call or message worries you,
           press the green button and tell me. Slowly — I am listening.
         </p>
       )}
+
       {last && (
         <>
           <p className="kavach-says">🛡️ {last.resp.spoken}</p>
