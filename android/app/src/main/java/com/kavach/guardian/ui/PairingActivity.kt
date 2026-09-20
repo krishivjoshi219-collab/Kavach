@@ -363,6 +363,10 @@ class PairingActivity : AppCompatActivity() {
                                 try {
                                     val c = client.consent(returnedHid.ifEmpty { store.getString("household_id") ?: "" }, seniorId)
                                     store.putEpoch(c.optInt("epoch", store.getEpoch()))
+                                    val caps = c.optJSONObject("capabilities")
+                                    if (caps != null) {
+                                        store.putForwardSmsConsent(caps.optBoolean("forward_sms", true))
+                                    }
                                 } catch (_: Exception) {}
                                 Toast.makeText(this@PairingActivity, "Shield Sealed Successfully! 🛡️", Toast.LENGTH_LONG).show()
                                 finish()

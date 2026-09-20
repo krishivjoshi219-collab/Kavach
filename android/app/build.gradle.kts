@@ -16,6 +16,29 @@ android {
         // RevenueCat public SDK key (test mode). Replace per build flavor.
         buildConfigField("String", "REVENUECAT_KEY", "\"test_REPLACE_ME\"")
         buildConfigField("String", "KAVACH_API", "\"https://kavach-19v6.onrender.com\"")
+        // Role preset: dual (chooser) by default; flavors override.
+        buildConfigField("String", "APP_ROLE", "\"dual\"")
+    }
+
+    // Next Gen demo clarity: two installable APKs from one codebase.
+    // senior  → com.kavach.guardian.senior  (Kavach Senior, boots to sanctuary)
+    // manager → com.kavach.guardian.manager (Kavach Family, boots to war-room)
+    flavorDimensions += "role"
+    productFlavors {
+        create("senior") {
+            dimension = "role"
+            applicationIdSuffix = ".senior"
+            versionNameSuffix = "-senior"
+            buildConfigField("String", "APP_ROLE", "\"senior\"")
+            resValue("string", "app_name", "Kavach Senior")
+        }
+        create("manager") {
+            dimension = "role"
+            applicationIdSuffix = ".manager"
+            versionNameSuffix = "-manager"
+            buildConfigField("String", "APP_ROLE", "\"guardian\"")
+            resValue("string", "app_name", "Kavach Family")
+        }
     }
 
     buildTypes {

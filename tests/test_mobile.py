@@ -120,8 +120,12 @@ def test_hash_screening_allow_block_unblock():
     hit = client.post("/api/v1/screen/lookup",
                       json={"household_id": hid, "number_hash": h}).json()
     assert hit["action"] == "block" and hit["source"] == "household"
+    lst = client.get("/api/v1/screen/list", params={"household_id": hid}).json()
+    assert lst["ok"] and any(e["number_hash"] == h for e in lst["entries"])
     assert client.post("/api/v1/screen/unblock",
                        json={"household_id": hid, "number_hash": h}).json()["ok"] is True
+    lst2 = client.get("/api/v1/screen/list", params={"household_id": hid}).json()
+    assert all(e["number_hash"] != h for e in lst2["entries"])
     # raw numbers are never accepted: hashes only
     assert client.post("/api/v1/screen/lookup",
                        json={"household_id": hid,

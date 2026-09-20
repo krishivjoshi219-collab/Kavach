@@ -50,9 +50,15 @@ class LocalStore(context: Context) {
     }
 
     fun logIncident(verdict: String, channel: String, summary: String) {
+        logIncident(verdict, channel, summary, "")
+    }
+
+    /** Sender-hash-aware log: FamilyActivity blocks the exact hash that
+     *  screening matches. Older entries without "h" fall back to no-op block. */
+    fun logIncident(verdict: String, channel: String, summary: String, senderHash: String) {
         val arr = readList("incidents")
         arr.put(JSONObject().put("verdict", verdict).put("channel", channel)
-            .put("summary", summary).put("ts", System.currentTimeMillis()))
+            .put("summary", summary).put("h", senderHash).put("ts", System.currentTimeMillis()))
         while (arr.length() > 100) arr.remove(0)
         writeList("incidents", arr)
     }
@@ -87,7 +93,35 @@ class LocalStore(context: Context) {
 
     fun getFridgeCode(): String? = getString("fridge_code")
 
-    // --- Quarantine inbox: scam SMS kept encrypted-at-rest locally ---
+    // --- Consent cache: E2E forwarding needs lent forward_sms; revoke stops it.
+    // Default allow (first run / offline) so the demo shield never goes silent;
+    // an explicit "0" (fetched from /api/v1/consent or senior revoke) stops
+    // forwarding while quarantine + siren stay fully on-device.
+
+    fun putForwardSmsConsent(allowed: Boolean) =
+        putString("consent_forward_sms", if (allowed) "1" else "0")
+
+    fun forwardSmsAllowed(): Boolean = getString("consent_forward_sms") != "0"
+
+    /** Merge sibling-device household blocks (server is source of truth). */
+    fun syncHouseholdBlocklist(entries: List<Pair<String, String>>) {
+        val arr = readList("blocklist")
+        val known = mutableSetOf<String>()
+        for (i in 0 until arr.length()) known.add(arr.getJSONObject(i).optString("h"))
+        var changed = false
+        for ((h, label) in entries) {
+            if (h.length != 64 || h in known) continue
+            arr.put(JSONObject().put("h", h).put("label", label)
+                .put("ts", System.currentTimeMillis()))
+            known.add(h)
+            changed = true
+        }
+        if (changed) writeList("blocklist", arr)
+    }
+
+    // --- Quarantine inbox: scam SMS kept in private app storage locally ---
+    // Note: plain JSON in the app sandbox (not encrypted-at-rest). Full bodies
+    // never leave except as Tink ECIES ciphertext to the paired manager.
 
     fun quarantineAdd(senderHash: String, verdict: String, summary: String) {
         val arr = readList("quarantine")

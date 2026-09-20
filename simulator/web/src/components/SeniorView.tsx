@@ -14,6 +14,13 @@ function VerdictCard({ c }: { c: { title: string; body: string } }) {
   )
 }
 
+type Turn = { q: string; resp: ChatResponse }
+
+function fmtLat(ms?: number | null): string {
+  if (ms === null || ms === undefined) return ''
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
 export default function SeniorView({
   sessionId, seniorId, onNotice
 }: {
@@ -22,11 +29,13 @@ export default function SeniorView({
   onNotice: (m: string) => void
 }) {
   const [q, setQ] = useState('')
+  const [turns, setTurns] = useState<Turn[]>([])
   const [last, setLast] = useState<{ q: string; resp: ChatResponse } | null>(null)
   const [busy, setBusy] = useState(false)
   const [listening, setListening] = useState(false)
   const [notice, setNotice] = useState('')
   const box = useRef<HTMLTextAreaElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
 
   async function ask(text: string) {
     const t = text.trim()
@@ -35,9 +44,12 @@ export default function SeniorView({
     setNotice('')
     try {
       const resp = await postChat(t, sessionId, seniorId)
-      setLast({ q: t, resp })
+      const turn = { q: t, resp }
+      setTurns(prev => [...prev.slice(-9), turn])
+      setLast(turn)
       setQ('')
       speak(resp.spoken)
+      requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e)
       setNotice(m)
@@ -73,7 +85,6 @@ export default function SeniorView({
     }
   }
 
-  const code = last?.resp.confirm_code
   return (
     <div className="senior">
       {/* Calm Senior Reassurance Header */}
@@ -99,31 +110,38 @@ export default function SeniorView({
         </p>
       )}
 
-      {last && (
-        <>
-          <p className="kavach-says">🛡️ {last.resp.spoken}</p>
-          <div className="senior-said">🧑 {last.q}</div>
-          <div className="meta">
-            {last.resp.latency_ms !== null && last.resp.latency_ms !== undefined && (
-              <span>{(last.resp.latency_ms / 1000).toFixed(1)}s</span>
-            )}
-            <button onClick={() => speak(last.resp.spoken)}>🔊 hear again</button>
-          </div>
-          {code && (
-            <div className="code" aria-label={`confirmation code ${code}`}>{code}</div>
-          )}
-          {last.resp.cards.length > 0 && (
-            <div className="cards">
-              {last.resp.cards.map((c, i) =>
-                c.type === 'verdict'
-                  ? <VerdictCard key={i} c={c} />
-                  : <div className="card" key={i}><h4>{c.title}</h4><p>{c.body}</p></div>
+      {turns.length > 0 && (
+        <div className="thread" aria-live="polite">
+          {turns.map((t, i) => (
+            <div key={i} className="turn">
+              <div className="senior-said">🧑 {t.q}</div>
+              <p className="kavach-says small">🛡️ {t.resp.spoken}</p>
+              {t.resp.verdict && (
+                <p style={{ margin: '6px 0' }}>
+                  <span className={`pill ${t.resp.verdict}`}>{t.resp.verdict.replace(/_/g, ' ')}</span>
+                  {t.resp.latency_ms !== null && t.resp.latency_ms !== undefined && (
+                    <span className="lat"> · {fmtLat(t.resp.latency_ms)} · {t.resp.provider}</span>
+                  )}
+                </p>
+              )}
+              {t.resp.confirm_code && (
+                <div className="code" aria-label={`confirmation code ${t.resp.confirm_code}`}>{t.resp.confirm_code}</div>
+              )}
+              {t.resp.cards.length > 0 && (
+                <div className="cards">
+                  {t.resp.cards.map((c, j) =>
+                    c.type === 'verdict'
+                      ? <VerdictCard key={j} c={c} />
+                      : <div className="card" key={j}><h4>{c.title}</h4><p>{c.body}</p></div>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </>
+          ))}
+          <div ref={endRef} />
+        </div>
       )}
-      {busy && <p className="kavach-says">🛡️ Listening carefully… one moment.</p>}
+      {busy && <p className="kavach-says">🛡️ <span className="typing" aria-hidden><i /><i /><i /></span> Listening carefully… one moment.</p>}
       <label className="sr" htmlFor="seniorbox">Talk to Kavach</label>
       <textarea
         id="seniorbox"

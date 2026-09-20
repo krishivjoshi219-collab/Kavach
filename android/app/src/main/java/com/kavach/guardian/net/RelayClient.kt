@@ -82,6 +82,46 @@ class RelayClient(private val base: String) {
             .put("label", label)
             .put("action", "block"))
 
+    fun unblock(householdId: String, numberHash: String): JSONObject =
+        post("/api/v1/screen/unblock", JSONObject()
+            .put("household_id", householdId)
+            .put("number_hash", numberHash))
+
+    fun householdBlocklist(householdId: String): JSONArray =
+        get("/api/v1/screen/list", mapOf("household_id" to householdId))
+            .optJSONArray("entries") ?: JSONArray()
+
+    fun setConsent(householdId: String, seniorId: String,
+                   capabilities: Map<String, Boolean>, grantedBy: String): JSONObject {
+        val caps = JSONObject()
+        for ((k, v) in capabilities) caps.put(k, v)
+        return post("/api/v1/consent/set", JSONObject()
+            .put("household_id", householdId)
+            .put("senior_id", seniorId)
+            .put("capabilities", caps)
+            .put("granted_by", grantedBy))
+    }
+
+    fun postCheckin(householdId: String, seniorId: String,
+                    status: String, note: String = ""): JSONObject =
+        post("/api/v1/checkin", JSONObject()
+            .put("household_id", householdId)
+            .put("senior_id", seniorId)
+            .put("status", status)
+            .put("note", note))
+
+    fun notify(householdId: String, journey: String, seniorId: String = "dad1",
+               callerHash: String = "", reasons: List<String> = emptyList()): JSONObject {
+        val arr = JSONArray()
+        for (r in reasons) arr.put(r)
+        return post("/api/v1/notifications/send", JSONObject()
+            .put("household_id", householdId)
+            .put("journey", journey)
+            .put("senior_id", seniorId)
+            .put("caller_hash", callerHash)
+            .put("reasons", arr))
+    }
+
     fun pollCommands(householdId: String, target: String): JSONArray =
         get("/api/v1/device/commands",
             mapOf("household_id" to householdId, "target" to target))

@@ -47,7 +47,7 @@ class QuarantineActivity : AppCompatActivity() {
         root.addView(title)
 
         val sub = TextView(this).apply {
-            text = "Scam messages intercepted silently (zero buzz on senior device).\nConfidential OTPs are masked. Full evidence decrypts for household guardian."
+            text = "Scam messages intercepted silently (zero buzz on senior device).\nConfidential OTPs are masked. Stored in private app storage; full evidence E2E-forwards to guardian."
             textSize = 13f
             setTextColor(KavachTheme.DARK_MUTED)
             gravity = Gravity.CENTER

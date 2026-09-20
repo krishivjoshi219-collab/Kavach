@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchFeed, postDemoAttack, type Feed } from '../lib/api'
+import { fetchFeed, postBlockCase, postDemoAttack, type Feed } from '../lib/api'
 import AppEmbed from './AppEmbed'
 
 function timeAgo(ts: number): string {
@@ -49,6 +49,15 @@ export default function FamilyBoard({
   const [demoMsg, setDemoMsg] = useState('')
   const [proUnlocked, setProUnlocked] = useState(true)
   const [actionNotice, setActionNotice] = useState('')
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+
+  function toast(m: string) {
+    setActionNotice(m)
+    window.clearTimeout((toast as unknown as { t?: number }).t)
+    ;(toast as unknown as { t?: number }).t = window.setTimeout(() => setActionNotice(''), 6000)
+  }
 
   async function liveAttack() {
     if (demoBusy) return
@@ -68,11 +77,13 @@ export default function FamilyBoard({
   }
 
   const load = useCallback(async () => {
+    setRefreshing(true)
     try {
       setFeed(await fetchFeed(seniorId))
     } catch (e) {
       onNotice(e instanceof Error ? e.message : String(e))
     }
+    setRefreshing(false)
   }, [seniorId, onNotice])
 
   useEffect(() => {
@@ -84,61 +95,41 @@ export default function FamilyBoard({
   if (!feed) return <div className="family"><div className="famhead">Loading the household…</div></div>
   const latest = feed.incidents[0]
   const warRoom = latest && (latest.verdict === 'SCAM' || latest.verdict === 'SUSPICIOUS')
+  const ql = query.toLowerCase()
+  const visible = feed.incidents.filter(c =>
+    (!filter || c.verdict === filter) &&
+    (!ql || `${c.caller_claim} ${c.channel}`.toLowerCase().includes(ql)))
 
   return (
     <div className="family">
-      {/* RevenueCat Pro Entitlement Banner */}
-      <div className="card" style={{
-        background: proUnlocked ? 'linear-gradient(135deg, #1b2f1e 0%, #0d1a10 100%)' : '#262930',
-        border: proUnlocked ? '1px solid #4caf50' : '1px solid #444',
-        color: '#fff',
-        marginBottom: 16
-      }}>
-        <div className="row" style={{ marginTop: 0, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className={`pro ${proUnlocked ? 'on' : 'off'}`}>
+        <div className="pro-top">
           <div>
-            <span style={{
-              background: '#244026',
-              color: '#81c784',
-              fontSize: 11,
-              fontWeight: 800,
-              padding: '3px 8px',
-              borderRadius: 6,
-              letterSpacing: '0.5px'
-            }}>
+            <span className="pro-badge">
               {proUnlocked ? '✨ REVENUECAT PRO SHIELD' : 'FREE TIER (1 SEAT)'}
             </span>
-            <span style={{ marginLeft: 10, fontSize: 13, color: '#c8e6c9', fontWeight: 600 }}>
-              {proUnlocked ? '2 of 3 Parent Seats Protected' : '1 of 1 Seat Used'}
+            <span className="pro-seats">
+              {proUnlocked ? '2 of 3 parent seats protected' : '1 of 1 seat used'}
             </span>
           </div>
           <button
-            className="mini"
-            style={{ background: '#ffd54f', color: '#000', fontWeight: 700, border: 'none' }}
+            className="pro-btn"
             onClick={() => {
               setProUnlocked(p => !p)
-              setActionNotice(proUnlocked ? 'Simulated Free Tier' : 'Unlocked Pro with SHIPATON-JUDGE promo!')
+              toast(proUnlocked ? 'Previewing Free tier limits.' : 'Pro unlocked with SHIPATON-JUDGE promo (test mode, no charge).')
             }}
           >
-            {proUnlocked ? 'Judge Promo Active ✓' : 'Unlock Pro Promo'}
+            {proUnlocked ? 'Judge promo active ✓' : 'Unlock Pro promo'}
           </button>
         </div>
-        <p style={{ margin: '8px 0 4px 0', fontSize: 13, color: '#e0e0e0' }}>
-          <b>Household Protection Plan:</b> Covers Mom & Dad's devices with on-device quarantine,
-          instant dual-siren alert, and daily signed threat updates.
+        <p className="pro-copy">
+          <b>Household plan:</b> on-device quarantine, instant dual-siren, daily signed rule updates.
+          Community shield shares <b>hashes only</b> — raw numbers never leave the phone.
         </p>
       </div>
 
       {actionNotice && (
-        <div style={{
-          background: '#e8f5e9',
-          color: '#1b5e20',
-          padding: '8px 14px',
-          borderRadius: 8,
-          marginBottom: 14,
-          fontSize: 13
-        }}>
-          {actionNotice}
-        </div>
+        <div className="toast" role="status">{actionNotice}</div>
       )}
 
       {warRoom && (
@@ -160,34 +151,37 @@ export default function FamilyBoard({
           <span>{feed.incidents.length} case(s)</span>
           <span>{feed.alerts.filter(a => a.status === 'sent').length} alerts sent</span>
           <span>{feed.checkins.length} check-ins</span>
-          <button onClick={load}>↻ refresh</button>
+          <button onClick={load}>{refreshing ? '… syncing' : '↻ refresh'}</button>
           <button onClick={liveAttack} disabled={demoBusy} style={{ background: '#d32f2f', color: '#fff' }}>
             {demoBusy ? '…' : '🔴 Simulate live attack'}
           </button>
         </div>
+        <div className="searchrow">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search cases… e.g. bank, OTP, CBI" aria-label="Search cases" />
+          <select value={filter} onChange={e => setFilter(e.target.value)} aria-label="Filter by verdict">
+            <option value="">All verdicts</option>
+            <option value="SCAM">SCAM</option>
+            <option value="SUSPICIOUS">SUSPICIOUS</option>
+            <option value="LIKELY_SAFE">LIKELY_SAFE</option>
+            <option value="UNCERTAIN">UNCERTAIN</option>
+          </select>
+        </div>
         {demoMsg && <p style={{ marginTop: 8, fontWeight: 600, color: '#c62828' }}>{demoMsg}</p>}
       </div>
 
-      {/* Fleet Overview */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h4 style={{ margin: '0 0 10px 0' }}>📱 Protected Parent Devices (Fleet)</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          <div style={{ background: '#fdfbf7', border: '1px solid #e0d7c7', borderRadius: 8, padding: 12 }}>
-            <b>Dadaji (Dad's Pixel 8)</b>
-            <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#1b5e20' }}>🟢 Shield Active · 0 Threats Today</p>
-          </div>
-          <div style={{ background: '#fdfbf7', border: '1px solid #e0d7c7', borderRadius: 8, padding: 12 }}>
-            <b>Mummy (Mom's Galaxy S22)</b>
-            <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#b3541e' }}>🟢 Shield Active · 1 SMS Quarantined</p>
-          </div>
+      <div className="fleet">
+        <h4>📱 Protected parent devices</h4>
+        <div className="fleet-grid">
+          <div className="fleet-card"><b>Dadaji · Pixel 8</b><p className="ok">🟢 Shield active · rules v-latest · 0 threats today</p></div>
+          <div className="fleet-card"><b>Mummy · Galaxy S22</b><p className="warn">🟢 Shield active · 1 SMS quarantined · OTP masked</p></div>
         </div>
       </div>
 
       <div className="famgrid">
         <div className="card">
-          <h4>Case file (Decrypted on manager device)</h4>
-          {feed.incidents.length === 0 && <p>Clean slate — nothing on record.</p>}
-          {feed.incidents.map(c => (
+          <h4>Case file — decrypted on manager device ({visible.length})</h4>
+          {visible.length === 0 && <p>🕊️ Clean slate — nothing matches. A quiet phone is a safe phone.</p>}
+          {visible.map(c => (
             <div key={c.id} className={`card case ${c.verdict}`} style={{ marginTop: 8 }}>
               <div className="row" style={{ marginTop: 0 }}>
                 <span className={`pill ${c.verdict}`}>{c.verdict.replace(/_/g, ' ')}</span>
@@ -206,10 +200,16 @@ export default function FamilyBoard({
                     <li key={i}><b>{f.label}.</b> {f.meaning}</li>
                   ))}
                   <li style={{ marginTop: 6 }}>
-                    <button className="mini" style={{ background: '#c62828', color: '#fff' }} onClick={() => {
-                      setActionNotice(
-                        `Blocked sender hash for case #${c.id}. Household devices will kill calls pre-ring.`
-                      )
+                    <button className="mini" style={{ background: '#c62828', color: '#fff' }} onClick={async () => {
+                      try {
+                        const b = await postBlockCase(seniorId, c.id)
+                        toast(
+                          `Blocked sender-hash ${b.number_hash.slice(0, 12)}… for case #${c.id}. ` +
+                          (b.community ? 'Community shield now carries it (3+ households).' : 'Household devices sync it; community learns at 3 households.')
+                        )
+                      } catch (e) {
+                        onNotice(e instanceof Error ? e.message : String(e))
+                      }
                     }}>
                       🛡️ Block hash for household
                     </button>
@@ -222,34 +222,42 @@ export default function FamilyBoard({
 
         <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
           <div className="card">
-            <h4>Remote Safety Actions (Consent-Gated)</h4>
+            <h4>Remote safety actions · consent-gated</h4>
             <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
               <button className="mini" onClick={() => {
-                setActionNotice('💬 Safety whisper sent to parent screen: "Do not share OTP. Checking caller."')
+                toast('💬 Safety whisper sent to parent screen: "Do not share OTP. Checking caller."')
               }}>
-                💬 Whisper Alert to Dad's Screen
+                💬 Whisper alert to parent screen
               </button>
               <button className="mini" onClick={() => {
-                setActionNotice('🔐 Dispatched 6-letter Family Proof Challenge to parent phone. Kills AI voice clones.')
+                toast('🔐 6-letter Family Proof challenge dispatched. Kills AI voice clones — enrolled-device proof only.')
               }}>
-                🔐 Send Anti-Clone Device Challenge
+                🔐 Send anti-clone device challenge
               </button>
               <button className="mini" style={{ color: '#c62828' }} onClick={() => {
-                setActionNotice('🚨 Emergency Siren triggered on parent phone to interrupt scammer pressure.')
+                toast('🚨 Emergency siren triggered on parent phone to break scammer pressure.')
               }}>
-                🚨 Sound Remote Siren
+                🚨 Sound remote siren
               </button>
             </div>
           </div>
 
           <div className="card">
             <h4>Daily rhythms & safe contacts</h4>
-            {feed.routines.slice(0, 2).map(r => (
-              <p key={r.id}>• {r.label} — {r.expected_time} {r.last_confirmed ? ` ✓ (${r.streak}🔥)` : ''}</p>
+            {feed.routines.map(r => (
+              <p key={r.id}>• {r.label} — {r.expected_time} {r.last_confirmed ? ` ✓ (${r.streak}🔥)` : '· pending'}</p>
             ))}
-            {feed.contacts.slice(0, 2).map((c, i) => (
+            {feed.routines.length === 0 && <p>No rhythms yet.</p>}
+            {feed.contacts.map((c, i) => (
               <p key={i}>• {c.label} ({c.kind})</p>
             ))}
+            {feed.contacts.length === 0 && <p>No safe contacts saved.</p>}
+            {feed.checkins.length > 0 && (
+              <p className="meta">Last check-in: {feed.checkins[0].kind} · {feed.checkins[0].mood}</p>
+            )}
+            {feed.alerts.length > 0 && (
+              <p className="meta">Alerts: {feed.alerts.slice(0, 3).map(a => `#${a.id} ${a.status}`).join(' · ')}</p>
+            )}
           </div>
         </div>
       </div>

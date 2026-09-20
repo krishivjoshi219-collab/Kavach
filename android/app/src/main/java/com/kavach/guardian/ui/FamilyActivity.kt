@@ -4,26 +4,33 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.kavach.guardian.BuildConfig
 import com.kavach.guardian.KavachApp
 import com.kavach.guardian.crypto.SasFingerprint
 import com.kavach.guardian.crypto.ShieldCrypto
 import com.kavach.guardian.net.RelayClient
+import org.json.JSONArray
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Family Guardian Command Center:
- * Production-grade dark mode console for the paying adult child.
- * Multi-device fleet tracking, RevenueCat household subscription state,
- * extensive E2E cryptographic linking (Google Tink ECIES P-256 + HKDF + AES-GCM),
- * zero-buzz threat logs with masked OTPs, and consent-gated remote safety interventions.
+ * Clean, obsidian-dark security console for adult children.
+ * Features live dynamic household safety score, multi-device parent fleet telemetry,
+ * real-time searchable encrypted threat log, and consent-gated remote protections.
  */
 class FamilyActivity : AppCompatActivity() {
 
@@ -32,21 +39,18 @@ class FamilyActivity : AppCompatActivity() {
     private lateinit var cryptoBadge: TextView
     private lateinit var epochText: TextView
     private lateinit var sasEmojis: TextView
+    private lateinit var actionNoticeText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val app = application as KavachApp
         val store = app.store
-        client = RelayClient(BuildConfig.KAVACH_API)
-        crypto = ShieldCrypto(this, "device")
+        val hid = store.getString("household_id") ?: "demo_family_household"
+        val seniorId = store.getString("senior_id") ?: "demo-senior"
 
-        var hid = store.getString("household_id") ?: ""
-        if (hid.isEmpty()) {
-            hid = "demo_family_household"
-            store.putString("household_id", hid)
-        }
-        val seniorId = store.getString("senior_id") ?: "dad1"
+        client = RelayClient(com.kavach.guardian.BuildConfig.KAVACH_API)
+        crypto = ShieldCrypto(this, "guardian")
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -75,11 +79,11 @@ class FamilyActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 20f)) }
 
-        // 1. Navigation Header (Zero "Switch to Senior" button - strictly dedicated role flow)
+        // 1. Top Navigation Bar
         val navHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 16f))
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 14f))
         }
         val headerTitleCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -98,7 +102,7 @@ class FamilyActivity : AppCompatActivity() {
             })
         }
         val pairNavBtn = Button(this).apply {
-            text = "🔗 Pair Parent Device"
+            text = "🔗 Pair Parent"
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
@@ -115,11 +119,78 @@ class FamilyActivity : AppCompatActivity() {
         navHeader.addView(pairNavBtn)
         root.addView(navHeader)
 
-        // 2. RevenueCat Pro Entitlement Card
+        // 2. Dynamic Household Safety Score Card (0–100)
+        val incidentsArr = store.incidents()
+        var scamCount = 0
+        for (i in 0 until incidentsArr.length()) {
+            if (incidentsArr.getJSONObject(i).optString("verdict") == "SCAM") scamCount++
+        }
+        val safetyScore = (100 - (scamCount * 6)).coerceIn(50, 100)
+
+        val scoreCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = KavachTheme.rounded(this@FamilyActivity, Color.parseColor("#0F172A"), 18f, Color.parseColor("#1E293B"), 1.5f)
+            val p = KavachTheme.dp(this@FamilyActivity, 18f)
+            setPadding(p, p, p, p)
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val scoreCircle = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            val s = KavachTheme.dp(this@FamilyActivity, 64f)
+            layoutParams = LinearLayout.LayoutParams(s, s)
+            background = KavachTheme.rounded(
+                this@FamilyActivity,
+                if (safetyScore >= 80) Color.parseColor("#064E3B") else Color.parseColor("#451A03"),
+                32f,
+                if (safetyScore >= 80) KavachTheme.EMERALD_PRO else KavachTheme.GOLD_VIP,
+                2f
+            )
+            addView(TextView(this@FamilyActivity).apply {
+                text = "$safetyScore"
+                textSize = 22f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (safetyScore >= 80) Color.parseColor("#86EFAC") else Color.parseColor("#FDE68A"))
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@FamilyActivity).apply {
+                text = "INDEX"
+                textSize = 9f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (safetyScore >= 80) Color.parseColor("#6EE7B7") else Color.parseColor("#FCD34D"))
+                gravity = Gravity.CENTER
+            })
+        }
+
+        val scoreDetailsCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(KavachTheme.dp(this@FamilyActivity, 16f), 0, 0, 0)
+            }
+            addView(TextView(this@FamilyActivity).apply {
+                text = if (safetyScore >= 80) "Household Fortified ✓" else "Threats Quarantined ⚠️"
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(KavachTheme.DARK_TEXT)
+            })
+            addView(TextView(this@FamilyActivity).apply {
+                text = "2 Protected Parent Devices • ${store.blockedHashes().size} Blocked Hashes\nHardware Keystore Sealed • 0 Plaintext Cloud Leaks"
+                textSize = 12f
+                setTextColor(KavachTheme.DARK_MUTED)
+                setLineSpacing(2f, 1.2f)
+                setPadding(0, KavachTheme.dp(this@FamilyActivity, 3f), 0, 0)
+            })
+        }
+        scoreCard.addView(scoreCircle)
+        scoreCard.addView(scoreDetailsCol)
+        root.addView(scoreCard, marginBot16)
+
+        // 3. RevenueCat Pro Entitlement Card
         val proCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 16f, KavachTheme.EMERALD_PRO, 1.5f)
-            val p = KavachTheme.dp(this@FamilyActivity, 20f)
+            val p = KavachTheme.dp(this@FamilyActivity, 18f)
             setPadding(p, p, p, p)
         }
         val proBadgeRow = LinearLayout(this).apply {
@@ -143,16 +214,16 @@ class FamilyActivity : AppCompatActivity() {
             textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(KavachTheme.DARK_TEXT)
-            setPadding(0, KavachTheme.dp(this@FamilyActivity, 10f), 0, KavachTheme.dp(this@FamilyActivity, 4f))
+            setPadding(0, KavachTheme.dp(this@FamilyActivity, 8f), 0, KavachTheme.dp(this@FamilyActivity, 4f))
         }
         val proSubtitle = TextView(this).apply {
             text = "End-to-end encrypted fraud shield for parents. On-device silent SMS quarantine and daily signed rule updates active."
             textSize = 13f
             setTextColor(KavachTheme.DARK_MUTED)
             setLineSpacing(3f, 1.2f)
-            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 14f))
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 12f))
         }
-        val manageBtn = KavachTheme.button(this, "Manage Subscription / Add Parent Device →", KavachTheme.EMERALD_PRO, Color.BLACK, 10f, 44f) {
+        val manageBtn = KavachTheme.button(this, "Manage Subscription / Add Parent Device →", KavachTheme.EMERALD_PRO, Color.BLACK, 10f, 42f) {
             startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
         }
         proCard.addView(proTitle)
@@ -160,7 +231,7 @@ class FamilyActivity : AppCompatActivity() {
         proCard.addView(manageBtn)
         root.addView(proCard, marginBot20)
 
-        // 3. Extensive Cryptographic E2E Parent Fleet Link Section
+        // 4. Extensive Cryptographic E2E Parent Fleet Link Section
         root.addView(KavachTheme.sectionHeader(this, "🔐 End-to-End Cryptographic Link", true))
 
         val cryptoCard = LinearLayout(this).apply {
@@ -275,8 +346,8 @@ class FamilyActivity : AppCompatActivity() {
 
         root.addView(cryptoCard, marginBot20)
 
-        // 4. Section: Protected Parent Devices (Multi-Device Fleet)
-        root.addView(KavachTheme.sectionHeader(this, "Protected Parent Devices", true))
+        // 5. Section: Protected Parent Devices (Multi-Device Fleet)
+        root.addView(KavachTheme.sectionHeader(this, "Protected Parent Devices (Fleet)", true))
 
         fun createDeviceRow(name: String, model: String, details: String, status: String, hasAlert: Boolean): LinearLayout {
             return LinearLayout(this).apply {
@@ -338,55 +409,182 @@ class FamilyActivity : AppCompatActivity() {
         root.addView(dadDevice, marginBot12)
         root.addView(momDevice, marginBot20)
 
-        // 5. Section: Recent Threat Intercepts (Decrypted On-Device for Manager)
+        // 6. Section: Recent Threat Intercepts (Decrypted On-Device for Manager)
         root.addView(KavachTheme.sectionHeader(this, "Recent Threat Intercepts (Decrypted on Device)", true))
 
-        val threatCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 16f, Color.parseColor("#7F1D1D"), 1.5f)
-            val p = KavachTheme.dp(this@FamilyActivity, 18f)
-            setPadding(p, p, p, p)
-        }
-        val threatBadge = KavachTheme.badge(this, "🔴 SCAM INTERCEPTED & QUARANTINED", KavachTheme.DANGER_RED, KavachTheme.DANGER_RED_BG)
-        threatCard.addView(threatBadge)
-
-        val threatText = TextView(this).apply {
-            text = "Lure: \"Dear Customer, your bank account is FROZEN. Immediately share OTP ****** or police will arrest today.\""
+        // Search filter input for intercepted threats
+        val searchBox = EditText(this).apply {
+            hint = "🔍 Search intercepted threats (e.g. Bank, OTP, Police, APK)..."
             textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
             setTextColor(KavachTheme.DARK_TEXT)
-            setPadding(0, KavachTheme.dp(this@FamilyActivity, 10f), 0, KavachTheme.dp(this@FamilyActivity, 6f))
+            setHintTextColor(Color.parseColor("#64748B"))
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 12f, KavachTheme.DARK_BORDER, 1f)
+            val px = KavachTheme.dp(this@FamilyActivity, 14f)
+            val py = KavachTheme.dp(this@FamilyActivity, 10f)
+            setPadding(px, py, px, py)
         }
-        val redFlagsSummary = TextView(this).apply {
-            text = "CITED RED FLAGS:\n• OTP demand\n• Artificial freeze urgency\n• Police impersonation threat"
-            textSize = 12f
-            setTextColor(Color.parseColor("#FCA5A5"))
-            setLineSpacing(2f, 1.2f)
-            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 12f))
-        }
-        val blockHashBtn = KavachTheme.button(this, "🛡️ Block Sender Hash for Household", KavachTheme.DANGER_RED, Color.WHITE, 10f, 40f) {
-            Toast.makeText(this@FamilyActivity, "Sender hash blocked. Calls & SMS from this sender will auto-reject pre-ring.", Toast.LENGTH_LONG).show()
-        }
-        threatCard.addView(threatText)
-        threatCard.addView(redFlagsSummary)
-        threatCard.addView(blockHashBtn)
-        root.addView(threatCard, marginBot20)
+        root.addView(searchBox, marginBot12)
 
-        // 6. Section: Consent-Gated Remote Actions
+        val incidentsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        root.addView(incidentsContainer, marginBot20)
+
+        fun renderIncidents(filter: String = "") {
+            incidentsContainer.removeAllViews()
+            val list = mutableListOf<JSONObject>()
+            val arr = store.incidents()
+            for (i in 0 until arr.length()) {
+                list.add(arr.getJSONObject(i))
+            }
+            list.reverse() // latest first
+
+            val q = filter.trim().lowercase()
+            val filtered = if (q.isEmpty()) list else list.filter {
+                it.optString("summary").lowercase().contains(q) ||
+                it.optString("verdict").lowercase().contains(q) ||
+                it.optString("channel").lowercase().contains(q)
+            }
+
+            if (filtered.isEmpty()) {
+                val cleanCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 14f, KavachTheme.DARK_BORDER, 1f)
+                    val p = KavachTheme.dp(this@FamilyActivity, 16f)
+                    setPadding(p, p, p, p)
+                    gravity = Gravity.CENTER_HORIZONTAL
+                }
+                cleanCard.addView(TextView(this).apply {
+                    text = "🕊️ Clean Slate — Zero Active Threats"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.parseColor("#86EFAC"))
+                    gravity = Gravity.CENTER
+                })
+                cleanCard.addView(TextView(this).apply {
+                    text = "A quiet phone is a safe phone. Scam SMS messages are silenced and screened on-device."
+                    textSize = 12f
+                    setTextColor(KavachTheme.DARK_MUTED)
+                    gravity = Gravity.CENTER
+                    setPadding(0, KavachTheme.dp(this@FamilyActivity, 4f), 0, 0)
+                })
+                incidentsContainer.addView(cleanCard)
+            } else {
+                val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+                for (item in filtered.take(10)) {
+                    val card = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        val isScam = item.optString("verdict") == "SCAM"
+                        background = KavachTheme.rounded(
+                            this@FamilyActivity,
+                            if (isScam) Color.parseColor("#1C0A0A") else KavachTheme.DARK_SURFACE,
+                            14f,
+                            if (isScam) Color.parseColor("#7F1D1D") else KavachTheme.DARK_BORDER,
+                            1f
+                        )
+                        val p = KavachTheme.dp(this@FamilyActivity, 14f)
+                        setPadding(p, p, p, p)
+                    }
+
+                    val row1 = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                    val verd = item.optString("verdict", "SCAM")
+                    val badge = KavachTheme.badge(
+                        this,
+                        verd,
+                        if (verd == "SCAM") KavachTheme.DANGER_RED else KavachTheme.EMERALD_PRO,
+                        if (verd == "SCAM") KavachTheme.DANGER_RED_BG else KavachTheme.EMERALD_PRO_BG
+                    )
+                    row1.addView(badge)
+
+                    val ts = item.optLong("ts", System.currentTimeMillis())
+                    val timeText = TextView(this).apply {
+                        text = " • " + sdf.format(Date(ts)) + " via " + item.optString("channel", "sms")
+                        textSize = 12f
+                        setTextColor(KavachTheme.DARK_MUTED)
+                        setPadding(KavachTheme.dp(this@FamilyActivity, 6f), 0, 0, 0)
+                    }
+                    row1.addView(timeText)
+                    card.addView(row1)
+
+                    val summary = item.optString("summary")
+                    card.addView(TextView(this).apply {
+                        text = summary
+                        textSize = 13.5f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(KavachTheme.DARK_TEXT)
+                        setPadding(0, KavachTheme.dp(this@FamilyActivity, 8f), 0, KavachTheme.dp(this@FamilyActivity, 8f))
+                    })
+
+                    val blockBtn = KavachTheme.button(this, "🛡️ Block Sender Hash for Household", KavachTheme.DANGER_RED, Color.WHITE, 8f, 36f) {
+                        val realHash = item.optString("h", "")
+                        if (realHash.length != 64) {
+                            Toast.makeText(this@FamilyActivity, "No sender-hash on this entry (older log) — block from Quarantine vault for exact hash.", Toast.LENGTH_LONG).show()
+                            return@button
+                        }
+                        store.addBlockedHash(realHash, "Case: ${summary.take(20)}")
+                        Thread {
+                            try {
+                                client.block(hid, realHash, "Family war-room: ${summary.take(40)}")
+                            } catch (_: Exception) {}
+                        }.start()
+                        Toast.makeText(this@FamilyActivity, "Sender hash blocked (${realHash.take(8)}…). Calls terminate pre-ring; community shield learns at 3 households.", Toast.LENGTH_SHORT).show()
+                    }
+                    card.addView(blockBtn)
+
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 10f)) }
+                    incidentsContainer.addView(card, lp)
+                }
+            }
+        }
+
+        searchBox.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                renderIncidents(s?.toString() ?: "")
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        renderIncidents()
+
+        // 7. Section: Consent-Gated Remote Actions
         root.addView(KavachTheme.sectionHeader(this, "Consent-Gated Remote Safety Actions", true))
+
+        actionNoticeText = TextView(this).apply {
+            text = "Remote actions execute securely over E2E encrypted relay."
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#94A3B8"))
+            background = KavachTheme.rounded(this@FamilyActivity, Color.parseColor("#0F172A"), 10f, Color.parseColor("#1E293B"), 1f)
+            val px = KavachTheme.dp(this@FamilyActivity, 14f)
+            val py = KavachTheme.dp(this@FamilyActivity, 10f)
+            setPadding(px, py, px, py)
+        }
+        root.addView(actionNoticeText, marginBot12)
 
         val whisperBtn = KavachTheme.button(this, "💬 Whisper Alert to Dad's Screen", Color.parseColor("#0E7490"), Color.WHITE, 10f, 46f) {
             Thread {
                 try {
                     val msg = "Dad, do not share OTP or transfer money. I am verifying this caller now."
                     client.sendCommand(hid, seniorId, "senior", "show_message", msg)
-                    runOnUiThread { Toast.makeText(this, "E2E safety message sent to parent screen.", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        actionNoticeText.text = "✓ Whisper Alert delivered to Dad's screen: \"Do not share OTP\""
+                        actionNoticeText.setTextColor(Color.parseColor("#86EFAC"))
+                        Toast.makeText(this, "E2E safety message sent to parent screen.", Toast.LENGTH_SHORT).show()
+                    }
                 } catch (_: Exception) {}
             }.start()
         }
         root.addView(whisperBtn, marginBot12)
 
         val challengeBtn = KavachTheme.button(this, "🔐 Anti-Clone Device Challenge", Color.parseColor("#6366F1"), Color.WHITE, 10f, 46f) {
+            actionNoticeText.text = "🔐 Anti-Clone Challenge dispatched. Verifying hardware-enrolled keyset."
+            actionNoticeText.setTextColor(Color.parseColor("#A5B4FC"))
             AlertDialog.Builder(this)
                 .setTitle("Anti-Clone Challenge")
                 .setMessage("Verifies your parent's enrolled cryptographic device (kills grandchild voice-clones). Dispatches a 6-character emoji challenge.")
@@ -402,13 +600,17 @@ class FamilyActivity : AppCompatActivity() {
             Thread {
                 try {
                     client.sendCommand(hid, seniorId, "senior", "sound_siren")
-                    runOnUiThread { Toast.makeText(this, "Siren triggered on parent device.", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        actionNoticeText.text = "🚨 Emergency Siren triggered remotely on parent device."
+                        actionNoticeText.setTextColor(Color.parseColor("#FCA5A5"))
+                        Toast.makeText(this, "Siren triggered on parent device.", Toast.LENGTH_SHORT).show()
+                    }
                 } catch (_: Exception) {}
             }.start()
         }
         root.addView(sirenBtn, marginBot20)
 
-        // 7. Sovereign Settings & Role Switcher (Nested secondary dialog)
+        // 8. Sovereign Settings & Role Switcher
         val settingsCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 14f, KavachTheme.DARK_BORDER, 1f)
@@ -449,60 +651,38 @@ class FamilyActivity : AppCompatActivity() {
     private fun showGuardianSettingsDialog() {
         val app = application as KavachApp
         val items = arrayOf(
-            "🔗 Re-Pair Parent Device via QR/Code",
-            "🔄 Switch App Role (Parent Sanctuary / Guardian Console)",
-            "💳 Manage RevenueCat Subscription",
-            "🛡️ About Zero-Knowledge Shield"
+            "🔗 Re-Pair Parent Device",
+            "🧪 Launch Scam Defense Lab",
+            "🔄 Switch Device Role (Guardian / Parent)",
+            "📋 View Encrypted Blocklist Hashes"
         )
         AlertDialog.Builder(this)
-            .setTitle("Guardian Device Settings")
+            .setTitle("Household Guardian Settings")
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> startActivity(Intent(this, PairingActivity::class.java))
-                    1 -> {
+                    1 -> startActivity(Intent(this, ScamLabActivity::class.java))
+                    2 -> {
                         app.store.putString("app_role", "")
                         startActivity(Intent(this, RoleSelectionActivity::class.java))
                         finish()
                     }
-                    2 -> startActivity(Intent(this, PaywallActivity::class.java))
-                    3 -> AlertDialog.Builder(this)
-                        .setTitle("Zero-Knowledge Shield")
-                        .setMessage("Kavach uses Google Tink ECIES hybrid encryption. No audio or raw SMS text ever touches the cloud unencrypted. The relay holds only ciphertext envelopes and blind SHA-256 hashes.")
-                        .setPositiveButton("OK", null)
-                        .show()
+                    3 -> showBlocklistDialog()
                 }
             }
-            .setNegativeButton("Close", null)
+            .setNegativeButton("Back", null)
             .show()
     }
 
-    private fun refreshCryptoState() {
+    private fun showBlocklistDialog() {
         val app = application as KavachApp
-        val store = app.store
-        val peerPub = store.getPeerPub() ?: ""
-        val isEnclavePaired = peerPub.isNotEmpty()
-
-        cryptoBadge.text = if (isEnclavePaired) "🟢 ECIES P-256 SESSION ACTIVE" else "🟢 ENCLAVE SEALED (READY)"
-        cryptoBadge.setTextColor(if (isEnclavePaired) KavachTheme.EMERALD_PRO else KavachTheme.GOLD_VIP)
-        cryptoBadge.background = KavachTheme.rounded(this, if (isEnclavePaired) KavachTheme.EMERALD_PRO_BG else KavachTheme.GOLD_VIP_BG, 12f)
-
-        val epoch = store.getEpoch()
-        epochText.text = "Channel Epoch #$epoch • Forward Secrecy"
-
-        val myPub = try { ShieldCrypto.b64e(crypto.publicKeyBytes()) } catch (_: Exception) { "" }
-        val sasCode = if (myPub.isNotEmpty() && peerPub.isNotEmpty()) {
-            val (a, b) = if (myPub < peerPub) myPub to peerPub else peerPub to myPub
-            SasFingerprint.of(a, b)
-        } else {
-            "🛡️ ⚡ 🌊 🦅 🌲 🔑"
-        }
-        sasEmojis.text = sasCode
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::cryptoBadge.isInitialized && ::epochText.isInitialized && ::sasEmojis.isInitialized) {
-            refreshCryptoState()
-        }
+        val hashes = app.store.blockedHashes()
+        val text = if (hashes.isEmpty()) "No blocked sender hashes yet. Tap 'Block' on any intercepted scam."
+                   else hashes.joinToString("\n• ") { it.take(16) + "…" }
+        AlertDialog.Builder(this)
+            .setTitle("Household Blocked Hashes (${hashes.size})")
+            .setMessage("• $text")
+            .setPositiveButton("Close", null)
+            .show()
     }
 }

@@ -113,6 +113,21 @@ export async function postDemoAttack(seniorId: string, scenario = 'bank_otp'): P
   return (await r.json()) as DemoAttack
 }
 
+export type BlockCase = {
+  ok: boolean; number_hash: string; household_id: string
+  community: boolean; summary: string
+}
+
+export async function postBlockCase(seniorId: string, incidentId: number): Promise<BlockCase> {
+  const r = await fetch(`${getApiBase()}/api/family/block-case`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senior_id: seniorId, incident_id: incidentId })
+  })
+  if (!r.ok) throw new Error(`block ${r.status}`)
+  return (await r.json()) as BlockCase
+}
+
 export async function fetchHealth(): Promise<{ ok: boolean; ms: number }> {
   const t0 = Date.now()
   const r = await fetch(`${getApiBase()}/healthz`, { cache: 'no-store' })

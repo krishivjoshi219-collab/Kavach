@@ -55,6 +55,39 @@ def test_demo_attack_creates_scam_loop():
     assert any(i["id"] == j["incident_id"] for i in f["incidents"])
 
 
+def test_block_case_is_real_relay_mutation():
+    atk = client.post("/api/demo/attack",
+                      json={"senior_id": "block-senior", "scenario": "bank_otp"}).json()
+    b = client.post("/api/family/block-case",
+                    json={"senior_id": "block-senior",
+                          "incident_id": atk["incident_id"]}).json()
+    assert b["ok"] and len(b["number_hash"]) == 64
+    assert b["household_id"] == "web|block-senior"
+    lst = client.get("/api/v1/screen/list",
+                     params={"household_id": "web|block-senior"}).json()
+    assert any(e["number_hash"] == b["number_hash"] for e in lst["entries"])
+    bad = client.post("/api/family/block-case",
+                      json={"senior_id": "block-senior", "incident_id": 999999})
+    assert bad.status_code == 404
+
+
+def test_directory_jurisdiction_filter():
+    all_in = client.get("/api/directory/lookup", params={"q": ""}).json()
+    assert all_in["count"] >= 1
+    none = client.get("/api/directory/lookup",
+                      params={"q": "", "jurisdiction": "US"}).json()
+    assert none["count"] == 0
+
+
+def test_nextgen_proof_contract():
+    p = client.get("/api/nextgen/proof").json()
+    assert p["track"] == "Next Gen" and p["test_mode"] is True
+    assert "SHIPATON-JUDGE" in p["revenuecat"]["judge_promo"]
+    assert "shield_protection" in p["revenuecat"]["entitlements"]
+    assert p["repo"]["license_mit"] and p["repo"]["submission_pack"]
+    assert p["repo"]["icon_1024"] and p["repo"]["screenshot_1179x2556"]
+
+
 def test_pause_directory_challenge_billing():
     for lang, needle in (("en", "Pause"), ("hi", "रुकें"), ("hinglish", "Ruko")):
         r = client.get("/api/pause-card", params={"lang": lang}).json()

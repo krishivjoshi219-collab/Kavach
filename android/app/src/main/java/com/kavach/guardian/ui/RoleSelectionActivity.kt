@@ -24,6 +24,22 @@ class RoleSelectionActivity : AppCompatActivity() {
         val app = application as KavachApp
         val store = app.store
 
+        // Flavor preset: senior/manager APKs boot straight to their role so the
+        // 90-second demo never wastes time on a chooser. Dual (default) keeps it.
+        when (com.kavach.guardian.BuildConfig.APP_ROLE) {
+            "senior" -> {
+                store.putString("app_role", "senior")
+                startActivity(Intent(this, SeniorActivity::class.java))
+                finish()
+                return
+            }
+            "guardian" -> {
+                store.putString("app_role", "guardian")
+                startActivity(Intent(this, FamilyActivity::class.java))
+                finish()
+                return
+            }
+        }
         // Fast-path for already configured devices
         val existingRole = store.getString("app_role")
         if (existingRole == "senior") {

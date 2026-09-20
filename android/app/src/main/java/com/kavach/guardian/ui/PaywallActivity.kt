@@ -136,13 +136,13 @@ class PaywallActivity : AppCompatActivity() {
             setPadding(0, 0, 0, 6)
         }
         val annualHeader = TextView(this).apply {
-            text = "Family Guardian Annual — $79.99 / yr"
+            text = "Family Fortress Annual — $79.99 / yr"
             textSize = 17f
             setTextColor(Color.WHITE)
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         val annualSub = TextView(this).apply {
-            text = "Just $6.67/mo • 7-day free trial • Covers up to 3 parent devices"
+            text = "Just $6.67/mo • 7-day free trial • 2 parents + 6 caregivers • save 44% vs $11.99/mo"
             textSize = 13f
             setTextColor(Color.parseColor("#A5D6A7"))
             setPadding(0, 4, 0, 0)
@@ -170,13 +170,13 @@ class PaywallActivity : AppCompatActivity() {
             }
         }
         val monthlyHeader = TextView(this).apply {
-            text = "Family Guardian Monthly — $9.99 / mo"
+            text = "Pro Caregiver Monthly — $4.99 / mo"
             textSize = 17f
             setTextColor(Color.WHITE)
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         val monthlySub = TextView(this).apply {
-            text = "Covers up to 3 parent devices • Cancel anytime"
+            text = "1 senior + 2 caregivers • Family Fortress $11.99/mo in store • Cancel anytime"
             textSize = 13f
             setTextColor(Color.parseColor("#9E9E9E"))
             setPadding(0, 4, 0, 0)
@@ -238,7 +238,7 @@ class PaywallActivity : AppCompatActivity() {
             setPadding(0, 0, 0, 6)
         }
         val judgeDesc = TextView(this).apply {
-            text = "Evaluating for RevenueCat Shipaton? Unlock full Pro Family Shield without billing info:"
+            text = "Next Gen judges (TEST MODE, no card, no charge): enter promo to unlock Pro Family Shield."
             textSize = 12f
             setTextColor(Color.parseColor("#FFE082"))
             setPadding(0, 0, 0, 12)
@@ -264,6 +264,11 @@ class PaywallActivity : AppCompatActivity() {
             setPadding(24, 16, 24, 16)
             isAllCaps = false
             setOnClickListener {
+                val code = promoInput.text.toString().trim()
+                if (!code.equals("SHIPATON-JUDGE", ignoreCase = true)) {
+                    Toast.makeText(this@PaywallActivity, "Unknown promo code. Judges: use SHIPATON-JUDGE.", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
                 val hid = (application as KavachApp).store.getString("household_id") ?: "demo_family_household"
                 syncTierToBackend(hid, "pro")
                 statusBadge.text = "✨ PRO FAMILY SHIELD ACTIVE (3 Parent Seats)"
@@ -353,14 +358,19 @@ class PaywallActivity : AppCompatActivity() {
             syncTierToBackend(hid, tier)
             return
         }
+        // Server authority: family/annual packages map to ultra, monthly to pro —
+        // never trust the pre-selected card alone once a real package is known.
+        val resolved = if (pkg.identifier.contains("family", true)
+            || pkg.identifier.contains("annual", true)
+            || pkg.identifier.contains("ultra", true)) "ultra" else "pro"
         val params = PurchaseParams.Builder(this, pkg).build()
         Purchases.sharedInstance.purchase(params, object : PurchaseCallback {
             override fun onCompleted(storeTransaction: StoreTransaction, customerInfo: CustomerInfo) {
-                val hasPro = customerInfo.entitlements["pro"]?.isActive == true ||
-                             customerInfo.entitlements["family_pro_shield"]?.isActive == true
-                if (hasPro) {
-                    syncTierToBackend(hid, "pro")
-                    statusBadge.text = "✨ PRO FAMILY SHIELD ACTIVE (3 Parent Seats)"
+                if (hasProEntitlement(customerInfo)) {
+                    syncTierToBackend(hid, resolved)
+                    statusBadge.text = if (resolved == "ultra")
+                        "✨ FAMILY FORTRESS ACTIVE (Parent Seats)"
+                    else "✨ PRO FAMILY SHIELD ACTIVE (3 Parent Seats)"
                     statusBadge.setTextColor(Color.parseColor("#FFD54F"))
                 }
             }
@@ -380,8 +390,7 @@ class PaywallActivity : AppCompatActivity() {
         }
         Purchases.sharedInstance.restorePurchases(object : ReceiveCustomerInfoCallback {
             override fun onReceived(customerInfo: CustomerInfo) {
-                val hasPro = customerInfo.entitlements["pro"]?.isActive == true ||
-                             customerInfo.entitlements["family_pro_shield"]?.isActive == true
+                val hasPro = hasProEntitlement(customerInfo)
                 val hid = (application as KavachApp).store.getString("household_id") ?: "demo_family_household"
                 if (hasPro) {
                     syncTierToBackend(hid, "pro")
@@ -397,6 +406,13 @@ class PaywallActivity : AppCompatActivity() {
                 Toast.makeText(this@PaywallActivity, "Restore error: ${error.message}", Toast.LENGTH_LONG).show()
             }
         })
+    }
+
+    private fun hasProEntitlement(info: CustomerInfo): Boolean {
+        // Canonical Next Gen entitlement is `shield_protection`.
+        // Accept legacy/alias IDs so dashboard renames never lock judges out.
+        val ids = listOf("shield_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield")
+        return ids.any { info.entitlements[it]?.isActive == true }
     }
 
     private fun syncTierToBackend(hid: String, tier: String) {

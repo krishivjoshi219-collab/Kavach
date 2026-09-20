@@ -196,10 +196,12 @@ class ScamLabActivity : AppCompatActivity() {
                 val verdict = RuleEngine.judge(scenario.text, knownContact = (scenario.expectedVerdict == "LIKELY_SAFE"))
                 val hits = RuleEngine.extract(scenario.text)
 
+                val hid = store.getString("household_id") ?: "default"
                 store.logIncident(
                     verdict = verdict.verdict,
                     channel = "scam_lab",
-                    summary = "${scenario.title}: ${verdict.verdict} (${hits.size} triggers)"
+                    summary = "${scenario.title}: ${verdict.verdict} (${hits.size} triggers)",
+                    senderHash = RuleEngine.hashNumber(hid, scenario.caller)
                 )
 
                 val summaryText = buildString {

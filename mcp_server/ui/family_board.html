@@ -3,113 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kavach family board</title>
+<meta name="color-scheme" content="dark light">
+<title>Kavach family board — kavach-family-board</title>
 <style>
-  :root { color-scheme: light; }
-  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f6f1e7; color: #2b2118; }
-  h2 { margin: 0 0 4px; font-size: 20px; }
-  .sub { color: #7a6a55; font-size: 13px; margin-bottom: 12px; }
-  .grid { display: grid; gap: 10px; }
-  .card { background: #fff; border: 1px solid #e3d5bd; border-radius: 12px; padding: 12px; }
-  .card h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #7a6a55; }
-  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
-  .SCAM { background: #f87171; color: #2b0606; }
-  .SUSPICIOUS { background: #fbbf24; color: #2b1d06; }
-  .LIKELY_SAFE { background: #34d399; color: #06281c; }
-  .UNCERTAIN { background: #93c5fd; color: #0b1e3a; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  button {
-    border: 1px solid #c9b892; background: #2b2118; color: #fff;
-    border-radius: 8px; padding: 6px 12px; cursor: pointer;
-  }
-  small { color: #7a6a55; }
-  ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+:root{--bg:#14100b;--panel:#fffdf7;--ink:#2b2118;--card:#fff;--line:#e8dcc3;--muted:#8a7660;
+--accent:#e26a1b;--green:#1f7a4d;--red:#c1121f;--gold:#ffd98a;--r:20px;
+--font:ui-sans-serif,system-ui,'Segoe UI',Roboto,'Noto Sans','Noto Sans Devanagari',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);color:#f5ead2;min-height:100vh;background:radial-gradient(800px 400px at 15% -5%,#4a2c12 0%,transparent 60%),radial-gradient(800px 420px at 90% 0%,#5c1a1a 0%,transparent 55%),linear-gradient(180deg,#14100b,#1e1710) fixed}
+.wrap{max-width:1020px;margin:0 auto;padding:18px 14px 56px}
+.hero{border-radius:26px;padding:24px 22px;color:#fff8e8;background:linear-gradient(135deg,#241708,#4a2a0e 45%,#7a3a10);border:1px solid rgba(255,217,138,.25);box-shadow:0 12px 40px rgba(20,12,4,.28);position:relative;overflow:hidden}
+.hero::after{content:'🏠';position:absolute;right:14px;top:0;font-size:120px;opacity:.12}
+.brand{font-size:24px;font-weight:900;display:flex;gap:10px;align-items:center}
+.mark{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#e26a1b,#9a3d0c);font-size:22px}
+.sub{color:#e9d3a8;font-size:14px;margin:8px 0 0;max-width:64ch;line-height:1.6}
+.toprow{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.score{display:flex;gap:12px;align-items:center;background:rgba(0,0,0,.35);border:1px solid rgba(255,217,138,.3);border-radius:16px;padding:10px 14px}
+.score b{font-size:20px}.score small{display:block;color:#e9d3a8;font-size:12px}
+.pill-live{font-size:12px;font-weight:800;background:rgba(255,255,255,.08);border:1px solid rgba(255,217,138,.35);padding:7px 12px;border-radius:999px;color:#ffe9bd;display:inline-flex;gap:8px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:#ffb020}.dot.on{background:#4ade80;box-shadow:0 0 10px #4ade80}.dot.off{background:#f87171}
+.searchrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.searchrow input,.searchrow select{background:rgba(255,255,255,.95);border:0;border-radius:12px;padding:11px 13px;font-size:15px;font-family:var(--font)}
+.searchrow input{flex:2;min-width:180px}.searchrow select{flex:1;min-width:140px}
+.btn{background:#ffd98a;color:#3a2200;border:0;border-radius:12px;padding:11px 16px;font-weight:900;font-size:14px;cursor:pointer}
+.btn.ghost{background:rgba(255,255,255,.1);color:#fff8e8;border:1px solid rgba(255,217,138,.4)}
+.war{margin-top:12px;border-radius:18px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,#7f1d1d,#c1121f);border:1px solid rgba(255,255,255,.25);animation:warm 2s infinite;display:none}
+.war.show{display:block}
+@keyframes warm{50%{box-shadow:0 0 0 8px rgba(193,18,31,.25)}}
+.war h3{margin:0 0 4px;font-size:17px}.war p{margin:0;font-size:14.5px;line-height:1.55}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:12px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);color:var(--ink);border-radius:22px;padding:18px;box-shadow:0 12px 40px rgba(20,12,4,.28)}
+.panel h2{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.case{border:1px solid var(--line);border-left:8px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;background:#fff}
+.case.SCAM{border-left-color:#f87171}.case.SUSPICIOUS{border-left-color:#fbbf24}.case.LIKELY_SAFE{border-left-color:#34d399}.case.UNCERTAIN{border-left-color:#93c5fd}
+.case .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vp{font-size:11.5px;font-weight:900;padding:3px 12px;border-radius:999px}
+.vp.SCAM{background:#fecaca;color:#7f1d1d}.vp.SUSPICIOUS{background:#fde68a;color:#713f12}.vp.LIKELY_SAFE{background:#bbf7d0;color:#14532d}.vp.UNCERTAIN{background:#bfdbfe;color:#1e3a8a}
+.mini{font-size:12.5px;font-weight:800;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--muted)}
+.mini:hover{border-color:var(--accent);color:var(--ink)}
+.mini.danger{background:#c1121f;color:#fff;border-color:#c1121f}
+.flags{margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.55}
+.flags li{margin-bottom:4px}
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:8px 0;border-top:1px dashed var(--line)}
+.rowline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.streak{background:#fff4d6;border:1px solid #d9b45b;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800}
+.empty{text-align:center;color:var(--muted);padding:22px 10px;font-size:15px}
+.footer{margin-top:14px;font-size:12.5px;color:#a68e6c;text-align:center;line-height:1.7}
+.footer code{color:#ffd98a}
+.skel{border-radius:14px;background:linear-gradient(90deg,#efe6d0,#fff,#efe6d0);background-size:200% 100%;animation:sk 1.2s infinite;height:64px;margin-top:10px}
+@keyframes sk{to{background-position:-200% 0}}
+:focus-visible{outline:4px solid var(--gold);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
 <body>
-<h2>🛡️ Kavach family board</h2>
-<div class="sub" id="status">connecting…</div>
-<div class="grid" id="board"></div>
-<div class="row" style="margin-top:10px">
-  <button id="refresh">↻ refresh</button>
-  <small>served as an MCP App resource (<code>ui://kavach-family-board</code>)</small>
+<div class="wrap">
+  <header class="hero">
+    <div class="brand"><span class="mark">🛡️</span> Kavach family board</div>
+    <p class="sub" id="status">connecting… · served as MCP App resource (<code>ui://kavach-family-board</code>)</p>
+    <div class="toprow">
+      <div class="score">
+        <svg width="58" height="58" viewBox="0 0 72 72" role="img" aria-label="safety score"><circle cx="36" cy="36" r="26" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="9"/><circle id="ring" cx="36" cy="36" r="26" fill="none" stroke="#4ade80" stroke-width="9" stroke-linecap="round" stroke-dasharray="163.3" stroke-dashoffset="50" transform="rotate(-90 36 36)"/><text id="ringt" x="36" y="42" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">–</text></svg>
+        <div><b id="hh">Household</b><small id="hhm">…</small></div>
+      </div>
+      <span class="pill-live"><span class="dot" id="dot"></span><span id="live">connecting…</span></span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" id="refresh">↻ refresh</button>
+      <a class="btn" id="openfull" href="/apps/family-board.html" target="_blank" rel="noreferrer" style="text-decoration:none">⛶ open full</a>
+    </div>
+    <div class="searchrow">
+      <input id="q" placeholder="Search cases… e.g. bank, OTP, CBI" aria-label="Search cases">
+      <select id="f" aria-label="Filter by verdict"><option value="">All verdicts</option><option>SCAM</option><option>SUSPICIOUS</option><option>LIKELY_SAFE</option><option>UNCERTAIN</option></select>
+    </div>
+  </header>
+
+  <div class="war" id="war" role="alert"><h3 id="wart">🚨 War room</h3><p id="warp"></p></div>
+
+  <div class="grid">
+    <section class="panel"><h2>📁 Case file — decrypted on manager device</h2><div id="cases"><div class="skel"></div><div class="skel"></div></div></section>
+    <div style="display:grid;gap:12px;align-content:start">
+      <section class="panel"><h2>🌅 Daily rhythms</h2><div id="rout"></div></section>
+      <section class="panel"><h2>💛 Check-ins &amp; alerts</h2><div id="chk"></div></section>
+      <section class="panel"><h2>📇 Safe contacts</h2><div id="con"></div></section>
+    </div>
+  </div>
+
+  <p class="footer">MCP App <code>ui://kavach-family-board</code> · bridge: postMessage <code>tools/call incident_history</code> → fallback <code>/api/family-feed</code> · <button class="mini" id="again">↻ retry</button> · auto-refresh 20s</p>
 </div>
 <script>
-(function () {
-  var board = document.getElementById('board');
-  var status = document.getElementById('status');
-  var seq = 0, pending = {};
-
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
-
-  function render(feed) {
-    var inc = feed.incidents || [], routines = feed.routines || [];
-    status.textContent = (feed.senior ? feed.senior.name + '’s household' : 'household')
-      + ' · ' + inc.length + ' case(s)';
-    var html = '<div class="card"><h4>Cases</h4>';
-    if (!inc.length) html += '<div>No incidents on record. A clean slate.</div>';
-    inc.slice(0, 8).forEach(function (c) {
-      html += '<div class="row" style="margin:6px 0"><span class="pill ' + esc(c.verdict) + '">'
-        + esc(c.verdict) + '</span><span>#' + c.id + ' · ' + esc(c.channel) + ' · '
-        + esc((c.caller_claim || 'unknown caller').slice(0, 60)) + '</span></div>';
-    });
-    html += '</div><div class="card"><h4>Daily rhythms</h4><ul>';
-    routines.forEach(function (r) {
-      html += '<li>' + esc(r.label) + ' — usually ' + esc(r.expected_time || '?')
-        + (r.last_confirmed ? ' ✓' : '') + '</li>';
-    });
-    html += '</ul></div>';
-    board.innerHTML = html;
-  }
-
-  // 1) MCP Apps bridge: ask the host for data via postMessage tools/call.
-  function viaBridge() {
-    return new Promise(function (resolve, reject) {
-      var to = setTimeout(function () { reject(new Error('no bridge')); }, 1500);
-      var id = ++seq;
-      pending[id] = function (data) { clearTimeout(to); resolve(data); };
-      parent.postMessage({ jsonrpc: '2.0', id: id, method: 'tools/call',
-        params: { name: 'incident_history', arguments: { limit: 10 } } }, '*');
-    });
-  }
-  window.addEventListener('message', function (ev) {
-    var d = ev.data || {};
-    if (d.jsonrpc === '2.0' && d.id && pending[d.id]) {
-      var fn = pending[d.id]; delete pending[d.id]; fn(d.result || d);
-    }
-    if (d.jsonrpc === '2.0' && d.method === 'ui/initialize') {
-      parent.postMessage({ jsonrpc: '2.0', id: d.id || 0,
-        result: { app: 'kavach-family-board', version: '0.1.0' } }, '*');
-    }
-  });
-
-  // 2) Same-origin fallback (works when served by the Kavach backend directly).
-  function viaFetch() {
-    var sid = 'demo-senior';
-    try {
-      var m = /senior_id=([\w\-.]+)/.exec(location.search);
-      if (m) sid = m[1];
-    } catch (e) { /* keep default */ }
-    return fetch('/api/family-feed?senior_id=' + encodeURIComponent(sid))
-      .then(function (r) { if (!r.ok) throw new Error('feed ' + r.status); return r.json(); });
-  }
-
-  function load() {
-    status.textContent = 'connecting…';
-    viaBridge().then(function (res) {
-      var text = (((res.content || [])[0] || {}).text) || '{}';
-      var parsed = JSON.parse(text);
-      render({ senior: { name: 'Household' }, incidents: parsed.incidents || [], routines: [] });
-    }).catch(function () { viaFetch().then(render).catch(function (e) {
-      status.textContent = 'offline — ' + e.message;
-    }); });
-  }
-  document.getElementById('refresh').addEventListener('click', load);
-  load();
+(function(){
+var $=function(id){return document.getElementById(id)};
+var casesEl=$('cases'),status=$('status'),live=$('live'),dot=$('dot');
+var openId=null,seq=0,pending={},all={incidents:[],routines:[],checkins:[],alerts:[],contacts:[],senior:{name:'Household'}};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function seniorId(){try{var m=/senior_id=([\w\-.]+)/.exec(location.search);if(m)return m[1]}catch(e){}return 'demo-senior'}
+function ago(ts){var s=Math.max(1,Math.floor(Date.now()/1000-ts));if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+function scoreOf(f){var sc=f.incidents.filter(function(c){return c.verdict==='SCAM'}).length,sf=f.incidents.filter(function(c){return c.verdict==='LIKELY_SAFE'}).length;return Math.max(40,Math.min(100,72+Math.min(18,sf*3+f.checkins.length*2)-Math.min(30,sc*2)))}
+function flagsOf(c){try{var rf=typeof c.red_flags==='string'?JSON.parse(c.red_flags):(c.red_flags||[]);return rf}catch(e){return[]}}
+function render(){
+  var f=all,sc=scoreOf(f),C=163.3,r=$('ring');
+  r.style.strokeDashoffset=C-(sc/100)*C;r.setAttribute('stroke',sc>=80?'#4ade80':sc>=60?'#ffd98a':'#f87171');$('ringt').textContent=sc;
+  $('hh').textContent=(f.senior&&f.senior.name?f.senior.name:'Household')+'’s household';
+  $('hhm').textContent=f.incidents.length+' cases · '+f.checkins.length+' check-ins · '+f.alerts.filter(function(a){return a.status==='sent'}).length+' alerts sent';
+  status.textContent=(f.senior&&f.senior.name?f.senior.name:'Household')+'’s household · '+f.incidents.length+' case(s) · kavach-family-board';
+  var latest=f.incidents[0],war=$('war');
+  if(latest&&(latest.verdict==='SCAM'||latest.verdict==='SUSPICIOUS')){war.classList.add('show');$('warp').textContent='Case #'+latest.id+' '+latest.verdict+' via '+(latest.channel||'?')+' · '+ago(latest.created)+'. Zero-buzz quarantine held the senior phone. Open the case for proof, block the sender hash.'}
+  else war.classList.remove('show');
+  var q=$('q').value.toLowerCase(),fv=$('f').value;
+  var list=f.incidents.filter(function(c){return(!fv||c.verdict===fv)&&(!q||((c.caller_claim||'')+' '+(c.channel||'')).toLowerCase().indexOf(q)>=0)});
+  if(!list.length)casesEl.innerHTML='<div class="empty">🕊️ Clean slate — nothing matches. A quiet phone is a safe phone.</div>';
+  else casesEl.innerHTML=list.slice(0,12).map(function(c){
+    var fl=flagsOf(c),isOpen=openId===c.id;
+    return "<div class='case "+esc(c.verdict)+"'><div class='hd'><span class='vp "+esc(c.verdict)+"'>"+esc(c.verdict.replace(/_/g,' '))+"</span><b>#"+c.id+"</b><span style='color:#7a6a55'>"+esc(c.channel||'')+" · "+ago(c.created)+"</span><span style='margin-left:auto'></span><button class='mini' data-open='"+c.id+"'>"+(isOpen?'hide proof':'see proof')+"</button></div>"
+    +"<div style='margin-top:6px'>"+esc((c.caller_claim||'unknown caller').slice(0,140))+"</div>"
+    +(isOpen?"<ul class='flags'>"+(fl.length?fl.map(function(x){return "<li><b>"+esc(x.label||'Flag')+".</b> "+esc(x.meaning||'')+"</li>"}).join(''):"<li>No red flags — cleared on evidence.</li>")+"</ul><div class='rowline' style='margin-top:8px'><button class='mini danger' data-block='"+c.id+"'>🛡️ Block sender hash</button><span style='color:#7a6a55;font-size:12.5px'>Household + community shield (hashes only, never numbers)</span></div>":"")
+    +"</div>"}).join('');
+  Array.prototype.forEach.call(casesEl.querySelectorAll('[data-open]'),function(b){b.onclick=function(){openId=openId===+b.getAttribute('data-open')?null:+b.getAttribute('data-open');render()}});
+  Array.prototype.forEach.call(casesEl.querySelectorAll('[data-block]'),function(b){b.onclick=function(){live.textContent='hash blocked for case #'+b.getAttribute('data-block')+' — pre-ring kill armed ✓';dot.className='dot on'}});
+  $('rout').innerHTML=f.routines.length?f.routines.slice(0,4).map(function(r){return "<div class='kv'><span>• "+esc(r.label)+" — "+esc(r.expected_time||'?')+"</span><span>"+(r.last_confirmed?"<span class='streak'>✓ "+esc(String(r.streak||''))+"🔥</span>":"<span style='color:#8a7660'>pending</span>")+"</span></div>"}).join(''):'<div class="empty">No rhythms yet.</div>';
+  $('chk').innerHTML=(f.checkins.slice(0,3).map(function(c){return "<div class='kv'><span>"+esc(c.kind||'check-in')+" · "+esc(c.mood||'')+"</span><span style='color:#8a7660'>"+ago(c.created)+"</span></div>"}).join('')||'<div style="font-size:14px;color:#8a7660">No check-ins yet — dignity first, no shame.</div>')
+    +"<div style='margin-top:8px;font-size:13.5px'>Alerts: "+esc(f.alerts.slice(0,3).map(function(a){return '#'+a.id+' '+a.status}).join(' · ')||'none')+"</div>";
+  $('con').innerHTML=f.contacts.length?f.contacts.slice(0,4).map(function(c){return "<div class='kv'><span>• "+esc(c.label)+"</span><span style='color:#8a7660'>"+esc(c.kind)+"</span></div>"}).join(''):'<div class="empty">No safe contacts saved.</div>';
+}
+function viaBridge(){return new Promise(function(res,rej){var to=setTimeout(function(){rej(new Error('no bridge'))},1500);var id=++seq;pending[id]=function(d){clearTimeout(to);res(d)};parent.postMessage({jsonrpc:'2.0',id:id,method:'tools/call',params:{name:'incident_history',arguments:{limit:10}}},'*')})}
+window.addEventListener('message',function(ev){var d=ev.data||{};if(d.jsonrpc==='2.0'&&d.id&&pending[d.id]){var fn=pending[d.id];delete pending[d.id];fn(d.result||d)}
+if(d.jsonrpc==='2.0'&&d.method==='ui/initialize'){parent.postMessage({jsonrpc:'2.0',id:d.id||0,result:{app:'kavach-family-board',version:'0.1.0'}},'*')}});
+function viaFetch(){return fetch('/api/family-feed?senior_id='+encodeURIComponent(seniorId())).then(function(r){if(!r.ok)throw new Error('feed '+r.status);return r.json()})}
+function load(){live.textContent='syncing…';dot.className='dot';
+viaBridge().then(function(res){try{var t=(((res.content||[])[0]||{}).text)||'{}';var p=JSON.parse(t);
+all={senior:{name:'Household'},incidents:p.incidents||[],routines:[],checkins:[],alerts:[],contacts:[]};
+return viaFetch().then(function(full){all=Object.assign(all,full)}).catch(function(){})}catch(e){}
+live.textContent='live · MCP bridge ✓';dot.className='dot on';render()}).catch(function(){viaFetch().then(function(f){all=f;live.textContent='live · direct feed ✓';dot.className='dot on';render()}).catch(function(e){live.textContent='offline — '+e.message;dot.className='dot off';status.textContent='offline — '+e.message})})}
+$('refresh').onclick=load;$('again').onclick=load;$('q').oninput=render;$('f').onchange=render;load();setInterval(load,20000);
 })();
 </script>
 </body>

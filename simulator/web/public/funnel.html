@@ -1,288 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kavach 🛡️ — Parent Scam Vulnerability Assessment & Shield</title>
-  <style>
-    :root {
-      --primary: #B3541E;
-      --primary-dark: #80330D;
-      --bg: #FAF6EC;
-      --surface: #FFFFFF;
-      --text: #212121;
-      --muted: #666666;
-      --danger: #C62828;
-      --success: #1B5E20;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 24px 16px;
-    }
-    .container {
-      max-width: 580px;
-      margin: 0 auto;
-      background: var(--surface);
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-      padding: 32px 24px;
-    }
-    .header { text-align: center; margin-bottom: 28px; }
-    .logo { font-size: 36px; margin-bottom: 8px; }
-    h1 { font-size: 24px; color: var(--primary); margin-bottom: 8px; font-weight: 700; }
-    .subtitle { font-size: 15px; color: var(--muted); }
-    .card {
-      background: #FDFBF7;
-      border: 1px solid #EFEBE9;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    .step-badge {
-      display: inline-block;
-      background: #FFF3E0;
-      color: var(--primary-dark);
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 20px;
-      margin-bottom: 12px;
-    }
-    .question { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-    .options label {
-      display: block;
-      background: var(--surface);
-      border: 1.5px solid #E0E0E0;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 15px;
-    }
-    .options label:hover { border-color: var(--primary); background: #FFF8E1; }
-    .options input[type="radio"] { margin-right: 10px; accent-color: var(--primary); }
-    .btn {
-      display: block;
-      width: 100%;
-      background: var(--primary);
-      color: #FFF;
-      border: none;
-      padding: 16px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      text-align: center;
-      text-decoration: none;
-      transition: background 0.2s;
-      margin-top: 16px;
-    }
-    .btn:hover { background: var(--primary-dark); }
-    .btn-outline {
-      background: transparent;
-      border: 2px solid var(--primary);
-      color: var(--primary);
-      margin-top: 10px;
-    }
-    .hidden { display: none; }
-    .score-circle {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: #FFEBEE;
-      border: 6px solid var(--danger);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 20px auto;
-    }
-    .score-num { font-size: 32px; font-weight: 800; color: var(--danger); line-height: 1; }
-    .score-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--danger);
-      text-transform: uppercase;
-      margin-top: 4px;
-    }
-    .qr-mock {
-      width: 200px;
-      height: 200px;
-      background: #EEE;
-      margin: 20px auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-      border: 2px dashed #CCC;
-    }
-    .trust-bullets li { margin-left: 20px; margin-bottom: 6px; font-size: 14px; color: #444; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<title>Kavach 🛡️ — Is your parent safe from phone scams? 60-sec check</title>
+<style>
+:root{--bg:#14100b;--panel:#fffdf7;--ink:#2b2118;--card:#fff;--line:#efe3cb;--muted:#8a7660;
+--accent:#e26a1b;--accent2:#9a3d0c;--green:#1f7a4d;--red:#c1121f;--gold:#ffd98a;
+--font:ui-sans-serif,system-ui,'Segoe UI',Roboto,'Noto Sans','Noto Sans Devanagari',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);color:#f5ead2;min-height:100vh;line-height:1.55;background:radial-gradient(900px 480px at 15% -5%,#4a2c12 0%,transparent 60%),radial-gradient(900px 520px at 90% 0%,#5c1a1a 0%,transparent 55%),linear-gradient(180deg,#14100b,#1e1710) fixed;padding:22px 14px 60px}
+.wrap{max-width:620px;margin:0 auto}
+.hero{text-align:center;margin-bottom:16px}
+.logo{width:62px;height:62px;margin:0 auto 10px;border-radius:18px;display:grid;place-items:center;font-size:32px;background:linear-gradient(135deg,#e26a1b,#9a3d0c);box-shadow:0 10px 28px rgba(226,106,27,.5)}
+.hero h1{font-size:26px;font-weight:900;letter-spacing:.2px}
+.hero h1 span{color:var(--gold)}
+.hero p{color:#e9d3a8;font-size:15px;margin-top:6px}
+.badges{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.bdg{font-size:11.5px;font-weight:800;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,217,138,.4);color:#ffe9bd;background:rgba(255,255,255,.07)}
+.bdg.solid{background:var(--gold);color:#3a2200;border-color:var(--gold)}
+.progress{height:10px;background:rgba(255,255,255,.12);border-radius:999px;margin:16px 0 4px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd98a,#e26a1b);border-radius:999px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.pcount{font-size:12.5px;color:#e9d3a8;text-align:center;margin-bottom:12px}
+.card{background:var(--panel);color:var(--ink);border-radius:22px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,.35);margin-bottom:14px}
+.step{font-size:11.5px;font-weight:900;letter-spacing:1px;color:#9a3d0c;background:#fff3e0;padding:5px 12px;border-radius:999px;display:inline-block;margin-bottom:10px}
+.q{font-size:18px;font-weight:800;margin-bottom:4px}
+.qsub{font-size:14px;color:var(--muted);margin-bottom:12px}
+.opt{display:block;background:#fff;border:2px solid #e8dcc3;border-radius:14px;padding:13px 15px;margin-bottom:9px;cursor:pointer;font-size:15px;font-weight:600;transition:all .18s;line-height:1.45}
+.opt:hover{border-color:var(--accent);background:#fff8e1;transform:translateY(-1px)}
+.opt.sel{border-color:var(--accent);background:#fff3e0;box-shadow:0 4px 14px rgba(226,106,27,.2)}
+.opt input{margin-right:10px;accent-color:var(--accent);transform:scale(1.2)}
+.btn{display:block;width:100%;background:linear-gradient(135deg,#e26a1b,#9a3d0c);color:#fff;border:0;padding:17px;border-radius:14px;font-size:17px;font-weight:900;cursor:pointer;margin-top:14px;box-shadow:0 10px 26px rgba(226,106,27,.4);transition:transform .15s}
+.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.6;cursor:wait}
+.btn.ghostb{background:transparent;border:2px solid var(--accent);color:var(--accent);box-shadow:none}
+.hidden{display:none}
+.ringwrap{text-align:center}
+.ring{width:150px;height:150px;margin:8px auto}
+.ring .bg{stroke:#f0e2c8}.ring .fg{stroke:#c1121f;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1),stroke .5s}
+.score-num{font-size:34px;font-weight:900;fill:var(--ink)}
+.score-lab{font-size:11px;font-weight:900;letter-spacing:1.5px;fill:var(--red)}
+.report{font-size:15px;color:#5b4a36;background:#fff8e1;border:1px solid #ffe082;border-radius:12px;padding:14px 16px;margin:12px 0;text-align:left}
+.protect{background:#1b2f1e;color:#e8f5e9;border-radius:14px;padding:16px;margin:12px 0;text-align:left;border:1px solid #4caf50}
+.protect li{margin:6px 0 6px 20px;font-size:14px}
+.price{background:#fff;border:2px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-top:12px}
+.price .amt{font-size:30px;font-weight:900;color:var(--accent)}
+.testmode{font-size:12.5px;color:#2e7d32;background:#e8f5e9;border-radius:8px;padding:8px;margin-top:10px;font-weight:700}
+.qr{width:210px;margin:14px auto;background:#fff;border:2px dashed #c9b892;border-radius:14px;padding:18px;text-align:center}
+.fp{background:#efebe9;border-radius:10px;padding:12px;font-size:24px;letter-spacing:6px;margin-top:12px;text-align:center}
+.ticks{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;font-size:12px;color:#2e7d32;font-weight:700}
+footer{text-align:center;color:#a68e6c;font-size:12.5px;margin-top:16px;line-height:1.7}
+footer a{color:var(--gold)}
+.linkrow{display:flex;gap:10px;margin-top:12px}.linkrow a{flex:1;text-align:center;font-size:13px;font-weight:800;color:#ffe9bd;text-decoration:none;border:1px solid rgba(255,217,138,.4);padding:10px;border-radius:999px;background:rgba(255,255,255,.06)}
+:focus-visible{outline:4px solid var(--gold);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">🛡️</div>
-      <h1>Kavach Guardian Assessment</h1>
-      <p class="subtitle">Evaluate your parent's phone scam vulnerability in 60 seconds</p>
+<div class="wrap">
+  <div class="hero">
+    <div class="logo">🛡️</div>
+    <h1>Is your parent <span>safe</span> from phone scams?</h1>
+    <p>60-second check · Hindi + English · No signup · No charge</p>
+    <div class="badges"><span class="bdg solid">RevenueCat Shipaton 2026</span><span class="bdg">TEST MODE · no card</span><span class="bdg">E2E · zero call uploads</span></div>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  <div class="pcount" id="count">Question 1 of 4</div>
+
+  <div id="step-quiz">
+    <div class="card" data-step="0">
+      <span class="step">QUESTION 1 / 4 · DAILY LIFE</span>
+      <div class="q">How often is your parent alone at home?</div>
+      <div class="qsub">Isolation is the scammer's favourite weapon — pressure works when nobody is nearby to double-check.</div>
+      <label class="opt sel"><input type="radio" name="q1" value="3" checked> Most of the day (4+ hours alone)</label>
+      <label class="opt"><input type="radio" name="q1" value="2"> A few hours, occasionally</label>
+      <label class="opt"><input type="radio" name="q1" value="1"> Rarely — busy household</label>
     </div>
-
-    <!-- STEP 1: QUIZ -->
-    <div id="step-quiz">
-      <div class="card">
-        <span class="step-badge">QUESTION 1 OF 4</span>
-        <div class="question">How often does your parent spend time alone at home?</div>
-        <div class="options">
-          <label><input type="radio" name="q1" value="high" checked> Most of the day (4+ hours alone)</label>
-          <label><input type="radio" name="q1" value="med"> A few hours occasionally</label>
-          <label><input type="radio" name="q1" value="low"> Rarely / lives in a busy household</label>
-        </div>
-      </div>
-
-      <div class="card">
-        <span class="step-badge">QUESTION 2 OF 4</span>
-        <div class="question">Do they have active digital payments (UPI, banking, cards) on their smartphone?</div>
-        <div class="options">
-          <label><input type="radio" name="q2" value="high" checked> Yes, active UPI apps & mobile banking</label>
-          <label><input type="radio" name="q2" value="med"> Debit card only, rarely use apps</label>
-          <label><input type="radio" name="q2" value="low"> No digital payments at all</label>
-        </div>
-      </div>
-
-      <div class="card">
-        <span class="step-badge">QUESTION 3 OF 4</span>
-        <div class="question">
-          Have they ever received calls claiming to be from a bank, police, or electricity board?
-        </div>
-        <div class="options">
-          <label><input type="radio" name="q3" value="high" checked> Yes, multiple unknown spam calls</label>
-          <label><input type="radio" name="q3" value="med"> Not sure, they don't always mention it</label>
-          <label><input type="radio" name="q3" value="low"> Never</label>
-        </div>
-      </div>
-
-      <div class="card">
-        <span class="step-badge">QUESTION 4 OF 4</span>
-        <div class="question">
-          If a caller claims their bank account is frozen and demands an OTP, how would they react?
-        </div>
-        <div class="options">
-          <label><input type="radio" name="q4" value="high" checked> Might get flustered and comply out of fear</label>
-          <label><input type="radio" name="q4" value="med"> Might hesitate but stay on the call</label>
-          <label><input type="radio" name="q4" value="low"> Would hang up immediately and call me</label>
-        </div>
-      </div>
-
-      <button id="btn-show-results" class="btn">Calculate Vulnerability Score →</button>
+    <div class="card" data-step="1">
+      <span class="step">QUESTION 2 / 4 · MONEY EXPOSURE</span>
+      <div class="q">Do they use digital payments on their phone?</div>
+      <div class="qsub">UPI + mobile banking = instant, irreversible transfers. Scammers know this.</div>
+      <label class="opt sel"><input type="radio" name="q2" value="3" checked> Yes — UPI apps &amp; mobile banking active</label>
+      <label class="opt"><input type="radio" name="q2" value="2"> Debit card only, rarely apps</label>
+      <label class="opt"><input type="radio" name="q2" value="1"> No digital payments at all</label>
     </div>
-
-    <!-- STEP 2: RESULTS & STRIPE CHECKOUT -->
-    <div id="step-results" class="hidden">
-      <div class="card" style="text-align: center;">
-        <span class="step-badge" style="background:#FFEBEE; color:var(--danger)">VULNERABILITY REPORT</span>
-        <div class="score-circle">
-          <div class="score-num">84%</div>
-          <div class="score-label">High Risk</div>
-        </div>
-        <h2 style="font-size: 20px; margin-bottom: 8px;">Your Parent is Vulnerable to Authority Scams</h2>
-        <p style="font-size: 14px; color: var(--muted); margin-bottom: 16px;">
-          Scammers exploit isolation and artificial urgency. Once an OTP is shared or an APK is installed,
-          life savings are lost within 3 minutes.
-        </p>
-
-        <div style="text-align: left; background: #FFF8E1; border: 1px solid #FFE082;
-                    border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <strong style="color: #E65100; font-size: 15px;">🛡️ How Kavach Pro Shield Protects Them:</strong>
-          <ul class="trust-bullets" style="margin-top: 8px;">
-            <li><strong>On-Device Telecom Screening:</strong> Known scam numbers auto-blocked silently.</li>
-            <li><strong>One-Tap Remote Cut:</strong> You receive an instant alert and cut scam calls in 1 second.</li>
-            <li><strong>100% Zero-Knowledge:</strong> E2E hybrid encryption via Google Tink. No call uploads.</li>
-          </ul>
-        </div>
-
-        <div style="background: var(--surface); border: 2px solid var(--primary);
-                    border-radius: 10px; padding: 16px; text-align: center;">
-          <div style="font-size: 13px; color: var(--muted); text-transform: uppercase; font-weight: 700;">
-            Caregiver Subscription
-          </div>
-          <div style="font-size: 28px; font-weight: 800; color: var(--primary); margin: 4px 0;">
-            $4.99 <span style="font-size: 14px; font-weight: normal; color: var(--muted);">/ month</span>
-          </div>
-          <p style="font-size: 13px; color: #555;">
-            Next Gen demo: TEST MODE only. No card, no charge. Judges use promo SHIPATON-JUDGE in the app.
-          </p>
-          <button id="btn-stripe-checkout" class="btn">🛡️ Continue (Test Mode — No Payment)</button>
-        </div>
-      </div>
+    <div class="card" data-step="2">
+      <span class="step">QUESTION 3 / 4 · ALREADY TARGETED?</span>
+      <div class="q">Strange bank / police / bijli-board calls lately?</div>
+      <div class="qsub">One spam call means the number is already circulating in lure lists.</div>
+      <label class="opt sel"><input type="radio" name="q3" value="3" checked> Yes — multiple unknown calls</label>
+      <label class="opt"><input type="radio" name="q3" value="2"> Not sure — they don't always tell me</label>
+      <label class="opt"><input type="radio" name="q3" value="1"> Never</label>
     </div>
-
-    <!-- STEP 3: PAIRING HANDSHAKE -->
-    <div id="step-pair" class="hidden">
-      <div class="card" style="text-align: center;">
-        <span class="step-badge" style="background:#E8F5E9; color:var(--success)">TEST MODE — NO PAYMENT TAKEN</span>
-        <h2 style="font-size: 20px; color: var(--success); margin-bottom: 8px;">Household Shield Created!</h2>
-        <p style="font-size: 14px; color: var(--muted);">
-          Scan this pairing QR code with the Kavach Android app on your parent's phone:
-        </p>
-
-        <div class="qr-mock">
-          <div style="text-align: center;">
-            <div style="font-size: 32px;">📱 🔐</div>
-            <div style="font-size: 13px; font-weight: bold; margin-top: 8px; color: var(--primary);">PAIRING CODE:</div>
-            <div style="font-size: 20px; font-weight: 800; letter-spacing: 2px; color: #111;">DEMO</div>
-            <div style="font-size: 12px; color: #666;">Real 6-letter code is issued in-app (TEST MODE pairing).</div>
-          </div>
-        </div>
-
-        <div style="background: #EFEBE9; padding: 12px; border-radius: 8px; font-size: 13px;
-                    color: #444; margin-bottom: 16px;">
-          Signal-style Verification Fingerprint:<br>
-          <strong style="font-size: 16px;">🛡️ 🔑 🌟 🔔 🐘</strong>
-        </div>
-
-        <a class="btn" href="https://github.com/krishivjoshi219-collab/Kavach" target="_blank">
-          Download Kavach Android APK →
-        </a>
-      </div>
+    <div class="card" data-step="3">
+      <span class="step">QUESTION 4 / 4 · PRESSURE TEST</span>
+      <div class="q">“Account frozen! Share OTP now or police will arrest you.” — what would they do?</div>
+      <div class="qsub">Be honest. Fear + authority + urgency defeats even smart people.</div>
+      <label class="opt sel"><input type="radio" name="q4" value="3" checked> Might panic and comply</label>
+      <label class="opt"><input type="radio" name="q4" value="2"> Hesitate, but stay on the call</label>
+      <label class="opt"><input type="radio" name="q4" value="1"> Hang up &amp; call me first</label>
     </div>
-
+    <button id="btn-go" class="btn">Calculate my parent's risk →</button>
+    <div class="linkrow"><a href="/apps/family-board.html">See family board</a><a href="/">Try Kavach chat</a><a href="/docs">API docs</a></div>
   </div>
 
-  <script>
-    function showResults() {
-      document.getElementById('step-quiz').classList.add('hidden');
-      document.getElementById('step-results').classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  <div id="step-results" class="hidden">
+    <div class="card ringwrap">
+      <span class="step" id="rep-badge">VULNERABILITY REPORT</span>
+      <svg class="ring" viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="11"/><circle class="fg" id="arc" cx="60" cy="60" r="52" fill="none" stroke-width="11" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)"/><text class="score-num" x="60" y="62" text-anchor="middle" id="pct">–</text><text class="score-lab" x="60" y="82" text-anchor="middle" id="plab">RISK</text></svg>
+      <h2 id="rep-title" style="font-size:20px;margin:6px 0">Your parent is at risk</h2>
+      <p class="report" id="rep-body">…</p>
+      <div class="protect"><strong>🛡️ How Kavach shields them from tonight:</strong>
+        <ul><li><strong>Zero-buzz quarantine</strong> — scam SMS never vibrates, OTPs masked.</li>
+        <li><strong>Pre-ring call kill</strong> — known scam hashes die before the first ring.</li>
+        <li><strong>Dual siren + war-room</strong> — you see the decrypted lure in seconds, tap Block.</li>
+        <li><strong>Zero-knowledge relay</strong> — server holds hashes + noise. Prove it in Audit.</li></ul>
+      </div>
+      <div class="price"><div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8a7660">FAMILY FORTRESS · 2 PARENTS · 6 CAREGIVERS</div>
+        <div class="amt">$11.99 <span style="font-size:14px;color:#8a7660;font-weight:600">/ month</span></div>
+        <div style="font-size:12.5px;color:#8a7660;margin-top:4px">Pro Caregiver $4.99/mo · Family $11.99/mo · Annual $79.99/yr · 7-day free trial</div>
+        <div class="testmode">NEXT GEN DEMO: TEST MODE ONLY — no card, no charge. Judges unlock with promo <b>SHIPATON-JUDGE</b> in the app.</div>
+        <button id="btn-pair" class="btn">🛡️ Protect my parent — continue (free)</button>
+        <button id="btn-back" class="btn ghostb">← retake the check</button>
+      </div>
+    </div>
+  </div>
 
-    function startStripeCheckout(e) {
-      const btn = (e && e.currentTarget) || document.getElementById('btn-stripe-checkout');
-      if (btn) {
-        btn.innerText = "Continuing in Test Mode (no charge)...";
-        btn.disabled = true;
-      }
-      setTimeout(() => {
-        document.getElementById('step-results').classList.add('hidden');
-        document.getElementById('step-pair').classList.remove('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 1200);
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const btnResults = document.getElementById('btn-show-results');
-      if (btnResults) btnResults.addEventListener('click', showResults);
-      const btnCheckout = document.getElementById('btn-stripe-checkout');
-      if (btnCheckout) btnCheckout.addEventListener('click', startStripeCheckout);
-    });
-  </script>
+  <div id="step-pair" class="hidden">
+    <div class="card" style="text-align:center">
+      <span class="step" style="background:#E8F5E9;color:#1b5e20">TEST MODE — NO PAYMENT TAKEN ✓</span>
+      <h2 style="color:#1b5e20;font-size:22px;margin:8px 0">Household shield created! 🎉</h2>
+      <p style="font-size:14px;color:#666">Scan with the Kavach Android app on your parent's phone. Safety numbers must match on both screens.</p>
+      <div class="qr"><div style="font-size:34px">📱🔐</div><div style="font-size:12px;font-weight:800;color:#B3541E;margin-top:8px;letter-spacing:1px">PAIRING CODE</div><div style="font-size:26px;font-weight:900;letter-spacing:4px" id="paircode">KAV-···</div><div style="font-size:12px;color:#888">Single-use · expires in 10 min</div></div>
+      <div class="fp">🛡️ 🔑 🌟 🔔 🐘</div>
+      <div style="font-size:12.5px;color:#666;margin-top:6px">Signal-style safety numbers — read them aloud together. If they differ, abort.</div>
+      <div class="ticks"><span>✓ Zero call uploads</span><span>✓ Revocable in 1 tap</span><span>✓ Hindi + English</span></div>
+      <a class="btn" style="text-decoration:none" href="https://github.com/krishivjoshi219-collab/Kavach" target="_blank" rel="noreferrer">Download Android APK →</a>
+      <div class="linkrow"><a href="/apps/family-board.html">Open war-room</a><a href="/">Talk to Kavach</a></div>
+    </div>
+  </div>
+  <footer>Kavach is a family escalation aid — general safety information, not legal advice.<br>In danger, contact local emergency services · <a href="/">console</a> · <a href="/apps/family-board.html">board</a></footer>
+</div>
+<script>
+(function(){
+var bar=document.getElementById('bar'),count=document.getElementById('count');
+function sel(){document.querySelectorAll('.opt').forEach(function(o){var i=o.querySelector('input');o.classList.toggle('sel',i&&i.checked)})}
+document.querySelectorAll('.opt input').forEach(function(i){i.addEventListener('change',function(){var n=i.getAttribute('name');document.querySelectorAll('input[name="'+n+'"]').forEach(function(x){x.closest('.opt').classList.remove('sel')});i.closest('.opt').classList.add('sel');prog()})});
+function val(n){var e=document.querySelector('input[name="'+n+'"]:checked');return e?+e.value:2}
+function prog(){var answered=['q1','q2','q3','q4'].filter(function(n){return document.querySelector('input[name="'+n+'"]:checked')}).length;bar.style.width=(answered/4*100)+'%';count.textContent='Question '+Math.min(4,answered)+' of 4 · '+answered*15+'s in'}
+function score(){var s=val('q1')+val('q2')+val('q3')+val('q4');return Math.round((s-4)/(12-4)*72+24)}
+function show(id){['step-quiz','step-results','step-pair'].forEach(function(s){document.getElementById(s).classList.add('hidden')});document.getElementById(id).classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})}
+document.getElementById('btn-go').onclick=function(){var p=score();show('step-results');bar.style.width='100%';count.textContent='Your report is ready';
+var arc=document.getElementById('arc'),C=326.7;var col=p>=70?'#c1121f':p>=45?'#e26a1b':'#1f7a4d';
+requestAnimationFrame(function(){arc.style.stroke=col;arc.style.strokeDashoffset=C-(p/100)*C});
+var n=0,t=setInterval(function(){n+=2;if(n>=p){n=p;clearInterval(t)}document.getElementById('pct').textContent=n+'%'},18);
+var lab=p>=70?'HIGH RISK':p>=45?'ELEVATED':'GUARDED';document.getElementById('plab').textContent=lab;document.getElementById('plab').style.fill=col;
+var title=p>=70?"Your parent is vulnerable to authority scams":p>=45?"Your parent is partly exposed — one bad evening is enough":"Good habits — let's lock them in";
+var body=p>=70?"Isolation + active payments + prior spam + panic-under-pressure is exactly who scammers hunt. Once an OTP is shared or an APK installed, savings can vanish in 3 minutes. The fix is not lectures — it is a shield that stays silent until danger, then brings you in."
+:p>=45?"Some defences exist, but hesitation on a live call is all a scammer needs. Authority + urgency + secrecy ('do not hang up') melts caution. Kavach removes the decision from the hot moment: quarantine, siren, and you — in seconds."
+:"Strong instincts. Kavach keeps them that way: silent screening, quarantine vault, and a war-room you can check without hovering. Protection without taking away independence.";
+document.getElementById('rep-title').textContent=title;document.getElementById('rep-body').textContent=body;document.getElementById('rep-badge').textContent='VULNERABILITY REPORT · '+p+'% · '+lab;};
+document.getElementById('btn-back').onclick=function(){show('step-quiz')};
+document.getElementById('btn-pair').onclick=function(e){var b=e.currentTarget;b.disabled=true;b.textContent='Creating shield…';var c='KAV-'+Math.random().toString(36).slice(2,5).toUpperCase();setTimeout(function(){document.getElementById('paircode').textContent=c;show('step-pair');count.textContent='Shield active · TEST MODE'},900)};
+sel();prog();
+})();
+</script>
 </body>
 </html>

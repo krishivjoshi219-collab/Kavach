@@ -139,6 +139,12 @@ def api_unblock(body: LookupIn, request: Request):
     return {"ok": mobile.unblock_number(body.household_id, body.number_hash.lower())}
 
 
+@router.get("/screen/list")
+def api_blocklist(household_id: str):
+    """This-household blocklist so sibling devices sync (no 3-household wait)."""
+    return {"ok": True, "entries": mobile.list_blocklist(household_id[:64])}
+
+
 @router.post("/consent/set")
 @limiter.limit(RELAY_LIMIT)
 def api_consent_set(body: ConsentIn, request: Request):

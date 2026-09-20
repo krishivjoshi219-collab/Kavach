@@ -129,18 +129,20 @@ class AuditActivity : AppCompatActivity() {
                         append("========================================\n\n")
                         if (blobs.length() == 0) {
                             append("No remote blobs currently queued on blind relay.\n\n")
-                            append("Sample schema on server:\n")
+                            append("Sample schema on server (base64 ECIES noise, never words):\n")
                             append("[\n")
                             append("  {\n")
                             append("    \"id\": 104,\n")
                             append("    \"sender\": \"senior\",\n")
                             append("    \"nonce\": \"a4f91c9812e...\",\n")
-                            append("    \"ciphertext\": \"ENCRYPTED:AES-GCM:7d93a1ef...\"\n")
+                            append("    \"ciphertext\": \"oXb3fK9q... (base64, 80+ chars)\"\n")
                             append("  }\n")
                             append("]\n\n")
                             append("Zero plaintext stored on server!")
                         } else {
-                            val leak = Regex("otp|aadhaar|password|http|\\+91", RegexOption.IGNORE_CASE)
+                            // Same gate as the relay: raw words that never appear in
+                            // real Tink ECIES base64 noise (mirror of PLAINTEXT_RE).
+                            val leak = Regex("otp|aadhaar|password|http|\\+91|ENCRYPTED:", RegexOption.IGNORE_CASE)
                             for (i in 0 until blobs.length()) {
                                 val b = blobs.getJSONObject(i)
                                 val ct = b.optString("ciphertext")

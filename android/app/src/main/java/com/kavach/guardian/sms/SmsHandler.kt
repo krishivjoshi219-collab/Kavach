@@ -16,8 +16,9 @@ import java.security.SecureRandom
  * Single production path for scam SMS: real receiver AND demo trigger share it.
  * - LIKELY_SAFE/UNCERTAIN: silent, nothing leaves the phone.
  * - SCAM/SUSPICIOUS: quarantine locally, E2E-forward full text to manager
- *   (only if peer key exists), dual siren. Unknown numbers still ring/SMS
- *   normally; siren fires ONLY on scam-like verdicts.
+ *   (only if peer key exists AND forward_sms consent is lent), dual siren.
+ *   Unknown numbers are always screened (conservative: no contact bypass on
+ *   SMS — caller-ID spoofs). Siren fires ONLY on scam-like verdicts.
  */
 object SmsHandler {
     data class Result(val verdict: String, val forwarded: Boolean, val quarantined: Boolean)
@@ -35,11 +36,43 @@ object SmsHandler {
         val hid = store.getString("household_id") ?: "default"
         val senderHash = RuleEngine.hashNumber(hid, sender)
         store.logIncident(verdict.verdict, if (demo) "scam_lab_live" else "sms",
-            "Scam SMS (${verdict.reasons.joinToString("; ").take(160)})")
+            "Scam SMS (${verdict.reasons.joinToString("; ").take(160)})", senderHash)
         store.quarantineAdd(senderHash, verdict.verdict,
             "${if (demo) "[DEMO] " else ""}${verdict.reasons.joinToString("; ").take(200)}")
 
         var forwarded = false
+        // Consent gate: an explicit revoke stops E2E forwarding. Offline or
+        // never-fetched defaults to allow so protection never goes silent;
+        // quarantine + siren always run regardless.
+        val consentAllowed = try {
+            if (!store.forwardSmsAllowed()) {
+                false
+            } else {
+                val seniorId = store.getString("senior_id") ?: "demo-senior"
+                val c = RelayClient(BuildConfig.KAVACH_API).consent(hid, seniorId)
+                val caps = c.optJSONObject("capabilities")
+                val fwd = caps?.optBoolean("forward_sms", true) ?: true
+                store.putForwardSmsConsent(fwd)
+                fwd
+            }
+        } catch (_: Exception) {
+            store.forwardSmsAllowed()
+        }
+        if (!consentAllowed) {
+            if (verdict.verdict == "SCAM") {
+                try {
+                    val siren = Intent(context, SirenActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra("reason", "Scam SMS: ${verdict.reasons.firstOrNull() ?: "OTP/threat"}")
+                        putExtra("caller_hash", senderHash)
+                    }
+                    context.startActivity(siren)
+                } catch (e: Exception) {
+                    Log.e("SmsHandler", "siren start failed", e)
+                }
+            }
+            return Result(verdict.verdict, false, true)
+        }
         try {
             val peerB64 = store.getPeerPub()
             if (!peerB64.isNullOrEmpty()) {

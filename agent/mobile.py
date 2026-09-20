@@ -374,6 +374,21 @@ def unblock_number(household_id: str, number_hash: str) -> bool:
         conn.close()
 
 
+def list_blocklist(household_id: str, limit: int = 200) -> list[dict[str, Any]]:
+    """Hashes blocked by THIS household. Lets sibling devices in the same
+    household sync without waiting for the 3-household community threshold."""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT number_hash, label, action, created FROM blocklist"
+            " WHERE household_id=? ORDER BY created DESC LIMIT ?",
+            (household_id, max(1, min(limit, 200)))).fetchall()
+        return [{"number_hash": r["number_hash"], "label": r["label"],
+                 "action": r["action"], "created": r["created"]} for r in rows]
+    finally:
+        conn.close()
+
+
 def threat_feed(limit: int = 200) -> list[dict[str, Any]]:
     """Hashes reported by >= THRESHOLD independent households. Hashes only."""
     conn = _connect()

@@ -23,6 +23,15 @@ class KavachScreeningService : CallScreeningService() {
             RuleEngine.hashNumber(householdId, number)
         } else ""
 
+        // Best-effort household sync so a block tapped on mom's phone protects
+        // dad's phone too (same household, no 3-household wait). Offline → cache.
+        if (numberHash.isNotEmpty() && store != null) {
+            try {
+                val client = com.kavach.guardian.net.RelayClient(
+                    com.kavach.guardian.BuildConfig.KAVACH_API)
+                com.kavach.guardian.net.CommunityShield.syncHousehold(client, store, householdId)
+            } catch (_: Exception) {}
+        }
         val isBlocked = numberHash.isNotEmpty() && (store?.isBlockedHash(numberHash) == true)
         val communityReason = if (!isBlocked && numberHash.isNotEmpty() && store != null) {
             com.kavach.guardian.net.CommunityShield.screenHash(store, numberHash)

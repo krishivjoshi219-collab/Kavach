@@ -34,13 +34,19 @@
 ## 3. RevenueCat Project Configuration
 
 ### 3.1 Entitlements & Offerings
-* **Entitlement ID**: `shield_protection`
+* **Canonical entitlement ID**: `shield_protection` (Android also accepts aliases
+  `family_fortress`, `pro_caregiver`, `pro`, `family_pro_shield` so dashboard
+  renames never lock out Next Gen judges — see `PaywallActivity.hasProEntitlement()`).
   * Associated Packages:
     * `$rc_monthly` (Pro Monthly)
     * `ultra_monthly` (Ultra Monthly)
 * **Products**:
   * `kavach_pro_monthly` → Google Play Product ID `kavach_pro_monthly` ($4.99)
   * `kavach_ultra_monthly` → Google Play Product ID `kavach_ultra_monthly` ($11.99)
+  * Family Fortress Annual `$79.99/yr` ($6.67/mo, save 44% vs $11.99/mo) → maps to `ultra`
+* **Judge promo (Next Gen TEST MODE, no card):** `SHIPATON-JUDGE` — validated
+  case-insensitively in `PaywallActivity`, sets local `tier=pro` + syncs
+  `POST /api/v1/household/tier`. Wrong codes are rejected with guidance.
 * **Offering ID**: `default`
 
 ### 3.2 Mobile SDK Setup (`android/app`)

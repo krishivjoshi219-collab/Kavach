@@ -20,19 +20,26 @@ export default function App() {
     })
   }, [apiBase])
 
+  useEffect(() => {
+    if (!notice) return
+    const t = window.setTimeout(() => setNotice(''), 6000)
+    return () => window.clearTimeout(t)
+  }, [notice])
+
   return (
     <div className="wrap">
+      <a className="skip" href="#main">Skip to conversation</a>
       <header className="hero">
         <div className="hero-top">
-          <div className="brand"><span className="mark">🛡️</span> Kavach</div>
+          <div className="brand"><span className="mark">🛡️</span> Kavach<span className="brand-hi">कवच</span></div>
           <span className="spacer" />
           <button className="iconbtn" onClick={() => setSettings(s => !s)} aria-expanded={settings}>
             ⚙ {settings ? 'hide' : 'settings'}
           </button>
         </div>
         <p className="sub">
-          A voice guardian for seniors — pause pressure, verify independently, bring trusted family.
-          No call uploads. Test mode: no charges.
+          <b>Pause pressure. Verify independently. Bring family.</b> A voice guardian for seniors —
+          calm by design, evidence for every verdict. No call uploads. Test mode: no charges.
         </p>
         <div className="badges">
           <span className="badge hot">Next Gen</span>
@@ -61,28 +68,30 @@ export default function App() {
         />
       )}
 
-      <div className="tabs" role="tablist">
+      <div className="tabs" role="tablist" aria-label="Choose view">
         <button role="tab" aria-selected={face === 'senior'}
-          className={`tab${face === 'senior' ? ' active' : ''}`} onClick={() => setFace('senior')}>
+          className={`tab${face === 'senior' ? ' active' : ''}`} onClick={() => setFace('senior')}
+          onKeyDown={e => { if (e.key === 'ArrowRight') setFace('family') }}>
           🧓 Senior shield<small>big · calm · हिंदी + English</small>
         </button>
         <button role="tab" aria-selected={face === 'family'}
-          className={`tab${face === 'family' ? ' active' : ''}`} onClick={() => setFace('family')}>
+          className={`tab${face === 'family' ? ' active' : ''}`} onClick={() => setFace('family')}
+          onKeyDown={e => { if (e.key === 'ArrowLeft') setFace('senior') }}>
           🏠 Family war-room<small>cases · vault · proof</small>
         </button>
       </div>
 
-      {notice && <div className="notice" role="status">{notice}</div>}
+      {notice && <div className="notice toast-float" role="status">{notice}</div>}
 
-      <main aria-live="polite">
+      <main id="main" aria-live="polite">
         {face === 'senior'
           ? <SeniorView sessionId={sessionId} seniorId={seniorId} onNotice={setNotice} />
           : <FamilyBoard seniorId={seniorId} onNotice={setNotice} />}
       </main>
 
       <footer>
-        Kavach · every verdict cites evidence · nothing alerts family without spoken approval ·
-        backend {apiBase}
+        Kavach · every verdict cites evidence · nothing alerts family without spoken approval ·<br />
+        backend {apiBase} · <a href={`${apiBase}/apps/family-board.html`}>board app</a> · <a href={`${apiBase}/funnel.html`}>risk quiz</a> · <a href={`${apiBase}/docs`}>api docs</a>
       </footer>
     </div>
   )

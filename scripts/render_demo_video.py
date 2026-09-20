@@ -4,10 +4,8 @@ Render 2-Minute Winning Demo Video with Neural AI Voiceover.
 Produces assets/kavach-demo-2min.mp4 (<120 seconds, 1080p Full HD).
 """
 import os
-import sys
 import json
 import subprocess
-import glob
 
 OUTPUT_DIR = "/tmp/kavach_render"
 ASSETS_DIR = "/home/k/Prototype/Kavach/assets"

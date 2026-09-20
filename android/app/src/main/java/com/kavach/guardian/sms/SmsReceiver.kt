@@ -17,10 +17,16 @@ class SmsReceiver : BroadcastReceiver() {
         val pending = goAsync()
         Thread {
             try {
+                // Multipart SMS arrives as several PDUs: group by sender and
+                // judge ONE concatenated body, else one lure = N quarantines.
+                val grouped = linkedMapOf<String, StringBuilder>()
                 for (msg in messages) {
                     val body = msg.messageBody ?: continue
                     val sender = msg.displayOriginatingAddress ?: "unknown"
-                    SmsHandler.handleSms(context, sender, body, demo = false)
+                    grouped.getOrPut(sender) { StringBuilder() }.append(body)
+                }
+                for ((sender, body) in grouped) {
+                    SmsHandler.handleSms(context, sender, body.toString(), demo = false)
                 }
             } finally {
                 pending.finish()
