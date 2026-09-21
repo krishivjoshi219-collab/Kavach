@@ -16,6 +16,25 @@ function VerdictCard({ c }: { c: { title: string; body: string } }) {
 
 type Turn = { q: string; resp: ChatResponse }
 
+const STRINGS = {
+  en: {
+    shieldTitle: 'Kavach is Guarding You',
+    shieldSub: 'Scam calls and fake bank messages are quietly blocked. Private calls & chats never leave this phone.',
+    live: '● SHIELD LIVE',
+    hello: (<>Namaste 🙏 I am <b>Kavach</b>, your shield. If any call or message worries you, press the green button and tell me. Slowly — I am listening.</>),
+    placeholder: 'Type here, or press the green button and speak…',
+    talk: '🎤 Talk to Kavach',
+  },
+  hi: {
+    shieldTitle: 'कवच आपकी रक्षा कर रहा है',
+    shieldSub: 'फ़र्ज़ी कॉल और नकली बैंक संदेश चुपचाप रोके जाते हैं। आपकी निजी बातें इस फ़ोन से बाहर नहीं जातीं।',
+    live: '● ढाल सक्रिय',
+    hello: (<>नमस्ते 🙏 मैं <b>कवच</b> हूँ, आपकी ढाल। कोई कॉल या संदेश चिंता दे, तो हरी बटन दबाकर बताइए। आराम से — मैं सुन रहा हूँ।</>),
+    placeholder: 'यहाँ लिखें, या हरी बटन दबाकर बोलें…',
+    talk: '🎤 कवच से बात करें',
+  },
+} as const
+
 function fmtLat(ms?: number | null): string {
   if (ms === null || ms === undefined) return ''
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
@@ -34,6 +53,8 @@ export default function SeniorView({
   const [busy, setBusy] = useState(false)
   const [listening, setListening] = useState(false)
   const [notice, setNotice] = useState('')
+  const [lang, setLang] = useState<'en' | 'hi'>('en')
+  const t = STRINGS[lang]
   const box = useRef<HTMLTextAreaElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -87,49 +108,42 @@ export default function SeniorView({
 
   return (
     <div className="senior">
-      {/* Calm Senior Reassurance Header */}
-      <div className="card" style={{
-        background: '#e6f4ec',
-        border: '1px solid #a8dfbc',
-        borderRadius: 14,
-        padding: '16px 20px',
-        textAlign: 'center',
-        marginBottom: 16
-      }}>
-        <div style={{ fontSize: 28, marginBottom: 2 }}>🛡️</div>
-        <h3 style={{ margin: '0 0 4px 0', color: '#1b5e20', fontSize: 18 }}>Kavach is Guarding You</h3>
-        <p style={{ margin: 0, fontSize: 14, color: '#2e7d32' }}>
-          Scam calls and fake bank messages are quietly blocked. Private calls & chats never leave this phone.
-        </p>
+      {/* Live shield presence — the senior SEES protection, not settings */}
+      <div className="shieldbar">
+        <div className="eye" aria-hidden>🛡️</div>
+        <h3>{t.shieldTitle}</h3>
+        <p>{t.shieldSub}</p>
+        <div>
+          <span className="live"><span className="livedot" aria-hidden />{t.live}</span>
+        </div>
+        <div className="langrow" role="group" aria-label="Language / भाषा">
+          <button className={`langbtn${lang === 'en' ? ' on' : ''}`} onClick={() => setLang('en')} aria-pressed={lang === 'en'}>English</button>
+          <button className={`langbtn${lang === 'hi' ? ' on' : ''}`} onClick={() => setLang('hi')} aria-pressed={lang === 'hi'}>हिंदी</button>
+        </div>
       </div>
 
-      {!last && (
-        <p className="kavach-says">
-          Namaste 🙏 I am <b>Kavach</b>, your shield. If any call or message worries you,
-          press the green button and tell me. Slowly — I am listening.
-        </p>
-      )}
+      {!last && <p className="kavach-says">{t.hello}</p>}
 
       {turns.length > 0 && (
         <div className="thread" aria-live="polite">
-          {turns.map((t, i) => (
-            <div key={i} className="turn">
-              <div className="senior-said">🧑 {t.q}</div>
-              <p className="kavach-says small">🛡️ {t.resp.spoken}</p>
-              {t.resp.verdict && (
+          {turns.map((tn, i) => (
+            <div key={i} className={`turn${tn.resp.verdict ? ` v-${tn.resp.verdict}` : ''}`}>
+              <div className="senior-said">🧑 {tn.q}</div>
+              <p className="kavach-says small">🛡️ {tn.resp.spoken}</p>
+              {tn.resp.verdict && (
                 <p style={{ margin: '6px 0' }}>
-                  <span className={`pill ${t.resp.verdict}`}>{t.resp.verdict.replace(/_/g, ' ')}</span>
-                  {t.resp.latency_ms !== null && t.resp.latency_ms !== undefined && (
-                    <span className="lat"> · {fmtLat(t.resp.latency_ms)} · {t.resp.provider}</span>
+                  <span className={`pill ${tn.resp.verdict}`}>{tn.resp.verdict.replace(/_/g, ' ')}</span>
+                  {tn.resp.latency_ms !== null && tn.resp.latency_ms !== undefined && (
+                    <span className="lat"> · {fmtLat(tn.resp.latency_ms)} · {tn.resp.provider}</span>
                   )}
                 </p>
               )}
-              {t.resp.confirm_code && (
-                <div className="code" aria-label={`confirmation code ${t.resp.confirm_code}`}>{t.resp.confirm_code}</div>
+              {tn.resp.confirm_code && (
+                <div className="code" aria-label={`confirmation code ${tn.resp.confirm_code}`}>{tn.resp.confirm_code}</div>
               )}
-              {t.resp.cards.length > 0 && (
+              {tn.resp.cards.length > 0 && (
                 <div className="cards">
-                  {t.resp.cards.map((c, j) =>
+                  {tn.resp.cards.map((c, j) =>
                     c.type === 'verdict'
                       ? <VerdictCard key={j} c={c} />
                       : <div className="card" key={j}><h4>{c.title}</h4><p>{c.body}</p></div>
@@ -156,11 +170,20 @@ export default function SeniorView({
             ask(q)
           }
         }}
-        placeholder="Type here, or press the green button and speak…"
+        placeholder={t.placeholder}
       />
+      <div className="composer-meta">
+        <span>{listening ? '🎤 सुन रहे हैं… / listening…' : '🔒 Nothing leaves this phone unencrypted'}</span>
+        <span className="count">{q.length}/8000</span>
+        {turns.length > 0 && (
+          <button className="linkbtn" onClick={() => { setTurns([]); setLast(null); }}>
+            clear
+          </button>
+        )}
+      </div>
       <div className="bigrow">
         <button className={`bigbtn talk${listening ? ' listening' : ''}`} onClick={voice} disabled={busy}>
-          {listening ? '● Listening…' : '🎤 Talk to Kavach'}
+          {listening ? '● Listening…' : t.talk}
         </button>
         <button className="bigbtn" onClick={() => ask(q)} disabled={busy || !q.trim()}>
           {busy ? '…' : 'Send ➤'}

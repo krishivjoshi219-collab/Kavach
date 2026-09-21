@@ -139,4 +139,54 @@ object KavachTheme {
             setOnClickListener { onClick() }
         }
     }
+
+    // --- God-tier round 2: verdict language + senior-proof actions ---
+
+    /** Verdict → (accent, soft background). One source so siren, vault,
+     *  war-room and lab never disagree on what SCAM red means. */
+    fun verdictColors(verdict: String, isDark: Boolean): Pair<Int, Int> {
+        return when (verdict) {
+            "SCAM" -> if (isDark) DANGER_RED to DANGER_RED_BG
+                      else SENIOR_RED to SENIOR_RED_BG
+            "SUSPICIOUS" -> if (isDark) GOLD_VIP to GOLD_VIP_BG
+                            else SENIOR_AMBER to SENIOR_AMBER_BG
+            "LIKELY_SAFE" -> if (isDark) EMERALD_PRO to EMERALD_PRO_BG
+                             else SENIOR_GREEN to SENIOR_GREEN_BG
+            else -> if (isDark) DARK_MUTED to DARK_SURFACE_ELEVATED
+                    else SENIOR_MUTED to SENIOR_BORDER
+        }
+    }
+
+    /** Senior-proof action: 64dp one-thumb target, 18sp, never all-caps. */
+    fun seniorActionButton(
+        context: Context,
+        text: String,
+        bgColor: Int = SENIOR_GREEN,
+        textColor: Int = Color.WHITE,
+        onClick: () -> Unit
+    ): Button {
+        return button(context, text, bgColor, textColor,
+            radiusDp = 14f, minHeightDp = 64f, onClick = onClick).apply {
+            textSize = 18f
+        }
+    }
+
+    /** Left accent stripe that turns any card into a verdict card. */
+    fun accentStripe(context: Context, color: Int, widthDp: Float = 6f): android.view.View {
+        return android.view.View(context).apply {
+            setBackgroundColor(color)
+            layoutParams = LinearLayout.LayoutParams(
+                dp(context, widthDp),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+    }
+
+    /** Live shield pill: green pulse dot + status words for the sanctuary. */
+    fun shieldPill(context: Context, live: Boolean): TextView {
+        return badge(context,
+            if (live) "● SHIELD LIVE" else "○ SHIELD PAUSED",
+            if (live) SENIOR_GREEN else SENIOR_AMBER,
+            if (live) SENIOR_GREEN_BG else SENIOR_AMBER_BG)
+    }
 }

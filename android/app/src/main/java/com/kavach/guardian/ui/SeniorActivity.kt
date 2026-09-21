@@ -133,7 +133,7 @@ class SeniorActivity : AppCompatActivity() {
             setPadding(p, p, p, p)
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        val shieldPill = KavachTheme.badge(this, "● SHIELD ACTIVE & SCREENING", KavachTheme.SENIOR_GREEN, Color.parseColor("#BBF7D0"))
+        val shieldPill = KavachTheme.shieldPill(this, live = true)
         statusCard.addView(shieldPill)
 
         val statusHeading = TextView(this).apply {

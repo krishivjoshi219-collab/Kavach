@@ -25,14 +25,32 @@ function safetyScore(feed: Feed): number {
 function ScoreRing({ value }: { value: number }) {
   const r = 26
   const c = 2 * Math.PI * r
-  const off = c - (value / 100) * c
+  const [shown, setShown] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setShown(value)
+      return
+    }
+    let raf = 0
+    const t0 = performance.now()
+    const dur = 900
+    function tick(now: number) {
+      const p = Math.min(1, (now - t0) / dur)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setShown(Math.round(eased * value))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  const off = c - (shown / 100) * c
   return (
-    <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label={`Safety score ${value}`}>
+    <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label={`Safety score ${shown}`}>
       <circle cx="36" cy="36" r={r} fill="none" stroke="#e3d5bd" strokeWidth="9" />
-      <circle cx="36" cy="36" r={r} fill="none" stroke={value >= 80 ? '#1f7a4d' : value >= 60 ? '#b3541e' : '#b3261e'}
+      <circle cx="36" cy="36" r={r} fill="none" stroke={shown >= 80 ? '#1f7a4d' : shown >= 60 ? '#b3541e' : '#b3261e'}
         strokeWidth="9" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off}
         transform="rotate(-90 36 36)" />
-      <text x="36" y="41" textAnchor="middle" fontSize="18" fontWeight="800" fill="#2b2118">{value}</text>
+      <text x="36" y="41" textAnchor="middle" fontSize="18" fontWeight="800" fill="#2b2118">{shown}</text>
     </svg>
   )
 }
@@ -92,7 +110,12 @@ export default function FamilyBoard({
     return () => clearInterval(t)
   }, [load])
 
-  if (!feed) return <div className="family"><div className="famhead">Loading the household…</div></div>
+  if (!feed) return (
+    <div className="family" aria-busy="true" aria-label="Loading the household">
+      <div className="skel"><div className="bar" style={{ width: '45%' }} /><div className="bar" /><div className="bar" style={{ width: '70%' }} /></div>
+      <div className="skel"><div className="bar" style={{ width: '30%' }} /><div className="bar" /><div className="bar" style={{ width: '55%' }} /></div>
+    </div>
+  )
   const latest = feed.incidents[0]
   const warRoom = latest && (latest.verdict === 'SCAM' || latest.verdict === 'SUSPICIOUS')
   const ql = query.toLowerCase()
