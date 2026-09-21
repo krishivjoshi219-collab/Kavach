@@ -58,5 +58,5 @@ Narration: "All transmission is sealed with Google Tink ECIES-P256. The central 
 ### Judge Evaluation Quick Links
 - **GitHub Repository**: [krishivjoshi219-collab/Kavach](https://github.com/krishivjoshi219-collab/Kavach)
 - **Live Relay Health**: `https://kavach-19v6.onrender.com/readyz` (HTTP 200 OK)
-- **CI Artifact**: `kavach-debug-apk` on every push to `main`
+- **CI Artifacts**: `kavach-senior-apk` + `kavach-manager-apk` on every push to `main`
 - **Promo Code for Judges**: `SHIPATON-JUDGE` (Unlocks full Pro Family Shield in TEST MODE)
