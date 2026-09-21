@@ -23,20 +23,28 @@ body{font-family:var(--font);color:#f5ead2;min-height:100vh;line-height:1.55;bac
 .progress{height:10px;background:rgba(255,255,255,.12);border-radius:999px;margin:16px 0 4px;overflow:hidden}
 .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd98a,#e26a1b);border-radius:999px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
 .pcount{font-size:12.5px;color:#e9d3a8;text-align:center;margin-bottom:12px}
-.card{background:var(--panel);color:var(--ink);border-radius:22px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,.35);margin-bottom:14px}
+.card{background:var(--panel);color:var(--ink);border-radius:22px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,.35);margin-bottom:14px;animation:rise .45s cubic-bezier(.2,.8,.2,1) backwards}
+.card[data-step="1"]{animation-delay:.06s}.card[data-step="2"]{animation-delay:.12s}.card[data-step="3"]{animation-delay:.18s}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+#step-quiz .card{transition:border-color .2s, box-shadow .2s}
+#step-quiz .card.answered{border:2px solid #a8dfbc;box-shadow:0 8px 24px rgba(31,122,77,.12)}
 .step{font-size:11.5px;font-weight:900;letter-spacing:1px;color:#9a3d0c;background:#fff3e0;padding:5px 12px;border-radius:999px;display:inline-block;margin-bottom:10px}
 .q{font-size:18px;font-weight:800;margin-bottom:4px}
 .qsub{font-size:14px;color:var(--muted);margin-bottom:12px}
-.opt{display:block;background:#fff;border:2px solid #e8dcc3;border-radius:14px;padding:13px 15px;margin-bottom:9px;cursor:pointer;font-size:15px;font-weight:600;transition:all .18s;line-height:1.45}
+.opt{display:block;background:#fff;border:2px solid #e8dcc3;border-radius:14px;padding:13px 15px 13px 44px;margin-bottom:9px;cursor:pointer;font-size:15px;font-weight:600;transition:all .18s;line-height:1.45;position:relative}
 .opt:hover{border-color:var(--accent);background:#fff8e1;transform:translateY(-1px)}
 .opt.sel{border-color:var(--accent);background:#fff3e0;box-shadow:0 4px 14px rgba(226,106,27,.2)}
-.opt input{margin-right:10px;accent-color:var(--accent);transform:scale(1.2)}
+.opt.sel::before{content:"✓";position:absolute;left:15px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:900;display:grid;place-items:center}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt:focus-within{outline:4px solid var(--gold);outline-offset:2px}
 .btn{display:block;width:100%;background:linear-gradient(135deg,#e26a1b,#9a3d0c);color:#fff;border:0;padding:17px;border-radius:14px;font-size:17px;font-weight:900;cursor:pointer;margin-top:14px;box-shadow:0 10px 26px rgba(226,106,27,.4);transition:transform .15s}
 .btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.6;cursor:wait}
 .btn.ghostb{background:transparent;border:2px solid var(--accent);color:var(--accent);box-shadow:none}
 .hidden{display:none}
 .ringwrap{text-align:center}
+.ringwrap.revealed{animation:rise .5s cubic-bezier(.2,.8,.2,1)}
 .ring{width:150px;height:150px;margin:8px auto}
+.ring.lit{filter:drop-shadow(0 0 18px rgba(193,18,31,.35))}
 .ring .bg{stroke:#f0e2c8}.ring .fg{stroke:#c1121f;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1),stroke .5s}
 .score-num{font-size:34px;font-weight:900;fill:var(--ink)}
 .score-lab{font-size:11px;font-weight:900;letter-spacing:1.5px;fill:var(--red)}
@@ -105,7 +113,7 @@ footer a{color:var(--gold)}
   </div>
 
   <div id="step-results" class="hidden">
-    <div class="card ringwrap">
+    <div class="card ringwrap" id="ringcard">
       <span class="step" id="rep-badge">VULNERABILITY REPORT</span>
       <svg class="ring" viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="11"/><circle class="fg" id="arc" cx="60" cy="60" r="52" fill="none" stroke-width="11" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)"/><text class="score-num" x="60" y="62" text-anchor="middle" id="pct">–</text><text class="score-lab" x="60" y="82" text-anchor="middle" id="plab">RISK</text></svg>
       <h2 id="rep-title" style="font-size:20px;margin:6px 0">Your parent is at risk</h2>
@@ -131,7 +139,7 @@ footer a{color:var(--gold)}
       <span class="step" style="background:#E8F5E9;color:#1b5e20">TEST MODE — NO PAYMENT TAKEN ✓</span>
       <h2 style="color:#1b5e20;font-size:22px;margin:8px 0">Household shield created! 🎉</h2>
       <p style="font-size:14px;color:#666">Scan with the Kavach Android app on your parent's phone. Safety numbers must match on both screens.</p>
-      <div class="qr"><div style="font-size:34px">📱🔐</div><div style="font-size:12px;font-weight:800;color:#B3541E;margin-top:8px;letter-spacing:1px">PAIRING CODE</div><div style="font-size:26px;font-weight:900;letter-spacing:4px" id="paircode">KAV-···</div><div style="font-size:12px;color:#888">Single-use · expires in 10 min</div></div>
+      <div class="qr"><div style="font-size:34px">📱🔐</div><div style="font-size:12px;font-weight:800;color:#B3541E;margin-top:8px;letter-spacing:1px">PAIRING CODE</div><div style="font-size:26px;font-weight:900;letter-spacing:4px" id="paircode">KAV-···</div><div style="font-size:12px;color:#888">Single-use · expires in 10 min</div><button id="btn-copy" class="btn ghostb" style="margin-top:12px;padding:11px;font-size:14px">Copy code</button></div>
       <div class="fp">🛡️ 🔑 🌟 🔔 🐘</div>
       <div style="font-size:12.5px;color:#666;margin-top:6px">Signal-style safety numbers — read them aloud together. If they differ, abort.</div>
       <div class="ticks"><span>✓ Zero call uploads</span><span>✓ Revocable in 1 tap</span><span>✓ Hindi + English</span></div>
@@ -144,7 +152,7 @@ footer a{color:var(--gold)}
 <script>
 (function(){
 var bar=document.getElementById('bar'),count=document.getElementById('count');
-function sel(){document.querySelectorAll('.opt').forEach(function(o){var i=o.querySelector('input');o.classList.toggle('sel',i&&i.checked)})}
+function sel(){document.querySelectorAll('.opt').forEach(function(o){var i=o.querySelector('input');o.classList.toggle('sel',i&&i.checked)});document.querySelectorAll('#step-quiz .card').forEach(function(c){c.classList.toggle('answered',!!c.querySelector('input:checked'))})}
 document.querySelectorAll('.opt input').forEach(function(i){i.addEventListener('change',function(){var n=i.getAttribute('name');document.querySelectorAll('input[name="'+n+'"]').forEach(function(x){x.closest('.opt').classList.remove('sel')});i.closest('.opt').classList.add('sel');prog()})});
 function val(n){var e=document.querySelector('input[name="'+n+'"]:checked');return e?+e.value:2}
 function prog(){var answered=['q1','q2','q3','q4'].filter(function(n){return document.querySelector('input[name="'+n+'"]:checked')}).length;bar.style.width=(answered/4*100)+'%';count.textContent='Question '+Math.min(4,answered)+' of 4 · '+answered*15+'s in'}
@@ -152,8 +160,11 @@ function score(){var s=val('q1')+val('q2')+val('q3')+val('q4');return Math.round
 function show(id){['step-quiz','step-results','step-pair'].forEach(function(s){document.getElementById(s).classList.add('hidden')});document.getElementById(id).classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})}
 document.getElementById('btn-go').onclick=function(){var p=score();show('step-results');bar.style.width='100%';count.textContent='Your report is ready';
 var arc=document.getElementById('arc'),C=326.7;var col=p>=70?'#c1121f':p>=45?'#e26a1b':'#1f7a4d';
+var svg=arc.closest('svg');svg.classList.remove('lit');void svg.getBoundingClientRect();
+document.getElementById('ringcard').classList.remove('revealed');void document.getElementById('ringcard').offsetWidth;
+document.getElementById('ringcard').classList.add('revealed');
 requestAnimationFrame(function(){arc.style.stroke=col;arc.style.strokeDashoffset=C-(p/100)*C});
-var n=0,t=setInterval(function(){n+=2;if(n>=p){n=p;clearInterval(t)}document.getElementById('pct').textContent=n+'%'},18);
+var n=0,t=setInterval(function(){n+=2;if(n>=p){n=p;clearInterval(t);svg.classList.add('lit')}document.getElementById('pct').textContent=n+'%'},18);
 var lab=p>=70?'HIGH RISK':p>=45?'ELEVATED':'GUARDED';document.getElementById('plab').textContent=lab;document.getElementById('plab').style.fill=col;
 var title=p>=70?"Your parent is vulnerable to authority scams":p>=45?"Your parent is partly exposed — one bad evening is enough":"Good habits — let's lock them in";
 var body=p>=70?"Isolation + active payments + prior spam + panic-under-pressure is exactly who scammers hunt. Once an OTP is shared or an APK installed, savings can vanish in 3 minutes. The fix is not lectures — it is a shield that stays silent until danger, then brings you in."
@@ -162,6 +173,7 @@ var body=p>=70?"Isolation + active payments + prior spam + panic-under-pressure 
 document.getElementById('rep-title').textContent=title;document.getElementById('rep-body').textContent=body;document.getElementById('rep-badge').textContent='VULNERABILITY REPORT · '+p+'% · '+lab;};
 document.getElementById('btn-back').onclick=function(){show('step-quiz')};
 document.getElementById('btn-pair').onclick=function(e){var b=e.currentTarget;b.disabled=true;b.textContent='Creating shield…';var c='KAV-'+Math.random().toString(36).slice(2,5).toUpperCase();setTimeout(function(){document.getElementById('paircode').textContent=c;show('step-pair');count.textContent='Shield active · TEST MODE'},900)};
+document.getElementById('btn-copy').onclick=function(e){var b=e.currentTarget;var code=document.getElementById('paircode').textContent;function done(){b.textContent='Copied ✓';setTimeout(function(){b.textContent='Copy code'},1800)}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(code).then(done,function(){fallback()})}else{fallback()}function fallback(){try{var ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done()}catch(_){b.textContent=code}}};
 sel();prog();
 })();
 </script>

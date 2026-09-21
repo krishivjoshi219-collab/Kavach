@@ -85,9 +85,11 @@ class QuarantineActivity : AppCompatActivity() {
 
         for (i in 0 until items.length()) {
             val o = items.getJSONObject(i)
+            val verdict = o.optString("verdict", "SCAM")
+            val (accent, softBg) = KavachTheme.verdictColors(verdict, isDark = true)
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                background = KavachTheme.rounded(this@QuarantineActivity, KavachTheme.DARK_SURFACE, 16f, Color.parseColor("#7F1D1D"), 1.5f)
+                background = KavachTheme.rounded(this@QuarantineActivity, KavachTheme.DARK_SURFACE, 16f, accent, 1.5f)
                 val p = KavachTheme.dp(this@QuarantineActivity, 18f)
                 setPadding(p, p, p, p)
             }
@@ -98,9 +100,9 @@ class QuarantineActivity : AppCompatActivity() {
             }
             val verdictBadge = KavachTheme.badge(
                 this@QuarantineActivity,
-                "🔴 ${o.optString("verdict", "SCAM")}",
-                KavachTheme.DANGER_RED,
-                KavachTheme.DANGER_RED_BG
+                "${if (verdict == "SCAM") "🔴" else "🟡"} $verdict",
+                accent,
+                softBg
             )
             val hashText = TextView(this).apply {
                 text = "Hash: ${o.optString("h").take(12)}…"

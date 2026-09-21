@@ -10,6 +10,8 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -24,6 +26,16 @@ class SirenActivity : AppCompatActivity() {
 
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
+    private var detailView: TextView? = null
+    private val sirenLoop = Handler(Looper.getMainLooper())
+    private val reblare = object : Runnable {
+        override fun run() {
+            try {
+                if (ringtone?.isPlaying != true) ringtone?.play()
+            } catch (_: Exception) {}
+            sirenLoop.postDelayed(this, 4000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +92,7 @@ class SirenActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 48)
         }
+        this.detailView = detailView
         root.addView(detailView)
 
         val callFamilyBtn = Button(this).apply {
@@ -114,17 +127,31 @@ class SirenActivity : AppCompatActivity() {
         setContentView(root)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // singleTask reuse (Scam Lab back-to-back runs): refresh the reason
+        // and restart the alarm instead of showing a stale first-run screen.
+        setIntent(intent)
+        detailView?.text = intent.getStringExtra("reason") ?: "POTENTIAL SCAM DETECTED"
+        stopSiren()
+        startSiren()
+    }
+
     private fun startSiren() {
         try {
             val alertUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ringtone = RingtoneManager.getRingtone(applicationContext, alertUri).apply {
+            ringtone = RingtoneManager.getRingtone(applicationContext, alertUri)?.apply {
                 audioAttributes = AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 play()
             }
+            // Ringtone.play() is one-shot: re-blare every 4s until dismissed,
+            // or the "siren" dies after a single chime mid-demo.
+            sirenLoop.removeCallbacks(reblare)
+            sirenLoop.postDelayed(reblare, 4000)
         } catch (_: Exception) {}
 
         try {
@@ -147,9 +174,14 @@ class SirenActivity : AppCompatActivity() {
     }
 
     private fun stopSiren() {
-        ringtone?.stop()
+        sirenLoop.removeCallbacks(reblare)
+        try {
+            ringtone?.stop()
+        } catch (_: Exception) {}
         ringtone = null
-        vibrator?.cancel()
+        try {
+            vibrator?.cancel()
+        } catch (_: Exception) {}
         vibrator = null
     }
 

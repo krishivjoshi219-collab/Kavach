@@ -27,7 +27,12 @@ class ShieldCrypto(context: Context, private val tag: String) {
         var uri = prefs.getString("master_uri", null)
         if (uri == null) {
             uri = "android-keystore://kavach_master_$tag"
-            AndroidKeystore.generateNewAes256GcmKey(uri)
+            try {
+                AndroidKeystore.generateNewAes256GcmKey(uri)
+            } catch (_: Exception) {
+                // Key already exists (e.g. prefs lost but keystore kept):
+                // reuse the alias instead of crashing pairing day.
+            }
             prefs.edit().putString("master_uri", uri).apply()
         }
         return uri

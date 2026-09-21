@@ -160,12 +160,29 @@ a { color: var(--gold); }
 /* WAR ROOM + FAMILY */
 .warroom {
   margin-top: 14px; border-radius: var(--radius); padding: 20px 22px; color: #fff;
-  background: linear-gradient(135deg, #7f1d1d, #c1121f); box-shadow: var(--shadow);
-  border: 1px solid rgba(255, 255, 255, 0.25); animation: warm 2s infinite;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  animation: warin 0.45s cubic-bezier(0.22, 1, 0.36, 1), warm 2s 0.5s infinite;
+  position: relative; overflow: hidden;
 }
+.warroom.sev-SCAM { background: linear-gradient(135deg, #7f1d1d, #c1121f); }
+.warroom.sev-SUSPICIOUS { background: linear-gradient(135deg, #713f12, #b77900); }
+.warroom::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
+  background: rgba(255, 255, 255, 0.55); animation: pulse 1.6s infinite;
+}
+@keyframes warin { from { opacity: 0; transform: translateY(-10px) scale(0.99); } }
 @keyframes warm { 50% { box-shadow: 0 0 0 8px rgba(193, 18, 31, 0.25); } }
-.warroom h4 { margin: 0 0 6px; font-size: 18px; }
+.warroom h4 { margin: 0 0 6px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.warroom h4 .siren { display: inline-block; animation: ring 1.2s infinite; transform-origin: top center; }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-6deg); } }
 .warroom p { margin: 0; font-size: 16px; }
+.warroom .go {
+  display: inline-block; margin-top: 10px; font-size: 13.5px; font-weight: 800;
+  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff; border-radius: 999px; padding: 8px 16px; cursor: pointer;
+}
+.warroom .go:hover { background: rgba(255, 255, 255, 0.28); }
 .family { margin-top: 14px; display: grid; gap: 12px; }
 .famhead {
   background: var(--panel); color: var(--panel-ink);
@@ -182,6 +199,16 @@ a { color: var(--gold); }
 .flags { margin: 10px 0 0; padding-left: 20px; font-size: 15px; }
 .flags li { margin-bottom: 6px; }
 .vault { border-left: 8px solid #7c3aed; }
+.vault-item {
+  display: grid; gap: 6px; background: #fdfbf7; border: 1px solid #e0d7c7;
+  border-radius: 12px; padding: 12px 14px; margin-top: 8px;
+  animation: rise 0.35s ease;
+}
+.vault-item .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 0; }
+.vault-item .who { font-size: 14px; font-weight: 600; }
+.vault-item .when { margin-left: auto; font-size: 12px; color: var(--muted); }
+.vault-item .mini { border-color: #c9b892; color: var(--accent-deep); }
+.vault-empty { color: var(--muted); font-size: 14px; }
 .appframe { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; }
 .appframe iframe { width: 100%; height: 420px; border: 0; display: block; }
 .appframe .bar {

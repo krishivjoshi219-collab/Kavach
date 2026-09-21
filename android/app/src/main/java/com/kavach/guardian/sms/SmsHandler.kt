@@ -40,10 +40,14 @@ object SmsHandler {
         store.quarantineAdd(senderHash, verdict.verdict,
             "${if (demo) "[DEMO] " else ""}${verdict.reasons.joinToString("; ").take(200)}")
 
+        // Siren FIRST: local protection never waits on the network. An offline
+        // or dead relay must not delay the alarm by 15s+ of HTTP timeouts.
+        if (verdict.verdict == "SCAM") soundSiren(context, senderHash, verdict.reasons)
+
         var forwarded = false
         // Consent gate: an explicit revoke stops E2E forwarding. Offline or
-        // never-fetched defaults to allow so protection never goes silent;
-        // quarantine + siren always run regardless.
+        // never-fetched defaults to allow so protection never goes silent.
+        // Runs AFTER the siren so a slow network can never mute the alarm.
         val consentAllowed = try {
             if (!store.forwardSmsAllowed()) {
                 false
@@ -59,18 +63,6 @@ object SmsHandler {
             store.forwardSmsAllowed()
         }
         if (!consentAllowed) {
-            if (verdict.verdict == "SCAM") {
-                try {
-                    val siren = Intent(context, SirenActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("reason", "Scam SMS: ${verdict.reasons.firstOrNull() ?: "OTP/threat"}")
-                        putExtra("caller_hash", senderHash)
-                    }
-                    context.startActivity(siren)
-                } catch (e: Exception) {
-                    Log.e("SmsHandler", "siren start failed", e)
-                }
-            }
             return Result(verdict.verdict, false, true)
         }
         try {
@@ -96,18 +88,19 @@ object SmsHandler {
             forwarded = false
         }
 
-        if (verdict.verdict == "SCAM") {
-            try {
-                val siren = Intent(context, SirenActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("reason", "Scam SMS: ${verdict.reasons.firstOrNull() ?: "OTP/threat"}")
-                    putExtra("caller_hash", senderHash)
-                }
-                context.startActivity(siren)
-            } catch (e: Exception) {
-                Log.e("SmsHandler", "siren start failed", e)
-            }
-        }
         return Result(verdict.verdict, forwarded, true)
+    }
+
+    private fun soundSiren(context: Context, senderHash: String, reasons: List<String>) {
+        try {
+            val siren = Intent(context, SirenActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("reason", "Scam SMS: ${reasons.firstOrNull() ?: "OTP/threat"}")
+                putExtra("caller_hash", senderHash)
+            }
+            context.startActivity(siren)
+        } catch (e: Exception) {
+            Log.e("SmsHandler", "siren start failed", e)
+        }
     }
 }

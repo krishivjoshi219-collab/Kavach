@@ -346,6 +346,118 @@ class FamilyActivity : AppCompatActivity() {
 
         root.addView(cryptoCard, marginBot20)
 
+        // 4b. Live E2E Inbox: pull opaque blobs, decrypt ON THIS DEVICE ONLY.
+        // This is the payoff of the whole architecture — the manager reads the
+        // full lure while the relay only ever held noise. Best-effort refresh;
+        // undecryptable blobs (rotated keys) say so honestly instead of blank.
+        root.addView(KavachTheme.sectionHeader(this, "Live E2E Inbox (Decrypted On This Device)", true))
+
+        val inboxCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE, 16f, KavachTheme.DARK_BORDER, 1f)
+            val p = KavachTheme.dp(this@FamilyActivity, 16f)
+            setPadding(p, p, p, p)
+        }
+        val inboxStatus = TextView(this).apply {
+            text = "Pulling sealed envelopes from the blind relay…"
+            textSize = 12f
+            setTextColor(KavachTheme.DARK_MUTED)
+            setPadding(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 8f))
+        }
+        val inboxList = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        inboxCard.addView(inboxStatus)
+        inboxCard.addView(inboxList)
+
+        fun maskBody(s: String): String {
+            var out = s.replace(Regex("\\b\\d{4,8}\\b"), "******")
+            out = out.replace(Regex("(?i)otp[^.]{0,20}\\d+"), "OTP ******")
+            return out
+        }
+
+        fun refreshInbox() {
+            inboxStatus.text = "Decrypting sealed envelopes on-device…"
+            Thread {
+                try {
+                    val since = store.getString("e2e_last_blob")?.toLongOrNull() ?: 0L
+                    val blobs = client.pullBlobs(hid, since)
+                    var maxId = since
+                    val cards = mutableListOf<Triple<String, String, String>>()
+                    for (i in 0 until blobs.length()) {
+                        val b = blobs.getJSONObject(i)
+                        val id = b.optLong("id", 0L)
+                        if (id > maxId) maxId = id
+                        val ct = b.optString("ciphertext", "")
+                        if (ct.isEmpty()) continue
+                        try {
+                            val plain = crypto.decrypt(ShieldCrypto.b64d(ct)).toString(Charsets.UTF_8)
+                            val o = JSONObject(plain)
+                            val body = maskBody(o.optString("body", "(empty)"))
+                            val meta = "${o.optString("verdict", "?")} · ${o.optString("type", "message")}"
+                            cards.add(Triple(meta, body, o.optString("reasons", "")))
+                        } catch (_: Exception) {
+                            cards.add(Triple("sealed", "(can't decrypt — keys rotated since. Kill Switch working as designed.)", ""))
+                        }
+                    }
+                    if (maxId > since) store.putString("e2e_last_blob", maxId.toString())
+                    val latest = cards.takeLast(5).reversed()
+                    runOnUiThread {
+                        inboxList.removeAllViews()
+                        if (latest.isEmpty()) {
+                            inboxStatus.text = "Inbox empty — sealed envelopes from the senior phone appear here. Run a Scam Lab attack to test."
+                        } else {
+                            inboxStatus.text = "${latest.size} sealed envelope(s) opened on this device. Relay never saw plaintext."
+                            for ((meta, body, reasons) in latest) {
+                                val item = LinearLayout(this@FamilyActivity).apply {
+                                    orientation = LinearLayout.VERTICAL
+                                    background = KavachTheme.rounded(this@FamilyActivity, KavachTheme.DARK_SURFACE_ELEVATED, 12f, KavachTheme.DARK_BORDER, 1f)
+                                    val p = KavachTheme.dp(this@FamilyActivity, 12f)
+                                    setPadding(p, p, p, p)
+                                }
+                                item.addView(TextView(this@FamilyActivity).apply {
+                                    text = "🔓 $meta"
+                                    textSize = 11f
+                                    typeface = Typeface.DEFAULT_BOLD
+                                    setTextColor(KavachTheme.EMERALD_PRO)
+                                })
+                                item.addView(TextView(this@FamilyActivity).apply {
+                                    text = body.take(600)
+                                    textSize = 13.5f
+                                    setTextColor(KavachTheme.DARK_TEXT)
+                                    setPadding(0, KavachTheme.dp(this@FamilyActivity, 6f), 0, 0)
+                                })
+                                if (reasons.isNotEmpty()) {
+                                    item.addView(TextView(this@FamilyActivity).apply {
+                                        text = "Flags: ${reasons.take(200)}"
+                                        textSize = 12f
+                                        setTextColor(KavachTheme.DARK_MUTED)
+                                        setPadding(0, KavachTheme.dp(this@FamilyActivity, 4f), 0, 0)
+                                    })
+                                }
+                                inboxList.addView(item, LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT
+                                ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@FamilyActivity, 8f)) })
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    runOnUiThread { inboxStatus.text = "Relay unreachable — showing last-known state. Pull to retry." }
+                }
+            }.start()
+        }
+
+        val inboxBtn = KavachTheme.button(this, "↻ Decrypt Latest Envelopes", KavachTheme.DARK_SURFACE_ELEVATED, Color.WHITE, 8f, 40f) {
+            refreshInbox()
+        }
+        inboxCard.addView(inboxBtn, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, KavachTheme.dp(this@FamilyActivity, 10f), 0, 0) })
+        root.addView(inboxCard, marginBot20)
+        refreshInbox()
+
         // 5. Section: Protected Parent Devices (Multi-Device Fleet)
         root.addView(KavachTheme.sectionHeader(this, "Protected Parent Devices (Fleet)", true))
 

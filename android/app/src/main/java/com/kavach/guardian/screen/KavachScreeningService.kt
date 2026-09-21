@@ -23,15 +23,10 @@ class KavachScreeningService : CallScreeningService() {
             RuleEngine.hashNumber(householdId, number)
         } else ""
 
-        // Best-effort household sync so a block tapped on mom's phone protects
-        // dad's phone too (same household, no 3-household wait). Offline → cache.
-        if (numberHash.isNotEmpty() && store != null) {
-            try {
-                val client = com.kavach.guardian.net.RelayClient(
-                    com.kavach.guardian.BuildConfig.KAVACH_API)
-                com.kavach.guardian.net.CommunityShield.syncHousehold(client, store, householdId)
-            } catch (_: Exception) {}
-        }
+        // Decide from CACHE ONLY: Telecom expects respondToCall in milliseconds.
+        // A blocking HTTP sync (15s+ timeouts) on this path would stall the
+        // verdict and the system would ring through. Household sync runs AFTER
+        // the decision on a throwaway thread, warming the cache for next call.
         val isBlocked = numberHash.isNotEmpty() && (store?.isBlockedHash(numberHash) == true)
         val communityReason = if (!isBlocked && numberHash.isNotEmpty() && store != null) {
             com.kavach.guardian.net.CommunityShield.screenHash(store, numberHash)
@@ -64,6 +59,20 @@ class KavachScreeningService : CallScreeningService() {
                 .setSkipNotification(false)
                 .build()
             respondToCall(callDetails, response)
+        }
+
+        // Post-decision warmup: pull sibling-device household blocks so the NEXT
+        // call benefits. Never touches this verdict. Fire-and-forget.
+        if (numberHash.isNotEmpty() && store != null) {
+            val hid = householdId
+            val st = store
+            Thread {
+                try {
+                    val client = com.kavach.guardian.net.RelayClient(
+                        com.kavach.guardian.BuildConfig.KAVACH_API)
+                    com.kavach.guardian.net.CommunityShield.syncHousehold(client, st, hid)
+                } catch (_: Exception) {}
+            }.start()
         }
     }
 }

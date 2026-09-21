@@ -70,6 +70,8 @@ export default function FamilyBoard({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [blockingId, setBlockingId] = useState<number | null>(null)
+  const [, setNow] = useState(Date.now())
 
   function toast(m: string) {
     setActionNotice(m)
@@ -107,8 +109,25 @@ export default function FamilyBoard({
   useEffect(() => {
     load()
     const t = setInterval(load, 20000)
-    return () => clearInterval(t)
+    const tick = setInterval(() => setNow(Date.now()), 30000)
+    return () => { clearInterval(t); clearInterval(tick) }
   }, [load])
+
+  async function blockCase(id: number) {
+    if (blockingId !== null) return
+    setBlockingId(id)
+    try {
+      const b = await postBlockCase(seniorId, id)
+      toast(
+        `Blocked sender-hash ${b.number_hash.slice(0, 12)}… for case #${id}. ` +
+        (b.community ? 'Community shield now carries it (3+ households).' : 'Household devices sync it; community learns at 3 households.')
+      )
+      await load()
+    } catch (e) {
+      onNotice(e instanceof Error ? e.message : String(e))
+    }
+    setBlockingId(null)
+  }
 
   if (!feed) return (
     <div className="family" aria-busy="true" aria-label="Loading the household">
@@ -156,12 +175,13 @@ export default function FamilyBoard({
       )}
 
       {warRoom && (
-        <div className="warroom" role="alert" aria-live="assertive">
-          <h4>🚨 War room — latest threat needs eyes</h4>
+        <div className={`warroom sev-${latest.verdict}`} role="alert" aria-live="assertive">
+          <h4><span className="siren" aria-hidden>🚨</span> War room — latest threat needs eyes</h4>
           <p>
-            Case #{latest.id} {latest.verdict} via {latest.channel} · {timeAgo(latest.created)}.
+            Case #{latest.id} <b>{latest.verdict.replace(/_/g, ' ')}</b> via {latest.channel} · {timeAgo(latest.created)}.
             Zero-buzz quarantine saved parent phone. Review proof and block sender hash below.
           </p>
+          <button className="go" onClick={() => setOpen(latest.id)}>See the proof ↓</button>
         </div>
       )}
 
@@ -290,9 +310,24 @@ export default function FamilyBoard({
       <div className="card vault">
         <h4>📥 Quarantine vault (E2E full text, OTP masked)</h4>
         {feed.incidents.filter(c => c.verdict === 'SCAM' || c.verdict === 'SUSPICIOUS').length === 0
-          && <p>Clean — run 🔴 Simulate live attack to test.</p>}
+          && <p className="vault-empty">Clean — run 🔴 Simulate live attack to test.</p>}
         {feed.incidents.filter(c => c.verdict === 'SCAM' || c.verdict === 'SUSPICIOUS').slice(0, 5).map(c => (
-          <p key={c.id}>• #{c.id} {c.channel} — {maskOtp(c.caller_claim || 'unknown caller')}</p>
+          <div key={c.id} className="vault-item">
+            <div className="row">
+              <span className={`pill ${c.verdict}`}>{c.verdict.replace(/_/g, ' ')}</span>
+              <b>#{c.id}</b>
+              <span className="when">{c.channel} · {timeAgo(c.created)}</span>
+            </div>
+            <div className="who">{maskOtp(c.caller_claim || 'unknown caller')}</div>
+            <div className="row">
+              <button className="mini" disabled={blockingId !== null} onClick={() => blockCase(c.id)}>
+                {blockingId === c.id ? 'blocking…' : '🛡️ Block hash'}
+              </button>
+              <button className="mini" onClick={() => setOpen(open === c.id ? null : c.id)}>
+                {open === c.id ? 'hide proof' : 'see proof'}
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>
