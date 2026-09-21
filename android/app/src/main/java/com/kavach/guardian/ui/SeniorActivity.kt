@@ -72,6 +72,11 @@ class SeniorActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@SeniorActivity, 16f)) }
 
+        val marginBot20 = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 0, 0, KavachTheme.dp(this@SeniorActivity, 20f)) }
+
         val marginBot24 = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
