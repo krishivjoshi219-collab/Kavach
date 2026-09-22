@@ -3,7 +3,7 @@
 ### Pause pressure. Verify independently. Bring family. *Without uploading calls.*
 
 [![RevenueCat Shipaton 2026](https://img.shields.io/badge/RevenueCat-Shipaton_2026_Next_Gen-ff4a5a?style=for-the-badge)](https://revenuecat-shipaton-2026.devpost.com)
-[![CI](https://img.shields.io/badge/CI-50_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
+[![CI](https://img.shields.io/badge/CI-55_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
 [![Android](https://img.shields.io/badge/Android-2_APKs_senior_+_family-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![E2E](https://img.shields.io/badge/E2E-Google_Tink_ECIES_P--256-4285f4?style=for-the-badge&logo=google&logoColor=white)](https://github.com/google/tink)
 [![Learns](https://img.shields.io/badge/Shield-self_updating_signed-7b1fa2?style=for-the-badge)](./agent/rulepack.py)
@@ -22,10 +22,10 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 
 ---
 
-## 🎬 Watch it save Asha in 90 seconds
+## 🎬 Watch it save Asha in 2 minutes
 
 ```text
-0:00  Senior idle. Manager war-room clean. Safety Score 86.
+0:00  Senior idle. Manager war-room clean. Safety Score 94.
 0:15  🔴 Simulated attack: Bank-OTP SMS lands → zero buzz → siren on BOTH phones
 0:40  Manager opens the full decrypted text (server sees only noise) → taps Block hash
 1:00  Same number calls back → auto-reject PRE-RING, call log clean
@@ -60,7 +60,7 @@ Flavors in [`android/app/build.gradle.kts`](./android/app/build.gradle.kts) (`Bu
 ## ⚡ The 3 killer features (acts, not chats)
 
 ### K1. 🔴 Live Attack Simulator — senior sitting, spam incoming
-One tap in Scam Lab (or the web war-room) fires a Bank-OTP / Digital-Arrest / Power-APK lure through the **same production path** as a real SMS — `SmsHandler → RuleEngine → quarantine → E2E forward → dual siren`. No fake UI. End the round by asking the same number to call: the second call dies pre-ring via the learned block hash.
+One tap in Scam Lab (or the web war-room) fires a Bank-OTP / Digital-Arrest / Power-APK lure through the **same production path** as a real SMS — `SmsHandler → RuleEngine → quarantine → E2E forward → dual siren`. In the real app, no fake UI. End the round by asking the same number to call: the second call dies pre-ring via the learned block hash.
 *Code: [`android/.../sms/SmsHandler.kt`](./android/app/src/main/java/com/kavach/guardian/sms/SmsHandler.kt), [`android/.../ui/ScamLabActivity.kt`](./android/app/src/main/java/com/kavach/guardian/ui/ScamLabActivity.kt), `POST /api/demo/attack`.*
 
 ### K2. 📥 Quarantine Vault — the inbox scams never reach
@@ -71,7 +71,7 @@ Scam SMS are suppressed from notifications, kept in a private on-device vault wi
 Pulsing red banner on the latest threat, evidence-chained case file (every verdict cites its red flags), SVG Safety Score that climbs with check-ins and safe weeks, quarantine mirror with masked OTPs. The manager sees **minimum necessary**: verdict + sender-hash + timestamp always, full body only on scam-like with consent.
 *Code: [`simulator/web/src/components/FamilyBoard.tsx`](./simulator/web/src/components/FamilyBoard.tsx), `GET /api/family-feed`.*
 
-### Astra-grade depth behind them
+### Depth behind them
 * **Family Proof challenge** — verify the *enrolled device*, not the voice/number: `POST /api/family/challenge/create|respond`. Grandchild voice-clone dies here. Copy never claims `caller verified`.
 * **Digital-Arrest Defuser** — offline pause cards in EN/HI/Hinglish (`GET /api/pause-card`) + curated Official Directory (`GET /api/directory/lookup`, domain + verified date, never authenticates a caller).
 * **Dignity check-ins** — `I'm okay / Call me / Need help now`, server-owned state machine, gentle escalation copy. No fear-mongering, no leaderboard shame.
@@ -130,7 +130,7 @@ Senior phone                      Blind relay (FastAPI)              Manager pho
 | Seniors / caregivers | 1 / 1 | 1 / 2 | 2 parents / 6 |
 | Check-in history | 7 days | 90 days | 365 days |
 
-* 14-day Pro trial. Judges: promo `SHIPATON-JUDGE` (no card, TEST MODE badge on screen).
+* 14-day Pro trial. Annual option (as shown in the demo video): **Family Guardian Annual $79.99/yr** ($6.67/mo, up to 3 parent devices). Judges: promo `SHIPATON-JUDGE` (no card, TEST MODE badge on screen).
 * RevenueCat done right: offerings → `purchase(package)` → entitlement `shield_protection`/`pro_caregiver`/`family_fortress` check → server reconcile; `restorePurchases()` always; **webhook is the server authority** (`POST /api/v1/billing/webhook`, Bearer + idempotent receipts + downgrade path). Client `CustomerInfo` is UI hint only. Urgent actions, consent screens, revoke, and export are **never paywalled**. Family/annual packages resolve to `ultra`, monthly to `pro`.
 * Zero-marginal-cost engine: 95% of verdicts never leave the phone — paid tiers fund inference at high contribution margins. Honest math in [`docs/REVENUECAT.md`](./docs/REVENUECAT.md).
 * Acquisition: test-mode quiz funnel ([`simulator/web/public/funnel.html`](./simulator/web/public/funnel.html) → `/funnel.html`) ends at QR pairing. **No Stripe, no charges** — Funnel Vision is out of scope for Next Gen; noted as roadmap.
@@ -185,7 +185,7 @@ bash scripts/warm.sh http://localhost:7860   # healthz → readyz → SCAM proof
 ```bash
 ruff check app.py mobile_api.py agent mcp_server tests
 pytest -q
-# 50+ passed: debrief walks, 10-scam/5-legit eval, pairing+expiry, blind-relay
+# 55 passed: debrief walks, 10-scam/5-legit eval, pairing+expiry, blind-relay
 # plaintext/nonce/size rejects, consent kill-switch + epoch, quota tiers,
 # pause/directory/challenge/webhook, block-case + household list, Next Gen proof,
 # relay stats + 500-cap prune, MCP handshake,
