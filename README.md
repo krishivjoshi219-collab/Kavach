@@ -16,7 +16,7 @@
 >
 > Kavach doesn't *chat* about scams. **It acts on them.** And unlike static blocklists, **it learns every morning** — signed rules + community protection, without ever uploading a call.
 
-Elder fraud is a **$10B+/year global epidemic**. The theft hurts; the shame destroys — victims stop trusting phones, banks, even family. Kavach exists for one belief: **protection for people who cannot verify, proof for the families who can — with dignity intact, in Hindi, Hinglish, and English.**
+Elder fraud is widely reported as a **$10B+/year problem in the US alone (FBI IC3 2023–2024 estimates; global losses higher but hard to measure)**. The theft hurts; the shame destroys — victims stop trusting phones, banks, even family. Kavach exists for one belief: **protection for people who cannot verify, proof for the families who can — with dignity intact, in Hindi, Hinglish, and English.**
 
 Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next Gen Award**. **TEST MODE throughout: no cards, no charges** — judges unlock Pro with promo `SHIPATON-JUDGE`. Submission pack: [`docs/SUBMISSION_NEXTGEN.md`](./docs/SUBMISSION_NEXTGEN.md) · live proof: `/api/nextgen/proof`.
 
@@ -33,7 +33,7 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 1:25  📜 The shield learns: rules vN applied, signature OK — this morning's new lure, caught.
 ```
 
-*Demo video (public YouTube/Vimeo, <2 min) linked at submission — script in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md), source in [`assets/kavach-demo-2min.mp4`](./assets/kavach-demo-2min.mp4). Prefer reading code? Start at [the 3 killer features](#-the-3-killer-features-acts-not-chats), then [the shield learns](#-the-shield-learns-signed-not-static), then [how the E2E actually works](#-true-e2e-no-theater).*
+*Demo video (`assets/kavach-demo-2min.mp4`, 113s, 1920x1080) is a rendered walkthrough of the 6-act script in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md) — mock UI frames + TTS narration, not live phone capture. Prefer reading code? Start at [the 3 killer features](#-the-3-killer-features-acts-not-chats), then [the shield learns](#-the-shield-learns-signed-not-static), then [how the E2E actually works](#-true-e2e-no-theater).*
 
 <p align="center">
   <img src="./assets/icon-1024.png" width="120" alt="Kavach app icon" />

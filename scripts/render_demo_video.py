@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
 """
-Render 2-Minute Winning Demo Video with Neural AI Voiceover.
-Updated to reflect the latest God-Tier production changes:
-- Senior Sanctuary with live pulse shield bar, inline Scam Defense Advisor with preset chips, TTS audio guidance, and emergency siren.
-- Guardian Command Center with dynamic Household Safety Score Gauge, on-device E2E decrypted sealed envelopes inbox, and quarantine vault.
-- Android Keystore master key hardware-backed ECIES-P256 link with SAS emoji verification.
-- RevenueCat multi-seat ($79.99/yr for 3 parent devices) + SHIPATON-JUDGE evaluator unlock.
-- Live zero-knowledge Render relay (kavach-19v6.onrender.com/readyz).
+Render 2-minute demo video with neural voiceover.
 
-Produces assets/kavach-demo-2min.mp4 (<120s, 1080p Full HD).
+Scene source of truth: SCENES below (6 acts, captions match narration).
+Output: assets/kavach-demo-2min.mp4 (<120s, 1920x1080, 30fps).
+Requires: edge-tts, google-chrome, ffmpeg/ffprobe on PATH.
 """
-import os
 import json
-import subprocess
+import logging
+import os
 import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
-OUTPUT_DIR = "/tmp/kavach_render"
-ASSETS_DIR = "/home/k/Prototype/Kavach/assets"
-AUDIO_DIR = "/tmp/kavach_audio_real"
-FINAL_VIDEO = os.path.join(ASSETS_DIR, "kavach-demo-2min.mp4")
-ARTIFACT_VIDEO = "/home/k/.gemini/antigravity-cli/brain/a8a26f25-a8b3-4629-a339-4615f608d192/kavach-demo-2min.mp4"
+log = logging.getLogger("render_demo")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(ASSETS_DIR, exist_ok=True)
-os.makedirs(AUDIO_DIR, exist_ok=True)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ASSETS_DIR = Path(os.getenv("KAVACH_ASSETS_DIR", REPO_ROOT / "assets"))
+OUTPUT_DIR = Path(os.getenv("KAVACH_RENDER_DIR", str(Path(tempfile.gettempdir()) / "kavach_render")))
+AUDIO_DIR = Path(os.getenv("KAVACH_AUDIO_DIR", str(Path(tempfile.gettempdir()) / "kavach_audio")))
+FINAL_VIDEO = ASSETS_DIR / "kavach-demo-2min.mp4"
+# Optional extra copy for chat UIs; unset to skip.
+ARTIFACT_VIDEO = os.getenv("KAVACH_ARTIFACT_VIDEO", "")
+
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 VOICE_NAME = "en-US-AndrewMultilingualNeural"
 
@@ -1340,11 +1344,11 @@ body {
 """
 
 def ensure_audio(scene, force=False):
-    audio_path = scene["audio"]
+    audio_path = str(scene["audio"])
     if force or not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
         os.makedirs(os.path.dirname(audio_path), exist_ok=True)
         narration = scene.get("narration", scene.get("caption", ""))
-        print(f"  🎙️ Generating Neural Voiceover (+15% rate): {scene['id']}...")
+        log.info("Generating voiceover (+15%% rate): %s", scene['id'])
         cmd = [
             "edge-tts",
             "--voice", VOICE_NAME,
@@ -1405,31 +1409,31 @@ def make_clip(img_file, audio_file, out_clip):
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def main():
-    print("=== KAVACH 2-MINUTE WINNING DEMO RENDERER (GOD-TIER REVISION) ===")
+    log.info("Kavach 2-minute demo renderer")
     clips = []
-    
+
     for i, s in enumerate(SCENES, 1):
-        print(f"\n[Scene {i}/6] Processing {s['id']}...")
-        html_path = os.path.join(OUTPUT_DIR, f"{s['id']}.html")
-        png_path = os.path.join(OUTPUT_DIR, f"{s['id']}.png")
-        clip_path = os.path.join(OUTPUT_DIR, f"{s['id']}.mp4")
-        
+        log.info("[Scene %d/6] Processing %s", i, s['id'])
+        html_path = str(OUTPUT_DIR / f"{s['id']}.html")
+        png_path = str(OUTPUT_DIR / f"{s['id']}.png")
+        clip_path = str(OUTPUT_DIR / f"{s['id']}.mp4")
+
         # 1. Ensure voiceover audio clip exists with +15% pacing (<120s limit)
         ensure_audio(s, force=True)
-        
+
         # 2. Render fresh HTML and capture Full HD screenshot
         render_scene_html(s, html_path)
         capture_screenshot(html_path, png_path)
-        print(f"  ✓ Screenshot ready: {png_path}")
-        
+        log.info("Screenshot ready: %s", png_path)
+
         # 3. Render synchronized video clip
         make_clip(png_path, s['audio'], clip_path)
-        print(f"  ✓ Video clip generated: {clip_path}")
+        log.info("Video clip generated: %s", clip_path)
         clips.append(clip_path)
 
     # Concat clips
-    print("\n[Concat] Joining 6 acts into final master video...")
-    concat_list = os.path.join(OUTPUT_DIR, "concat.txt")
+    log.info("[Concat] Joining 6 acts into final video...")
+    concat_list = str(OUTPUT_DIR / "concat.txt")
     with open(concat_list, "w") as f:
         for c in clips:
             f.write(f"file '{c}'\n")
@@ -1444,12 +1448,13 @@ def main():
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    # Also copy to artifact directory so chat UI & user can directly view it
-    try:
-        shutil.copyfile(FINAL_VIDEO, ARTIFACT_VIDEO)
-        print(f"  ✓ Artifact updated: {ARTIFACT_VIDEO}")
-    except Exception as e:
-        print(f"  Warning: failed copying artifact: {e}")
+    # Optional artifact copy (only when KAVACH_ARTIFACT_VIDEO is set).
+    if ARTIFACT_VIDEO:
+        try:
+            shutil.copyfile(FINAL_VIDEO, ARTIFACT_VIDEO)
+            log.info("Artifact updated: %s", ARTIFACT_VIDEO)
+        except Exception as e:
+            log.warning("Failed copying artifact: %s", e)
 
     # Probe final video
     probe = subprocess.check_output([
@@ -1461,13 +1466,10 @@ def main():
     dur = float(meta["duration"])
     size_mb = int(meta["size"]) / (1024 * 1024)
     
-    print("\n==================================================")
-    print("🎉 MASTER 2-MINUTE DEMO VIDEO GENERATED SUCCESSFULLY!")
     print(f"Location: {FINAL_VIDEO}")
     print(f"Duration: {dur:.2f}s ({int(dur // 60)}m {int(dur % 60)}s)")
     print(f"File Size: {size_mb:.2f} MB")
-    print(f"Resolution: 1920x1080 Full HD (30 FPS, H.264 / AAC)")
-    print("==================================================")
+    print("Resolution: 1920x1080 (30 FPS, H.264 / AAC)")
 
 if __name__ == "__main__":
     main()

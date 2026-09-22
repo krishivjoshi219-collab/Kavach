@@ -4,7 +4,7 @@
 - Key NEVER in repo: read from OPENCODE_API_KEY env only.
 - Sandbox-only: talks to local relay (default http://localhost:7860).
   adb/UI actions activate when the emulator is ready (phase 2).
-- Kill switch: `touch /tmp/kavach_robo_STOP` or Ctrl-C, or --steps budget.
+- Kill switch: `touch $TMPDIR/kavach_robo_STOP` or Ctrl-C, or --steps budget.
 - Fictional data only: hardcoded fake scenarios; free-text inputs are rejected
   unless they match the allowlist (no real numbers/cards/OTPs).
 
@@ -20,12 +20,15 @@ import os
 import random
 import secrets
 import sys
+import tempfile
 import time
 import urllib.request
 
 MODEL = "muse-spark-1.3-contributor-free"  # FREE ONLY. Do not change to paid ids.
 ZEN_URL = "https://opencode.ai/zen/v1/chat/completions"
-STOP_FILE = "/tmp/kavach_robo_STOP"
+_TMP = tempfile.gettempdir()
+STOP_FILE = os.path.join(_TMP, "kavach_robo_STOP")
+LOG_FILE = os.path.join(_TMP, "kavach_robo_log.json")
 
 SCENARIOS = ["bank_otp", "digital_arrest", "power_apk"]
 FAKE_LURES = ["Your OTP is 482913", "aadhaar verify now", "http://evil.apk download",
@@ -143,9 +146,9 @@ def main():
             time.sleep(8)  # back off: shared 60/min limiter
         else:
             time.sleep(args.sleep)
-    with open("/tmp/kavach_robo_log.json", "w") as f:
+    with open(LOG_FILE, "w") as f:
         json.dump(log, f, indent=1)
-    print(f"done steps={len(log)} log=/tmp/kavach_robo_log.json model={MODEL}")
+    print(f"done steps={len(log)} log={LOG_FILE} model={MODEL}")
 
 
 if __name__ == "__main__":
