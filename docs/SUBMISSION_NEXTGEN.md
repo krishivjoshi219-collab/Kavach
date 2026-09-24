@@ -30,7 +30,7 @@ bash scripts/nextgen_verify.sh http://localhost:7860  # icons, screenshots, proo
 
 ## 4. Why it wins (criterion 1, 2, 4)
 - **Real problem:** $10B+/yr elder fraud; shame isolates seniors. Kavach **acts** (quarantine, pre-ring reject, dual siren, E2E evidence) instead of chatting.
-- **Working, not slides:** 52+ backend tests, Android `RuleEngineTest` + `CommunityShieldTest`, 60-SMS flood + chaos harness (`scripts/robo/`), CI backend+frontend+android+docker.
+- **Working, not slides:** 61 backend tests (incl. concurrency races + corrupt-row degradation), Android `RuleEngineTest` + `CommunityShieldTest`, 60-SMS flood + chaos harness (`scripts/robo/`), CI backend+frontend+android+docker.
 - **Technical care:** deterministic rules decide / LLM only narrates; Tink ECIES-P256; signed rule packs (Ed25519, verify-then-apply); community shield = hashes only, 3-household gate, manager-sovereign; Hindi/Hinglish/English; dignity-first copy; honest limits in README.
 
 ## 5. Submission checklist (blocks disqualification)

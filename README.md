@@ -3,7 +3,7 @@
 ### Pause pressure. Verify independently. Bring family. *Without uploading calls.*
 
 [![RevenueCat Shipaton 2026](https://img.shields.io/badge/RevenueCat-Shipaton_2026_Next_Gen-ff4a5a?style=for-the-badge)](https://revenuecat-shipaton-2026.devpost.com)
-[![CI](https://img.shields.io/badge/CI-55_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
+[![CI](https://img.shields.io/badge/CI-61_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
 [![Android](https://img.shields.io/badge/Android-2_APKs_senior_+_family-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![E2E](https://img.shields.io/badge/E2E-Google_Tink_ECIES_P--256-4285f4?style=for-the-badge&logo=google&logoColor=white)](https://github.com/google/tink)
 [![Learns](https://img.shields.io/badge/Shield-self_updating_signed-7b1fa2?style=for-the-badge)](./agent/rulepack.py)
@@ -33,7 +33,7 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 1:25  📜 The shield learns: rules vN applied, signature OK — this morning's new lure, caught.
 ```
 
-*Demo video (`assets/kavach-demo-2min.mp4`, 113s, 1920x1080) is a rendered walkthrough of the 6-act script in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md) — mock UI frames + TTS narration, not live phone capture. Prefer reading code? Start at [the 3 killer features](#-the-3-killer-features-acts-not-chats), then [the shield learns](#-the-shield-learns-signed-not-static), then [how the E2E actually works](#-true-e2e-no-theater).*
+*Demo video (`assets/kavach-demo-2min.mp4`, <120s, 1920x1080) follows the 6-act script in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md) — shot on real emulator builds of both APK flavors (Senior sanctuary + Family war-room), narrated in English with Hinglish emotional beats and full English subtitles. Voiceover generated with ElevenLabs (free tier). Prefer reading code? Start at [the 3 killer features](#-the-3-killer-features-acts-not-chats), then [the shield learns](#-the-shield-learns-signed-not-static), then [how the E2E actually works](#-true-e2e-no-theater). All brand names belong to their owners; shown only to demonstrate scam detection.*
 
 <p align="center">
   <img src="./assets/icon-1024.png" width="120" alt="Kavach app icon" />
@@ -185,11 +185,14 @@ bash scripts/warm.sh http://localhost:7860   # healthz → readyz → SCAM proof
 ```bash
 ruff check app.py mobile_api.py agent mcp_server tests
 pytest -q
-# 55 passed: debrief walks, 10-scam/5-legit eval, pairing+expiry, blind-relay
+# 61 passed: debrief walks, 10-scam/5-legit eval, pairing+expiry (+atomic
+# single-winner seal race), blind-relay, quota-burst cap race,
 # plaintext/nonce/size rejects, consent kill-switch + epoch, quota tiers,
-# pause/directory/challenge/webhook, block-case + household list, Next Gen proof,
-# relay stats + 500-cap prune, MCP handshake,
-# rule-pack parity/sign/tamper, community threshold/retract/hashes-only, Zen fallback
+# pause/directory/challenge/webhook (+stored-tier replays, empty-entitlement
+# reject), block-case + household list, Next Gen proof, error status codes,
+# corrupt-row degradation, relay stats + 500-cap prune, MCP handshake,
+# rule-pack parity/sign/tamper, community threshold/retract/hashes-only
+# (+allow-retract vote, challenge single-decision race), Zen fallback
 ```
 
 Android `RuleEngineTest` (OTP-threat SCAM, power-APK SCAM, UPI-txn spared, shopping-vs-pin, bijli/paise, cbi/fir/dob parity, pack overlay, hash determinism) + `CommunityShieldTest` (threshold, override, household-wins) run in CI alongside `assembleSeniorDebug assembleManagerDebug`.
