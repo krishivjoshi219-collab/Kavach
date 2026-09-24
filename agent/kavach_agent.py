@@ -36,6 +36,9 @@ ALERT_HINTS = ["tell my family", "alert", "notify", "send the message", "approve
 ROUTINE_HINTS = ["breakfast", "medicines", "medicine", "walk", "lunch", "dinner",
                  "did the", "finished my"]
 
+_LLM_TIMEOUT_S = 15
+_LLM_MAX_TOKENS = 400
+
 
 def sanitize(text: str) -> str:
     text = text[:MAX_INPUT_CHARS]
@@ -50,15 +53,16 @@ def _llm_narrate(system: str, user: str) -> tuple[str, str]:
     Chain: Zen (free, OpenAI-compatible) -> Gemini -> Groq -> offline stub.
     Narration only — verdicts are decided by rules before this is ever called.
     """
+    import httpx as _httpx
     prompt = system + "\n\nContext:\n" + user[:2500]
     if ZEN_API_KEY:
         try:
-            import httpx
-            r = httpx.post(f"{ZEN_BASE}/chat/completions",
+            r = _httpx.post(f"{ZEN_BASE}/chat/completions",
                            headers={"Authorization": f"Bearer {ZEN_API_KEY}"},
                            json={"model": ZEN_MODEL,
                                  "messages": [{"role": "user", "content": prompt[:4000]}],
-                                 "temperature": 0.3, "max_tokens": 400}, timeout=40)
+                                 "temperature": 0.3, "max_tokens": _LLM_MAX_TOKENS},
+                           timeout=_LLM_TIMEOUT_S)
             r.raise_for_status()
             txt = r.json()["choices"][0]["message"]["content"].strip()
             if txt:
@@ -70,19 +74,19 @@ def _llm_narrate(system: str, user: str) -> tuple[str, str]:
             import google.generativeai as genai
             genai.configure(api_key=GEMINI_API_KEY)
             resp = genai.GenerativeModel(GEMINI_MODEL).generate_content(
-                prompt, request_options={"timeout": 40})
+                prompt, request_options={"timeout": _LLM_TIMEOUT_S})
             if resp.text and resp.text.strip():
                 return "gemini", resp.text.strip()[:1500]
         except Exception:  # noqa: BLE001, S110 - silent failover to GROQ below
             pass
     if GROQ_API_KEY:
         try:
-            import httpx
-            r = httpx.post("https://api.groq.com/openai/v1/chat/completions",
+            r = _httpx.post("https://api.groq.com/openai/v1/chat/completions",
                            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
                            json={"model": GROQ_MODEL,
                                  "messages": [{"role": "user", "content": prompt[:4000]}],
-                                 "temperature": 0.3, "max_tokens": 400}, timeout=40)
+                                 "temperature": 0.3, "max_tokens": _LLM_MAX_TOKENS},
+                           timeout=_LLM_TIMEOUT_S)
             r.raise_for_status()
             txt = r.json()["choices"][0]["message"]["content"].strip()
             if txt:
@@ -158,9 +162,7 @@ def run_agent_turn(user_text: str, session_id: str = "default",
 
 def _finish(session_id: str, user_text: str, out: dict, provider: str) -> dict[str, Any]:
     spoken = out.get("spoken", "")
-    if out.get("stage") not in (None,) and provider in ("template", "offline-stub"):
-        pass  # protocol templates already speak warmly
-    elif provider in ("gemini", "groq") and out.get("done"):
+    if provider in ("gemini", "groq", "zen") and out.get("done"):
         _, warm = _speak(spoken)
         if warm:
             spoken = warm

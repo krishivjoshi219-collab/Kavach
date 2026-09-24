@@ -98,9 +98,16 @@ def incident_history(senior_id: str = DEFAULT_SENIOR_ID, limit: int = 10) -> dic
     """Read the case file: past incidents with verdicts."""
     models.ensure_seed(senior_id)
     incidents = models.list_incidents(senior_id, max(1, min(limit, 50)))
-    return {"ok": True, "count": len(incidents),
-            "incidents": [{**i, "red_flags": json.loads(i["red_flags"])}
-                          for i in incidents]}
+    out = []
+    for i in incidents:
+        try:
+            flags = json.loads(i["red_flags"])
+            if not isinstance(flags, list):
+                flags = []
+        except (json.JSONDecodeError, TypeError):
+            flags = []  # corrupt row: show the case, not a 500
+        out.append({**i, "red_flags": flags})
+    return {"ok": True, "count": len(out), "incidents": out}
 
 
 @mcp.tool()

@@ -17,4 +17,8 @@ USER app
 EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=20s \
   CMD python -c "import os,urllib.request;urllib.request.urlopen('http://localhost:'+os.getenv('PORT','7860')+'/healthz')"
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860}"]
+# Single worker by design: SQLite (WAL) is the store, and multiple uvicorn
+# workers in one container only multiply "database is locked" collisions.
+# Scale with more containers / a managed DB, not --workers. --proxy-headers
+# lets HSTS/security logic see the real https scheme behind Render's proxy.
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860} --proxy-headers --forwarded-allow-ips='*'"]

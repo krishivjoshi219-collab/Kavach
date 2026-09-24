@@ -27,6 +27,8 @@ CORE_CODES = ["OTP_ASK", "THREAT"]
 def _load_keypair() -> tuple[bytes, bytes, bool]:
     """Returns (private_seed_32, public_key_32, test_mode)."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from . import config as _cfg
     seed_b64 = os.getenv("RULE_PACK_SIGNING_KEY", "")
     if seed_b64:
         try:
@@ -35,7 +37,15 @@ def _load_keypair() -> tuple[bytes, bytes, bool]:
             pub = priv.public_key().public_bytes_raw()
             return seed, pub, False
         except ValueError:
+            if _cfg.IS_PROD:
+                # Fail fast: a typo'd key in prod would silently fork the
+                # fleet (each worker mints its own ephemeral key below and
+                # devices pin conflicting public keys). Crash, don't drift.
+                raise
             pass  # bad env key falls back to ephemeral dev key, honestly flagged
+    if _cfg.IS_PROD:
+        raise RuntimeError("RULE_PACK_SIGNING_KEY is required in production "
+                           "(ephemeral keys fork multi-worker fleets).")
     priv = Ed25519PrivateKey.generate()
     pub = priv.public_key().public_bytes_raw()
     seed = priv.private_bytes_raw()

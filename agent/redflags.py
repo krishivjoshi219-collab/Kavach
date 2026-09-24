@@ -71,14 +71,22 @@ SAFE_PHRASES = [
     r"just (wanted to |want to )?say (hello|hi)|good (morning|evening|night)",
 ]
 
+# Precompiled once at import: extract_signals runs per message + per
+# brain_ask, so avoid re-parsing 8 patterns on every call.
+_COMPILED_RULES: list[tuple[str, str, re.Pattern[str], int, str]] = [
+    (code, label, re.compile(pat, re.IGNORECASE), weight, meaning)
+    for code, label, pat, weight, meaning in RULES
+]
+_COMPILED_SAFE = [re.compile(p, re.IGNORECASE) for p in SAFE_PHRASES]
+
 
 def extract_signals(text: str) -> list[dict]:
     low = text.lower()
     hits: list[dict] = []
-    for code, label, pat, weight, meaning in RULES:
+    for code, label, rx, weight, meaning in _COMPILED_RULES:
         # finditer + group(0): full matched text even when the pattern
         # contains groups (findall would return group tuples like ('','')).
-        found = sorted({m.group(0) for m in re.finditer(pat, low) if m.group(0)})
+        found = sorted({m.group(0) for m in rx.finditer(low) if m.group(0)})
         if found:
             hits.append({"code": code, "label": label, "weight": weight,
                          "examples": found[:4], "meaning": meaning})
@@ -103,7 +111,7 @@ def score_verdict(signals: list[dict], transcript: str,
     if signals:
         return ("UNCERTAIN", 0.45, reasons)
     low = transcript.lower()
-    if any(re.search(p, low) for p in SAFE_PHRASES):
+    if any(rx.search(low) for rx in _COMPILED_SAFE):
         return ("LIKELY_SAFE", 0.7, ["Nothing was asked for; sounds like a routine family call."])
     return ("UNCERTAIN", 0.4,
             ["Not enough detail yet — one or two more answers will settle it."])

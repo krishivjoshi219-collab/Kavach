@@ -92,23 +92,48 @@ PLAINTEXT_RE = re.compile("|".join(f"(?:{p})" for p in PLAINTEXT_PATTERNS), re.I
 def _connect() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(config.DB_PATH)), exist_ok=True)
     conn = sqlite3.connect(config.DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    # Lightweight migrations for existing DBs (kavach.db from older runs).
-    for sql in (
-        "ALTER TABLE households ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE blobs ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
-    ):
-        try:
-            conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass  # column already exists
     try:
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_blobs_nonce "
-                     "ON blobs(household_id, nonce)")
-    except sqlite3.OperationalError:
-        pass
-    conn.commit()
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            # Production SQLite hygiene: fail fast on FK violations, and let the
+            # engine wait (instead of raising "database is locked") under
+            # concurrent writers — single uvicorn worker + 8s pollers still collide.
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA busy_timeout=5000")
+        except sqlite3.OperationalError:
+            pass
+        conn.executescript(SCHEMA)
+        # Lightweight migrations for existing DBs (kavach.db from older runs).
+        for sql in (
+            "ALTER TABLE households ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE blobs ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0",
+        ):
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # column already exists
+        for sql in (
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_blobs_nonce "
+            "ON blobs(household_id, nonce)",
+            "CREATE INDEX IF NOT EXISTS idx_blobs_household_id ON blobs(household_id, id)",
+            "CREATE INDEX IF NOT EXISTS idx_blocklist_household ON blocklist(household_id)",
+            "CREATE INDEX IF NOT EXISTS idx_community_hash ON community_reports(number_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_pairings_household ON pairings(household_id)",
+        ):
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+    except Exception:
+        # Init failure (disk-full, locked, corrupt): never leak the fd.
+        try:
+            conn.close()
+        except Exception:  # noqa: BLE001, S110 - close is best-effort here
+            pass
+        raise
     return conn
 
 
@@ -169,6 +194,17 @@ def record_webhook(provider: str, event_id: str, household_id: str, tier: str) -
         conn.close()
 
 
+def stored_webhook_tier(provider: str, event_id: str) -> str | None:
+    """Tier recorded for a previously seen webhook event (replay truth)."""
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT tier FROM webhook_receipts WHERE provider=? AND event_id=?",
+                           (provider, event_id)).fetchone()
+        return row["tier"] if row else None
+    finally:
+        conn.close()
+
+
 def community_stats(household_id: str) -> dict[str, Any]:
     """Honest radar: counts from THIS relay only (household blocklist + blobs).
     Never presented as regional carrier data."""
@@ -209,9 +245,14 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
         row = conn.execute("SELECT * FROM pairings WHERE code=?", (code.upper(),)).fetchone()
         if not row or row["status"] != "open" or row["expires"] < _now():
             return None
-        conn.execute("UPDATE pairings SET senior_pubkey=?, senior_id=?, status='paired'"
-                     " WHERE code=?", (senior_pubkey[:8000], senior_id[:64], code.upper()))
+        # Atomic single-use seal: concurrent completes race here, and only
+        # one UPDATE may win. Unconditional UPDATE would let both succeed.
+        cur = conn.execute("UPDATE pairings SET senior_pubkey=?, senior_id=?, status='paired'"
+                           " WHERE code=? AND status='open' AND expires>?",
+                           (senior_pubkey[:8000], senior_id[:64], code.upper(), _now()))
         conn.commit()
+        if cur.rowcount != 1:
+            return None
         hid, mgr_pub = row["household_id"], row["manager_pubkey"]
     finally:
         conn.close()
@@ -297,7 +338,11 @@ def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> in
         if conn.execute("SELECT 1 FROM blobs WHERE household_id=? AND nonce=?",
                         (household_id, nonce[:100])).fetchone():
             return None  # nonce reuse: replay attack
-        epoch = get_epoch(household_id)
+        # Same-transaction epoch: a Kill-Switch revoke bumping the epoch
+        # between our read and insert must not stamp a stale epoch.
+        epoch = conn.execute("SELECT epoch FROM households WHERE id=?",
+                             (household_id,)).fetchone()
+        epoch = int(epoch["epoch"] or 0) if epoch else 0
         try:
             cur = conn.execute("INSERT INTO blobs(household_id,sender,nonce,ciphertext,created,epoch)"
                                " VALUES(?,?,?,?,?,?)",
@@ -329,8 +374,11 @@ def pull_blobs(household_id: str, since_id: int = 0, limit: int = 100) -> list[d
 # --- screening on hashes: raw numbers never leave the phone ---
 
 def hash_number(household_id: str, e164: str) -> str:
+    # Normalize before hashing so "+91 98..." and "+91-98..." map together.
+    # Household salt keeps cross-household hashes unlinkable.
+    normalized = " ".join(e164.strip().lower().split())
     salt = "kavach|" + household_id
-    return hashlib.sha256((salt + e164.strip()).encode()).hexdigest()
+    return hashlib.sha256((salt + normalized).encode()).hexdigest()
 
 
 #: Community shield: a hash ships to all households after this many
@@ -339,9 +387,13 @@ def hash_number(household_id: str, e164: str) -> str:
 COMMUNITY_THRESHOLD = 3
 
 
+_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
 def block_number(household_id: str, number_hash: str, label: str = "",
                  action: str = "block") -> bool:
-    if len(number_hash) != 64 or action not in ("block", "silence", "allow"):
+    number_hash = number_hash.lower()
+    if not _HEX64_RE.match(number_hash) or action not in ("block", "silence", "allow"):
         return False
     conn = _connect()
     try:
@@ -353,6 +405,12 @@ def block_number(household_id: str, number_hash: str, label: str = "",
             conn.execute("INSERT OR IGNORE INTO community_reports(household_id,"
                          "number_hash,category,created) VALUES(?,?,?,?)",
                          (household_id, number_hash, label[:40], _now()))
+        else:
+            # allow/silence must retract MY community vote too — otherwise a
+            # stale report keeps counting toward the 3-household threshold
+            # even though this household no longer vouches for it.
+            conn.execute("DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
+                         (household_id, number_hash))
         conn.commit()
         _bump("blocks_total")
         return True
@@ -361,6 +419,9 @@ def block_number(household_id: str, number_hash: str, label: str = "",
 
 
 def unblock_number(household_id: str, number_hash: str) -> bool:
+    number_hash = number_hash.lower()
+    if not _HEX64_RE.match(number_hash):
+        return False
     conn = _connect()
     try:
         cur = conn.execute("DELETE FROM blocklist WHERE household_id=? AND number_hash=?",
@@ -393,10 +454,16 @@ def threat_feed(limit: int = 200) -> list[dict[str, Any]]:
     """Hashes reported by >= THRESHOLD independent households. Hashes only."""
     conn = _connect()
     try:
+        # category = the most recently filed label (not MAX(), which picks
+        # the alphabetically largest — arbitrary). Subquery is per-hash but
+        # the feed is small (threshold-gated) and read-infrequent.
         rows = conn.execute(
             "SELECT number_hash, COUNT(DISTINCT household_id) AS reports,"
-            " MIN(created) AS first_seen, MAX(category) AS category"
-            " FROM community_reports GROUP BY number_hash"
+            " MIN(created) AS first_seen,"
+            " (SELECT category FROM community_reports cr2"
+            "   WHERE cr2.number_hash = cr.number_hash"
+            "   ORDER BY created DESC LIMIT 1) AS category"
+            " FROM community_reports cr GROUP BY number_hash"
             " HAVING reports >= ? ORDER BY reports DESC LIMIT ?",
             (COMMUNITY_THRESHOLD, max(1, min(limit, 200)))).fetchall()
         return [{"number_hash": r["number_hash"], "reports": r["reports"],
@@ -407,21 +474,29 @@ def threat_feed(limit: int = 200) -> list[dict[str, Any]]:
 
 
 def lookup_number(household_id: str, number_hash: str) -> dict[str, Any]:
+    number_hash = number_hash.lower()
     conn = _connect()
     try:
         row = conn.execute("SELECT action,label FROM blocklist WHERE household_id=?"
                            " AND number_hash=?", (household_id, number_hash)).fetchone()
+        if row:
+            return {"action": row["action"], "reason": row["label"] or "household list",
+                    "source": "household"}
+        # Community check as a single aggregate — no full feed scan per lookup.
+        # Category = most recent report's label (matches threat_feed).
+        crow = conn.execute(
+            "SELECT COUNT(DISTINCT household_id) AS reports,"
+            " (SELECT category FROM community_reports cr2"
+            "   WHERE cr2.number_hash = community_reports.number_hash"
+            "   ORDER BY created DESC LIMIT 1) AS category"
+            " FROM community_reports WHERE number_hash=?", (number_hash,)).fetchone()
     finally:
         conn.close()
-    if row:
-        return {"action": row["action"], "reason": row["label"] or "household list",
-                "source": "household"}
-    feed = {f["number_hash"]: f for f in threat_feed()}
-    hit = feed.get(number_hash)
-    if hit:
+    reports = int(crow["reports"] or 0) if crow else 0
+    if reports >= COMMUNITY_THRESHOLD:
+        category = (crow["category"] or "scam") if crow else "scam"
         return {"action": "block",
-                "reason": f"community shield ({hit['reports']} households)"
-                          + (f": {hit['category']}" if hit["category"] else ""),
+                "reason": f"community shield ({reports} households): {category}",
                 "source": "community"}
     return {"action": "allow", "reason": "not on any list", "source": "none"}
 
@@ -481,7 +556,14 @@ def get_consent(household_id: str, senior_id: str) -> dict[str, Any]:
     if not row or row["revoked"]:
         return {"granted": False, "capabilities": dict.fromkeys(CAPABILITIES, False),
                 "epoch": epoch}
-    return {"granted": True, "capabilities": json.loads(row["capabilities"]),
+    try:
+        caps = json.loads(row["capabilities"])
+    except (json.JSONDecodeError, TypeError):
+        caps = {}  # corrupt row: deny safely, never 500 a consent check
+    if not isinstance(caps, dict):
+        caps = {}
+    clean = {k: bool(caps.get(k, False)) for k in CAPABILITIES}
+    return {"granted": True, "capabilities": clean,
             "granted_by": row["granted_by"], "updated": row["updated"], "epoch": epoch}
 
 
@@ -540,13 +622,19 @@ def ack_command(command_id: int) -> bool:
 def brain_ask(household_id: str, snippet: str) -> dict[str, Any]:
     """Server-side verdict over an already-scrubbed snippet. Quota-gated by tier."""
     tier = get_tier(household_id)
+    quota = QUOTAS.get(tier, QUOTAS["free"])
     month = _month()
     conn = _connect()
     try:
+        # Atomic increment-then-compare: check-then-increment in separate
+        # statements lets concurrent asks both pass at used=quota-1.
+        # BEGIN IMMEDIATE takes the write lock up front for the same reason.
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT brain_calls FROM usage WHERE household_id=? AND month=?",
                            (household_id, month)).fetchone()
-        used = row["brain_calls"] if row else 0
-        if used >= QUOTAS.get(tier, 20):
+        used = int(row["brain_calls"]) if row else 0
+        if used >= quota:
+            conn.rollback()
             return {"ok": False, "error": "quota_exceeded", "tier": tier,
                     "summary": "Monthly cloud-brain quota used up. Upgrade for more."}
         conn.execute("INSERT INTO usage(household_id,month,brain_calls) VALUES(?,?,1)"
@@ -559,4 +647,4 @@ def brain_ask(household_id: str, snippet: str) -> dict[str, Any]:
     verdict, conf, reasons = redflags.score_verdict(signals, snippet[:2000])
     return {"ok": True, "tier": tier, "verdict": verdict, "confidence": conf,
             "reasons": reasons, "guidance": redflags.GUIDANCE[verdict],
-            "used": used + 1, "quota": QUOTAS.get(tier, 20)}
+            "used": used + 1, "quota": quota}

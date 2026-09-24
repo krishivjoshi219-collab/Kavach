@@ -51,9 +51,41 @@ CREATE TABLE IF NOT EXISTS family_challenges(
 def _connect() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(config.DB_PATH)), exist_ok=True)
     conn = sqlite3.connect(config.DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
+    try:
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA busy_timeout=5000")
+        except sqlite3.OperationalError:
+            pass
+        conn.executescript(SCHEMA)
+        for sql in (
+            "CREATE INDEX IF NOT EXISTS idx_incidents_senior ON incidents(senior_id, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_alerts_senior ON alerts(senior_id, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_checkins_senior ON checkins(senior_id, id DESC)",
+        ):
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass
+    except Exception:
+        # Init failure must not leak the fd; caller sees the original error.
+        try:
+            conn.close()
+        except Exception:  # noqa: BLE001, S110 - close is best-effort here
+            pass
+        raise
     return conn
+
+
+def _clamp_limit(limit: int, default: int = 20, maximum: int = 100) -> int:
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(limit, maximum))
 
 
 def _now() -> float:
@@ -174,7 +206,7 @@ def list_incidents(senior_id: str, limit: int = 20) -> list[dict[str, Any]]:
     try:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM incidents WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, limit))]
+            (senior_id, _clamp_limit(limit)))]
     finally:
         conn.close()
 
@@ -196,7 +228,7 @@ def list_checkins(senior_id: str, limit: int = 10) -> list[dict[str, Any]]:
     try:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM checkins WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, limit))]
+            (senior_id, _clamp_limit(limit, default=10)))]
     finally:
         conn.close()
 
@@ -248,17 +280,15 @@ def get_pending_alert(senior_id: str) -> dict[str, Any] | None:
 
 
 def confirm_alert(alert_id: int, code: str) -> bool:
+    # Atomic compare-and-send: the code check and the state flip happen in
+    # one UPDATE, so concurrent confirms can't both report success.
     conn = _connect()
     try:
-        row = conn.execute("SELECT * FROM alerts WHERE id=?", (alert_id,)).fetchone()
-        if not row or row["status"] != "pending_confirm":
-            return False
-        if row["confirm_code"].upper() != code.strip().upper():
-            return False
-        conn.execute("UPDATE alerts SET status='sent', sent_at=? WHERE id=?",
-                     (_now(), alert_id))
+        cur = conn.execute("UPDATE alerts SET status='sent', sent_at=? WHERE id=?"
+                           " AND status='pending_confirm' AND UPPER(confirm_code)=UPPER(?)",
+                           (_now(), alert_id, code.strip()))
         conn.commit()
-        return True
+        return cur.rowcount == 1
     finally:
         conn.close()
 
@@ -268,7 +298,7 @@ def list_alerts(senior_id: str, limit: int = 20) -> list[dict[str, Any]]:
     try:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM alerts WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, limit))]
+            (senior_id, _clamp_limit(limit)))]
     finally:
         conn.close()
 
@@ -293,7 +323,13 @@ def get_flow(session_id: str) -> dict[str, Any] | None:
         if not row:
             return None
         d = dict(row)
-        d["data"] = json.loads(d["data"] or "{}")
+        try:
+            data = json.loads(d["data"] or "{}")
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            data = {}  # corrupt row: restart the flow, don't 500 the session
+        if not isinstance(data, dict):
+            data = {}
+        d["data"] = data
         return d
     finally:
         conn.close()
@@ -347,14 +383,27 @@ def respond_challenge(challenge_id: str, decision: str) -> dict[str, Any] | None
         return None
     conn = _connect()
     try:
-        row = conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone()
-        if not row or row["state"] != "pending" or row["expires"] < _now():
-            return None
-        conn.execute("UPDATE family_challenges SET state='resolved', decision=?, resolved=? WHERE id=?",
-                     (decision, _now(), challenge_id))
+        # Atomic resolve: concurrent APPROVE+DENY race here, and exactly one
+        # may flip pending->resolved. Losers read back the winner's decision.
+        now = _now()
+        cur = conn.execute("UPDATE family_challenges SET state='resolved', decision=?,"
+                           " resolved=? WHERE id=? AND state='pending' AND expires>?",
+                           (decision, now, challenge_id, now))
         conn.commit()
-        out = dict(conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone())
-        return out
+        row = conn.execute("SELECT * FROM family_challenges WHERE id=?",
+                           (challenge_id,)).fetchone()
+        if not row:
+            return None
+        if cur.rowcount != 1:
+            # Someone else resolved (or it expired) first: report, don't invent.
+            if row["state"] == "pending" and row["expires"] < now:
+                conn.execute("UPDATE family_challenges SET state='expired' WHERE id=?",
+                             (challenge_id,))
+                conn.commit()
+                row = conn.execute("SELECT * FROM family_challenges WHERE id=?",
+                                   (challenge_id,)).fetchone()
+            return None
+        return dict(row)
     finally:
         conn.close()
 
@@ -368,9 +417,12 @@ def load_history(session_id: str, limit_turns: int = 12) -> list[dict]:
     if not row:
         return []
     try:
-        return json.loads(row["history"])[-limit_turns:]
+        hist = json.loads(row["history"])
     except (json.JSONDecodeError, TypeError):
         return []
+    if not isinstance(hist, list):
+        return []  # poisoned row (str/dict): start fresh, don't crash save_turn
+    return hist[-limit_turns:]
 
 
 def save_turn(session_id: str, role: str, content: str) -> None:

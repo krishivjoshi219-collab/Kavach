@@ -14,15 +14,21 @@ import httpx
 
 log = logging.getLogger("kavach.notifications")
 
-ONESIGNAL_APP_ID = os.getenv("ONESIGNAL_APP_ID", "test_onesignal_app_id")
-ONESIGNAL_REST_KEY = os.getenv("ONESIGNAL_REST_KEY", "")
 ONESIGNAL_API_URL = "https://onesignal.com/api/v1/notifications"
+_PUSH_TIMEOUT_S = 10
+
+
+def _onesignal_config() -> tuple[str, str]:
+    """Read env lazily so tests / redeploys can rotate keys without reimport."""
+    return (os.getenv("ONESIGNAL_APP_ID", "test_onesignal_app_id"),
+            os.getenv("ONESIGNAL_REST_KEY", ""))
 
 
 def _send_push(headings: dict[str, str], contents: dict[str, str],
                custom_data: dict[str, Any], tag_filters: list[dict[str, str]]) -> dict[str, Any]:
     """Dispatches a notification via OneSignal or logs in simulated mode."""
-    if not ONESIGNAL_REST_KEY:
+    app_id, rest_key = _onesignal_config()
+    if not rest_key:
         log.info("[OneSignal Test Mode] Notification dispatched: %s | %s", headings.get("en"), contents.get("en"))
         return {
             "ok": True,
@@ -35,24 +41,30 @@ def _send_push(headings: dict[str, str], contents: dict[str, str],
         }
 
     payload = {
-        "app_id": ONESIGNAL_APP_ID,
+        "app_id": app_id,
         "headings": headings,
         "contents": contents,
         "data": custom_data,
         "filters": tag_filters,
     }
     headers = {
-        "Authorization": f"Basic {ONESIGNAL_REST_KEY}",
+        "Authorization": f"Basic {rest_key}",
         "Content-Type": "application/json",
     }
     try:
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=_PUSH_TIMEOUT_S) as client:
             resp = client.post(ONESIGNAL_API_URL, json=payload, headers=headers)
-            data = resp.json()
-            return {"ok": resp.status_code == 200, "data": data}
-    except (httpx.HTTPError, OSError) as exc:
+            try:
+                data = resp.json()
+            except ValueError:
+                data = {"raw": resp.text[:500]}
+            if resp.status_code != 200:
+                log.warning("OneSignal non-200: %s", resp.status_code)
+                return {"ok": False, "error": f"onesignal_{resp.status_code}", "data": data}
+            return {"ok": True, "data": data}
+    except Exception as exc:  # noqa: BLE001 - push must never 500 the relay
         log.warning("OneSignal dispatch failed: %s", exc)
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc)[:200]}
 
 
 def send_morning_checkin(household_id: str, senior_id: str) -> dict[str, Any]:
@@ -83,7 +95,9 @@ def send_missed_checkin_nudge(household_id: str, senior_name: str = "Dad") -> di
 
 def send_emergency_scam_alert(household_id: str, caller_hash: str, reasons: list[str]) -> dict[str, Any]:
     """High-priority alert sent to family manager upon live scam interception."""
-    reason_str = "; ".join(reasons) if reasons else "Severe threat or OTP ask detected"
+    short = [str(r)[:120] for r in (reasons or [])[:5]]
+    reason_str = "; ".join(short) if short else "Severe threat or OTP ask detected"
+    reason_str = reason_str[:300]
     return _send_push(
         headings={"en": "🚨 URGENT: Scam Intercepted on Dad's Phone"},
         contents={"en": f"Blocked scammer ({caller_hash[:8]}...). Threat: {reason_str}. Open War Room to intervene."},

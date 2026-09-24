@@ -14,18 +14,23 @@ import json
 import logging
 import os
 import sqlite3
-import tempfile
 import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
+from functools import lru_cache
+from pathlib import Path
+from time import monotonic
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from mcp.server.fastmcp.server import StreamableHTTPASGIApp
 from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.responses import JSONResponse as StarletteJSON
 from starlette.routing import Route
 
@@ -36,8 +41,28 @@ from agent.kavach_agent import run_agent_turn
 from agent.ratelimit import limiter
 from mcp_server.server import UI_URI, mcp
 
+APP_ENV = cfg.APP_ENV
+IS_PROD = cfg.IS_PROD
+
+
+class _RequestIdFilter(logging.Filter):
+    """Guarantee %(request_id)s exists on every record.
+
+    Without this, ANY third-party log (uvicorn, httpx, mcp) emitted
+    without extra={"request_id": ...} raises KeyError during formatting
+    and can take down request handling. Production crash bug.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "request_id"):
+            record.request_id = "-"  # type: ignore[attr-defined]
+        return True
+
+
 logging.basicConfig(level=getattr(logging, cfg.LOG_LEVEL.upper(), logging.INFO),
                     format="%(asctime)s %(levelname)s %(name)s rid=%(request_id)s %(message)s")
+for _h in logging.root.handlers:
+    _h.addFilter(_RequestIdFilter())
 _base_logger = logging.getLogger("kavach")
 
 
@@ -48,7 +73,7 @@ def _log(**fields: object) -> None:
 
 START_TIME = time.time()
 METRICS_LOCK = threading.Lock()
-METRICS: dict[str, float] = {
+METRICS: dict[str, int] = {
     "requests_total": 0, "chat_total": 0, "chat_errors": 0,
     "chat_latency_ms_sum": 0, "mcp_total": 0, "rate_limited": 0,
 }
@@ -58,6 +83,15 @@ MCP_RUNNING = {"ok": False}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     _log(event="startup", mode=cfg.llm_status()["mode"], origins=cfg.ALLOWED_ORIGINS)
+    if "*" in cfg.ALLOWED_ORIGINS:
+        _base_logger.warning("CORS allows all origins — set ALLOWED_ORIGINS in production",
+                             extra={"request_id": "-"})
+    if not os.getenv("RC_WEBHOOK_AUTH", ""):
+        _base_logger.warning("RC_WEBHOOK_AUTH unset — webhook runs in TEST MODE",
+                             extra={"request_id": "-"})
+    if IS_PROD and cfg.DB_PATH.endswith("kavach.db") and "/data/" not in cfg.DB_PATH:
+        _base_logger.warning("SQLite DB is on ephemeral disk — mount a volume in production",
+                             extra={"request_id": "-"})
     async with mcp.session_manager.run():
         MCP_RUNNING["ok"] = True
         _log(event="mcp_ready")
@@ -66,9 +100,17 @@ async def lifespan(_: FastAPI):
     _log(event="shutdown")
 
 
+#: Reject bodies larger than any legitimate call: biggest blob is a 200KB
+#: base64 ciphertext + JSON envelope. 1MB cap stops memory-exhaustion DoS
+#: before JSON parsing. Tune via MAX_BODY_BYTES.
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1024 * 1024)))
+
+_docs_url = None if IS_PROD else "/docs"
 app = FastAPI(title="Kavach — voice guardian for seniors", version=cfg.APP_VERSION,
-              lifespan=lifespan, docs_url="/docs", redoc_url=None)
+              lifespan=lifespan, docs_url=_docs_url, redoc_url=None,
+              openapi_url=None if IS_PROD else "/openapi.json")
 app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 app.include_router(mobile_api.router)
 
 
@@ -77,27 +119,90 @@ async def _ratelimit_handler(request: Request, exc: RateLimitExceeded):
     with METRICS_LOCK:
         METRICS["rate_limited"] += 1
     rid = getattr(request.state, "rid", "-")
+    retry_after = getattr(exc, "retry_after", None)
+    headers = {"Retry-After": str(retry_after)} if retry_after else {}
     return StarletteJSON({"ok": False, "error": "rate_limited",
                           "detail": "Too many requests, slow down and retry.",
-                          "request_id": rid}, status_code=429)
+                          "request_id": rid}, status_code=429, headers=headers)
+
+
+@app.exception_handler(404)
+async def _not_found_handler(request: Request, exc: Exception):
+    rid = getattr(request.state, "rid", "-")
+    return StarletteJSON({"ok": False, "error": "not_found",
+                          "detail": "No such endpoint.",
+                          "request_id": rid}, status_code=404)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_handler(request: Request, exc: RequestValidationError):
+    """Uniform envelope for schema errors; keeps FastAPI's 422 status."""
+    rid = getattr(request.state, "rid", "-")
+    return StarletteJSON({"ok": False, "error": "validation_error",
+                          "detail": exc.errors(),
+                          "request_id": rid}, status_code=422)
 
 
 @app.exception_handler(Exception)
 async def _catch_all(request: Request, exc: Exception):
+    import traceback as _tb
     rid = getattr(request.state, "rid", "-")
-    _log(event="unhandled", rid=rid, path=request.url.path, err=str(exc)[:200])
-    with METRICS_LOCK:
-        METRICS["chat_errors"] += 1
+    _base_logger.error("unhandled path=%s rid=%s\n%s", request.url.path, rid,
+                       _tb.format_exc(limit=5), extra={"request_id": rid})
+    if request.url.path.startswith(("/api/chat", "/api/demo", "/api/family")):
+        with METRICS_LOCK:
+            METRICS["chat_errors"] += 1
+    if request.url.path.startswith(("/mcp", "/mcp/")):
+        # Streamable-HTTP framing: a bare {"ok":false} envelope breaks MCP
+        # clients. Return a JSON-RPC error object instead.
+        return StarletteJSON({"jsonrpc": "2.0", "id": None,
+                              "error": {"code": -32603,
+                                        "message": "Internal error",
+                                        "data": {"request_id": rid}}},
+                             status_code=500,
+                             headers=_security_headers(request, https_only=False))
     return StarletteJSON({"ok": False, "error": "internal",
                           "detail": "Internal error. Retry with this request_id.",
-                          "request_id": rid}, status_code=500)
+                          "request_id": rid}, status_code=500,
+                         headers=_security_headers(request, https_only=False))
+
+
+def _security_headers(request: Request, https_only: bool = True) -> dict[str, str]:
+    """Security headers for responses built outside _request_context
+    (413/429/500 paths skip the middleware's post-call injection)."""
+    if https_only:
+        return {}
+    headers = {
+        "x-request-id": getattr(request.state, "rid", "-"),
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "no-referrer",
+        "x-frame-options": "DENY",
+        "permissions-policy": "geolocation=(), camera=(), microphone=()",
+    }
+    if request.url.path.startswith("/api/"):
+        headers["cache-control"] = "no-store"
+        headers["content-security-policy"] = "default-src 'none'; frame-ancestors 'none'"
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if proto == "https":
+        headers["strict-transport-security"] = "max-age=31536000; includeSubDomains"
+    return headers
 
 
 @app.middleware("http")
 async def _request_context(request: Request, call_next):
     rid = request.headers.get("x-request-id", uuid.uuid4().hex[:12])
     request.state.rid = rid
-    t0 = time.time()
+    t0 = monotonic()  # durations use the monotonic clock (NTP-safe)
+    # Early body-size gate: Content-Length is client-declared, so this is a
+    # cheap pre-check only; the ASGI server should also enforce a limit.
+    try:
+        clen = int(request.headers.get("content-length", "0") or 0)
+    except ValueError:
+        clen = 0
+    if clen > MAX_BODY_BYTES:
+        return StarletteJSON({"ok": False, "error": "payload_too_large",
+                              "detail": f"Body exceeds {MAX_BODY_BYTES} bytes.",
+                              "request_id": rid}, status_code=413)
     with METRICS_LOCK:
         METRICS["requests_total"] += 1
         if request.url.path in ("/mcp", "/mcp/"):
@@ -107,21 +212,35 @@ async def _request_context(request: Request, call_next):
     except Exception:
         _log(event="middleware_error", rid=rid, path=request.url.path)
         raise
-    latency = int((time.time() - t0) * 1000)
+    latency = int((monotonic() - t0) * 1000)
     response.headers["x-request-id"] = rid
     response.headers["x-content-type-options"] = "nosniff"
     response.headers["referrer-policy"] = "no-referrer"
-    response.headers["x-frame-options"] = "SAMEORIGIN"
+    response.headers["x-frame-options"] = "DENY"
+    response.headers["permissions-policy"] = "geolocation=(), camera=(), microphone=()"
+    if request.url.path.startswith("/api/"):
+        response.headers["cache-control"] = "no-store"
+        response.headers["content-security-policy"] = "default-src 'none'; frame-ancestors 'none'"
+    # HSTS only over HTTPS (direct or via trusted proxy header). Never send
+    # on plain HTTP — a wrong HSTS can brick local dev in browsers.
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if proto == "https":
+        response.headers["strict-transport-security"] = (
+            "max-age=31536000; includeSubDomains")
     _log(event="request", rid=rid, method=request.method,
          path=request.url.path, status=response.status_code, latency_ms=latency)
     return response
+
+
+_TRUSTED_HOSTS = [h.strip() for h in os.getenv("TRUSTED_HOSTS", "*").split(",") if h.strip()]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_TRUSTED_HOSTS or ["*"])
 
 origins = ["*"] if "*" in cfg.ALLOWED_ORIGINS else cfg.ALLOWED_ORIGINS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=600,
 )
@@ -163,17 +282,20 @@ def version():
 def readyz():
     checks: dict[str, object] = {"mcp_session_manager": MCP_RUNNING["ok"]}
     try:
-        with tempfile.NamedTemporaryFile(dir="/tmp", delete=True):
-            pass
+        # Non-destructive probe: plain SELECT, never creates tables or rows.
+        # (Plain connect may create a 0-byte file on first boot — no schema writes.)
         conn = sqlite3.connect(cfg.DB_PATH, timeout=5)
         try:
-            conn.execute("CREATE TABLE IF NOT EXISTS _ready(id INTEGER PRIMARY KEY)")
-            conn.execute("INSERT INTO _ready DEFAULT VALUES")
-            conn.commit()
-            conn.execute("DELETE FROM _ready")
-            conn.commit()
+            conn.execute("SELECT 1")
         finally:
             conn.close()
+        # Writable check without schema side-effects: temp file in DB dir.
+        probe = Path(cfg.DB_PATH).parent / f".ready-{os.getpid()}"
+        try:
+            probe.touch()
+            probe.unlink(missing_ok=True)
+        except OSError as e:
+            raise OSError(f"db_dir_not_writable: {e}") from e
         checks["db_writable"] = True
     except Exception as e:  # noqa: BLE001 - readiness probe must report, not raise
         checks["db_writable"] = False
@@ -193,8 +315,13 @@ def metrics():
         snap = dict(METRICS)
     chats = snap["chat_total"]
     avg = int(snap["chat_latency_ms_sum"] / chats) if chats else 0
+    try:
+        db_bytes = Path(cfg.DB_PATH).stat().st_size
+    except OSError:
+        db_bytes = -1
     return {"uptime_s": int(time.time() - START_TIME), "avg_chat_latency_ms": avg,
-            **snap, "relay": _mobile.relay_stats()}
+            **snap, "relay": _mobile.relay_stats(),
+            "db_bytes": db_bytes, "env": APP_ENV}
 
 
 def _feed(senior_id: str) -> dict:
@@ -218,8 +345,14 @@ def _feed(senior_id: str) -> dict:
 
 
 @app.get("/api/family-feed")
-def family_feed(senior_id: str = "demo-senior"):
-    return JSONResponse(_feed(senior_id[:64]))
+def family_feed(senior_id: str = "demo-senior", request: Request = None):  # type: ignore[assignment]
+    import re as _re
+    if not senior_id or len(senior_id) > 64 or not _re.match(r"^[\w\-.]{1,64}$", senior_id):
+        rid = getattr(request.state, "rid", "-") if request is not None else "-"
+        return JSONResponse({"ok": False, "error": "invalid_id",
+                             "detail": "senior_id must match ^[\\w\\-.]{1,64}$.",
+                             "request_id": rid}, status_code=422)
+    return JSONResponse(_feed(senior_id))
 
 
 class DemoAttackIn(BaseModel):
@@ -248,27 +381,33 @@ def pause_card(lang: str = "en"):
 
 @app.get("/api/directory/lookup")
 def directory_lookup(q: str = "", jurisdiction: str = "IN", lang: str = "en"):
-    import os as _os
-    path = _os.path.join(_os.path.dirname(__file__), "data", "official_directory.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            entries = json.load(f)
-    except OSError:
-        entries = []
-    ql = q.lower()
+    entries = _load_directory()
+    ql = q[:120].lower()
     out = [e for e in entries
            if (not ql or ql in (e.get("institution", "") + e.get("category", "")).lower())]
     if jurisdiction and jurisdiction.upper() != "ALL":
         out = [e for e in out
-               if e.get("jurisdiction", "IN").upper() == jurisdiction.upper()]
+               if e.get("jurisdiction", "IN").upper() == jurisdiction[:8].upper()]
     if lang[:2].lower() in ("hi", "en"):
         pref = [e for e in out if e.get("language") == lang[:2].lower()]
         if pref:
             out = pref
-    for e in out:
-        e["caller_authenticated"] = False
-        e["note"] = "Directory does not authenticate the caller. Caller ID can be spoofed."
-    return JSONResponse({"entries": out[:25], "count": len(out[:25])})
+    # Copy before annotating: _load_directory() is cached, never mutate it.
+    # count = total matches (not page length) so clients can paginate honestly.
+    annotated = [dict(e, caller_authenticated=False,
+                      note="Directory does not authenticate the caller. "
+                           "Caller ID can be spoofed.") for e in out]
+    return JSONResponse({"entries": annotated[:25], "count": len(annotated)})
+
+
+@lru_cache(maxsize=1)
+def _load_directory() -> list[dict]:
+    """Curated directory, parsed once per process (mmap-free, ~KBs)."""
+    path = Path(__file__).parent / "data" / "official_directory.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
+        return []
 
 
 DEMO_SCENARIOS = {
@@ -394,17 +533,21 @@ def block_case(body: BlockCaseIn, request: Request):
 def chat(body: ChatIn, request: Request):
     text = body.text[: cfg.MAX_INPUT_CHARS]
     rid = getattr(request.state, "rid", uuid.uuid4().hex[:12])
-    t0 = time.time()
+    t0 = monotonic()  # monotonic: NTP steps must not skew latency metrics
     try:
         out = run_agent_turn(text, body.session_id or "default",
                              body.senior_id or "demo-senior")
-    except Exception as e:  # noqa: BLE001 - chat must never 500 on demo day
+    except Exception:  # noqa: BLE001 - chat must never 500 on demo day
+        import traceback as _tb
+        _base_logger.error("chat_error rid=%s\n%s", rid, _tb.format_exc(limit=5),
+                           extra={"request_id": rid})
+        # Generic client text: never echo internals (DB paths, SQL) outward.
         out = {"spoken": "Something hiccuped on my side — but everything you said is saved. "
                          "Please try once more.",
-               "text": f"error: {str(e)[:300]}", "cards": [], "tools": [], "provider": "error"}
+               "text": f"error id {rid}", "cards": [], "tools": [], "provider": "error"}
         with METRICS_LOCK:
             METRICS["chat_errors"] += 1
-    latency = int((time.time() - t0) * 1000)
+    latency = int((monotonic() - t0) * 1000)
     with METRICS_LOCK:
         METRICS["chat_total"] += 1
         METRICS["chat_latency_ms_sum"] += latency

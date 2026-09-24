@@ -6,6 +6,13 @@ import os
 APP_NAME = "kavach"
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 
+
+def _safe_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -17,14 +24,16 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 ZEN_API_KEY = os.getenv("OPENCODE_API_KEY", "") or os.getenv("ZEN_API_KEY", "")
 ZEN_MODEL = os.getenv("ZEN_MODEL", "muse-spark-1.3")
 ZEN_BASE = os.getenv("ZEN_BASE", "https://opencode.ai/zen/v1").rstrip("/")
-MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "8000"))
-RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "30"))
+MAX_INPUT_CHARS = _safe_int("MAX_INPUT_CHARS", 8000)
+RATE_LIMIT_PER_MIN = _safe_int("RATE_LIMIT_PER_MIN", 30)
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:7860").split(",") if o.strip()]
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "kavach.db"))
 MCP_SPEC_VERSION = "2025-11-25"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
 DEFAULT_SENIOR_ID = os.getenv("KAVACH_SENIOR_ID", "demo-senior")
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+IS_PROD = APP_ENV in ("production", "prod")
 
 
 def llm_status() -> dict:
