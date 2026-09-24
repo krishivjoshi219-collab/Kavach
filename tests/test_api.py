@@ -74,9 +74,21 @@ def test_block_case_is_real_relay_mutation():
 def test_directory_jurisdiction_filter():
     all_in = client.get("/api/directory/lookup", params={"q": ""}).json()
     assert all_in["count"] >= 1
+    # count is the total matches (not the page length): entries are capped.
+    assert all_in["count"] >= len(all_in["entries"]) and len(all_in["entries"]) <= 25
     none = client.get("/api/directory/lookup",
                       params={"q": "", "jurisdiction": "US"}).json()
     assert none["count"] == 0
+    # bad senior ids are 422, not silent slices.
+    for bad in ("", "no way!!", "x" * 65):
+        assert client.get("/api/family-feed", params={"senior_id": bad}).status_code == 422
+    # unknown routes use the uniform envelope.
+    nf = client.get("/api/nope-not-real")
+    assert nf.status_code == 404 and nf.json()["error"] == "not_found"
+    assert "request_id" in nf.json()
+    # schema errors use the uniform envelope too.
+    bad_chat = client.post("/api/chat", json={"text": "", "session_id": "t"})
+    assert bad_chat.status_code == 422 and bad_chat.json()["error"] == "validation_error"
 
 
 def test_nextgen_proof_contract():
@@ -117,6 +129,24 @@ def test_pause_directory_challenge_billing():
                      json={"event_id": "evt-test-1", "household_id": "hh_x",
                            "event_type": "TEST", "entitlement": "pro_caregiver"}).json()
     assert w2["ok"] and w2.get("duplicate") is True
+    # replay reports the STORED tier even if the replay names another one.
+    w3 = client.post("/api/v1/billing/webhook",
+                     json={"event_id": "evt-test-1", "household_id": "hh_x",
+                           "event_type": "CANCELLATION", "entitlement": ""}).json()
+    assert w3["ok"] and w3.get("duplicate") is True and w3["tier"] == w2["tier"]
+    # purchase events with an empty entitlement never mint paid quota.
+    hid2 = client.post("/api/v1/households").json()["household_id"]
+    empty = client.post("/api/v1/billing/webhook",
+                        json={"event_id": "evt-empty-ent", "household_id": hid2,
+                              "event_type": "INITIAL_PURCHASE", "entitlement": ""})
+    assert empty.status_code == 400
+    # challenge error branches: missing id 404, bad decision 422, double 410.
+    assert client.get("/api/family/challenge/ch_nope").status_code == 404
+    assert client.post(f"/api/family/challenge/{c['id']}/respond",
+                       json={"decision": "MAYBE"}).status_code == 422
+    again = client.post(f"/api/family/challenge/{c['id']}/respond",
+                        json={"decision": "APPROVE"})
+    assert again.status_code == 410
 
 
 def test_ready_mcp_resources_live():

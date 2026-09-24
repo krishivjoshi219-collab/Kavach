@@ -67,6 +67,67 @@ def test_unblock_retracts_my_report():
     assert target not in {e["number_hash"] for e in mobile.threat_feed()}
 
 
+def test_allow_retracts_my_community_vote():
+    # Flipping to allow/silence must retract the vote too — otherwise the
+    # stale report keeps counting toward the 3-household threshold.
+    h = _fresh_households(3)
+    target = "1" * 64
+    for i in range(3):
+        mobile.block_number(h[i], target, "spam", "block")
+    assert target in {e["number_hash"] for e in mobile.threat_feed()}
+    assert mobile.block_number(h[0], target, "neighbor, allow", "allow") is True
+    assert target not in {e["number_hash"] for e in mobile.threat_feed()}
+    # Household list still wins locally.
+    assert mobile.lookup_number(h[0], target)["source"] == "household"
+
+
+def test_concurrent_pairing_seal_single_winner():
+    # One pairing code seals exactly once, even under concurrent completes.
+    import threading
+    h = _fresh_households(1)
+    init = client.post("/api/v1/pair/init",
+                       json={"household_id": h[0], "manager_pubkey": "K" * 64}).json()
+    code = init["pairing_code"]
+    wins = []
+    lock = threading.Lock()
+
+    def attempt():
+        out = mobile.complete_pairing(code, "P" * 64, "racer")
+        with lock:
+            wins.append(out is not None)
+
+    threads = [threading.Thread(target=attempt) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sum(wins) == 1
+
+
+def test_concurrent_challenge_single_decision():
+    # Concurrent APPROVE + DENY: exactly one wins, the loser gets None.
+    import threading
+
+    from agent import models as _models
+    ch = _models.create_challenge("s", "who", "q?")
+    results = {}
+    lock = threading.Lock()
+
+    def attempt(name, decision):
+        out = _models.respond_challenge(ch["id"], decision)
+        with lock:
+            results[name] = out
+
+    threads = [threading.Thread(target=attempt, args=("a", "APPROVE")),
+               threading.Thread(target=attempt, args=("d", "DENY"))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    winners = [k for k, v in results.items() if v is not None]
+    assert len(winners) == 1
+
+
 def test_feed_contains_hashes_only():
     body = client.get("/api/v1/threat-feed").json()
     assert body["ok"] is True and body["threshold"] == 3

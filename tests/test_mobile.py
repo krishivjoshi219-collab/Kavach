@@ -108,6 +108,123 @@ def test_pairing_grants_all_manager_powers_and_revoke_bumps_epoch():
     assert r2["ok"] is False
 
 
+def test_error_status_codes_are_http_correct():
+    # Business rejections carry real HTTP codes (same ok:false envelope).
+    hid = _household()
+    h = "a" * 64
+    assert client.post("/api/v1/pair/init",
+                       json={"household_id": "hh_nope", "manager_pubkey": PUB_A}).status_code == 404
+    assert client.post("/api/v1/pair/complete",
+                       json={"pairing_code": "ZZZZZZ", "senior_pubkey": PUB_B,
+                             "senior_id": "s1"}).status_code == 404
+    assert client.get("/api/v1/pair/peer",
+                      params={"household_id": hid}).status_code == 404
+    assert client.post("/api/v1/screen/unblock",
+                       json={"household_id": hid, "number_hash": h}).status_code == 404
+    assert client.post("/api/v1/device/commands/999999/ack").status_code == 404
+    assert client.post("/api/v1/device/commands/0/ack").status_code == 422
+    assert client.get("/api/v1/device/commands",
+                      params={"household_id": hid, "target": "alien"}).status_code == 422
+    assert client.get("/api/v1/sync/pull",
+                      params={"household_id": hid, "since_id": -1}).status_code == 422
+    for bad in ("", "not a household!!", "x" * 65):
+        assert client.get("/api/v1/screen/list",
+                          params={"household_id": bad}).status_code == 422
+        assert client.get("/api/v1/threat-radar",
+                          params={"household_id": bad}).status_code == 422
+    # consent_required is a 403, not a 200.
+    r = client.post("/api/v1/device/command",
+                    json={"household_id": hid, "senior_id": "ghost", "target": "senior",
+                          "type": "cut_call"})
+    assert r.status_code == 403 and r.json()["error"] == "consent_required"
+    # revoke of a nonexistent record is a 404.
+    assert client.post("/api/v1/consent/revoke",
+                       params={"household_id": hid, "senior_id": "ghost"}).status_code == 404
+    # short nonce / short ciphertext fail at schema (422), not as 400s.
+    assert client.post("/api/v1/sync/push",
+                       json={"household_id": hid, "sender": "senior",
+                             "nonce": "short", "ciphertext": "x" * 100}).status_code == 422
+    # every manual error carries request_id like the 422 handler.
+    assert "request_id" in r.json()
+
+
+def test_quota_burst_stays_capped():
+    # Concurrent asks at the quota edge must not overshoot: atomic increment.
+    import threading
+
+    from agent import mobile as _mobile
+    hid, sid = _household(), "burst"
+    client.post("/api/v1/consent/set",
+                json={"household_id": hid, "senior_id": sid,
+                      "capabilities": {"cloud_brain": True}, "granted_by": sid})
+    # Drain to 19/20 via direct calls (fast, no HTTP).
+    for _ in range(19):
+        assert _mobile.brain_ask(hid, "hello")["ok"] is True
+    results = []
+    lock = threading.Lock()
+
+    def ask():
+        out = _mobile.brain_ask(hid, "hello")
+        with lock:
+            results.append(out)
+
+    threads = [threading.Thread(target=ask) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    oks = [r for r in results if r["ok"]]
+    denied = [r for r in results if r.get("error") == "quota_exceeded"]
+    # 19 used + 8 racers, quota 20 → exactly 1 winner, 7 denied.
+    assert len(oks) == 1 and len(denied) == 7
+
+
+def test_corrupt_rows_degrade_safely():
+    # Poisoned JSON rows must deny/restart, never 500.
+    import sqlite3
+
+    import agent.config as cfg
+    hid, sid = _household(), "corrupt-senior"
+    client.post("/api/v1/consent/set",
+                json={"household_id": hid, "senior_id": sid,
+                      "capabilities": {"remote_cut": True}, "granted_by": sid})
+    conn = sqlite3.connect(cfg.DB_PATH, timeout=10)
+    try:
+        conn.execute("UPDATE consent SET capabilities='{{not-json' WHERE household_id=?",
+                     (hid,))
+        conn.commit()
+    finally:
+        conn.close()
+    # Consent check denies instead of 500ing the command path.
+    r = client.post("/api/v1/device/command",
+                    json={"household_id": hid, "senior_id": sid, "target": "senior",
+                          "type": "cut_call"})
+    assert r.json()["ok"] is False
+    # Corrupt flow data restarts the session instead of 500ing chat.
+    from agent import models as _models
+    _models.set_flow("poisoned", "debrief", "who", None, {"senior_id": "demo-senior"})
+    conn = sqlite3.connect(cfg.DB_PATH, timeout=10)
+    try:
+        conn.execute("UPDATE flows SET data='{{bad' WHERE session_id='poisoned'")
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.post("/api/chat",
+                    json={"text": "hello?", "session_id": "poisoned"})
+    assert r.status_code == 200 and "spoken" in r.json()
+    # Corrupt session history restarts cleanly too.
+    _models.save_turn("poisoned2", "user", "seed")
+    conn = sqlite3.connect(cfg.DB_PATH, timeout=10)
+    try:
+        conn.execute("UPDATE sessions SET history='\"just-a-string\"' WHERE id='poisoned2'")
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.post("/api/chat",
+                    json={"text": "hi there", "session_id": "poisoned2"})
+    assert r.status_code == 200 and "spoken" in r.json()
+
+
 def test_hash_screening_allow_block_unblock():
     hid = _household()
     h = mobile.hash_number(hid, "+91-98XXX-XXX99")
