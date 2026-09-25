@@ -4,7 +4,7 @@
 
 [![RevenueCat Shipaton 2026](https://img.shields.io/badge/RevenueCat-Shipaton_2026_Next_Gen-ff4a5a?style=for-the-badge)](https://revenuecat-shipaton-2026.devpost.com)
 [![GitHub Release](https://img.shields.io/badge/Release-v1.0.0_APKs-00c853?style=for-the-badge&logo=github)](https://github.com/krishivjoshi219-collab/Kavach/releases/tag/v1.0.0)
-[![Keynote Demo](https://img.shields.io/badge/Studio_Demo-1080p_Keynote-ff9800?style=for-the-badge&logo=youtube)](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-studio-master-demo.mp4)
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Watch_Demo_(96s)-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/25BbgKDBK8w)
 [![CI](https://img.shields.io/badge/CI-61_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
 [![Android](https://img.shields.io/badge/Android-2_APKs_senior_+_family-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![E2E](https://img.shields.io/badge/E2E-Google_Tink_ECIES_P--256-4285f4?style=for-the-badge&logo=google&logoColor=white)](https://github.com/google/tink)
@@ -32,13 +32,13 @@ Judges and testers can download pre-built release APKs immediately without build
 |---|---|---|
 | 🧓 **Kavach Senior** (`v1.0.0`) | Calm Sanctuary, big buttons, Hindi toggle, silent quarantine | [Download `kavach-senior-v1.0.0.apk`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-senior-v1.0.0.apk) |
 | 🏠 **Kavach Family** (`v1.0.0`) | Guardian Command Center, RevenueCat Paywall, Safety Score, SAS | [Download `kavach-family-manager-v1.0.0.apk`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-family-manager-v1.0.0.apk) |
-| 🎬 **Master Demo Video (1080p)** | Full 96s cinematic keynote trailer with sound design & narration | [Download `kavach-studio-master-demo.mp4`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-studio-master-demo.mp4) |
+| 🎬 **Master Demo Video (1080p)** | Full 96s cinematic keynote trailer with sound design & narration | [Watch on YouTube ▶️](https://youtu.be/25BbgKDBK8w) · [Direct MP4](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-studio-master-demo.mp4) |
 
 > 🔑 **RevenueCat Judge Test Code:** On the Family Paywall screen, enter promo code **`SHIPATON-JUDGE`** to instantly unlock the Pro Family Shield (3 Parent Seats) with zero cards or charges.
 
 ---
 
-## 🎬 96-Second Keynote Demo Video
+## 🎬 96-Second Keynote Demo Video ([Watch on YouTube ▶️](https://youtu.be/25BbgKDBK8w))
 
 The official competition submission video runs **exactly 96 seconds** (under the 120s limit) in **1080p @ 30 FPS** with dynamic camera motion, glass floor reflections, ambient electronic soundtrack, and 7 timed UI sound effects:
 

@@ -4,7 +4,7 @@
 > Judged on **demo video + public open-source repo**. Live at `GET /api/nextgen/proof`.
 
 ## 1. What judges open (60 seconds)
-1. **Video (<2 min, YouTube/Vimeo public):** `assets/kavach-demo-2min.mp4` is the filming source. Beats in `DEMO_2MIN_WINNABLE.md`: idle → live Bank-OTP attack (zero buzz + dual siren) → war-room Block → callback dies pre-ring → Audit (relay = noise) → signed rules vN → paywall promo `SHIPATON-JUDGE`.
+1. **Video (<2 min, YouTube public):** **https://youtu.be/25BbgKDBK8w** (96s 1080p Keynote Master Demo). Source in `assets/kavach-demo-2min.mp4`. Beats in `DEMO_2MIN_WINNABLE.md`: idle → live Bank-OTP attack (zero buzz + dual siren) → war-room Block → callback dies pre-ring → Audit (relay = noise) → signed rules vN → paywall promo `SHIPATON-JUDGE`.
 2. **Repo:** public, MIT `LICENSE` at root (detectable in About). Instructions below.
 3. **Proof endpoint:** `/api/nextgen/proof` returns RevenueCat integration proof, demo contract, and asset checklist in one JSON.
 
