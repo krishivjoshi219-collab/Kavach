@@ -12,6 +12,9 @@ COPY mcp_server ./mcp_server
 COPY data ./data
 COPY mobile_api.py .
 COPY app.py .
+COPY LICENSE .
+COPY docs ./docs
+COPY assets ./assets
 COPY simulator/web/public ./simulator/web/public
 USER app
 EXPOSE 7860
