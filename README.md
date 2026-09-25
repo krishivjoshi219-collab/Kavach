@@ -3,6 +3,8 @@
 ### Pause pressure. Verify independently. Bring family. *Without uploading calls.*
 
 [![RevenueCat Shipaton 2026](https://img.shields.io/badge/RevenueCat-Shipaton_2026_Next_Gen-ff4a5a?style=for-the-badge)](https://revenuecat-shipaton-2026.devpost.com)
+[![GitHub Release](https://img.shields.io/badge/Release-v1.0.0_APKs-00c853?style=for-the-badge&logo=github)](https://github.com/krishivjoshi219-collab/Kavach/releases/tag/v1.0.0)
+[![Keynote Demo](https://img.shields.io/badge/Studio_Demo-1080p_Keynote-ff9800?style=for-the-badge&logo=youtube)](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-studio-master-demo.mp4)
 [![CI](https://img.shields.io/badge/CI-61_tests_passing-00c853?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/krishivjoshi219-collab/Kavach/actions)
 [![Android](https://img.shields.io/badge/Android-2_APKs_senior_+_family-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![E2E](https://img.shields.io/badge/E2E-Google_Tink_ECIES_P--256-4285f4?style=for-the-badge&logo=google&logoColor=white)](https://github.com/google/tink)
@@ -22,23 +24,47 @@ Built by a **13-year-old student** for the **RevenueCat Shipaton 2026 — Next G
 
 ---
 
-## 🎬 Watch it save Asha in 2 minutes
+## 📦 Pre-Built APK Downloads & GitHub Release v1.0.0
+
+Judges and testers can download pre-built release APKs immediately without building from source:
+
+| Asset | Description | Direct Download |
+|---|---|---|
+| 🧓 **Kavach Senior** (`v1.0.0`) | Calm Sanctuary, big buttons, Hindi toggle, silent quarantine | [Download `kavach-senior-v1.0.0.apk`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-senior-v1.0.0.apk) |
+| 🏠 **Kavach Family** (`v1.0.0`) | Guardian Command Center, RevenueCat Paywall, Safety Score, SAS | [Download `kavach-family-manager-v1.0.0.apk`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-family-manager-v1.0.0.apk) |
+| 🎬 **Master Demo Video (1080p)** | Full 96s cinematic keynote trailer with sound design & narration | [Download `kavach-studio-master-demo.mp4`](https://github.com/krishivjoshi219-collab/Kavach/releases/download/v1.0.0/kavach-studio-master-demo.mp4) |
+
+> 🔑 **RevenueCat Judge Test Code:** On the Family Paywall screen, enter promo code **`SHIPATON-JUDGE`** to instantly unlock the Pro Family Shield (3 Parent Seats) with zero cards or charges.
+
+---
+
+## 🎬 96-Second Keynote Demo Video
+
+The official competition submission video runs **exactly 96 seconds** (under the 120s limit) in **1080p @ 30 FPS** with dynamic camera motion, glass floor reflections, ambient electronic soundtrack, and 7 timed UI sound effects:
 
 ```text
-0:00  Senior idle. Manager war-room clean. Safety Score 94.
-0:15  🔴 Simulated attack: Bank-OTP SMS lands → zero buzz → siren on BOTH phones
-0:40  Manager opens the full decrypted text (server sees only noise) → taps Block hash
-1:00  Same number calls back → auto-reject PRE-RING, call log clean
-1:15  Audit screen: relay dump = ciphertext + hashes. Kill Switch revokes everything.
-1:25  📜 The shield learns: rules vN applied, signature OK — this morning's new lure, caught.
+0:00 – 0:12 | ACT 1: THE CRISIS & TWO-SIDED HOUSEHOLD DEFENSE
+             Mother's phone lights up at 11:40 AM with frozen account lure. WCAG AAA touch targets.
+0:12 – 0:29 | ACT 2: ON-DEVICE SCAM LAB & INSTANT THREAT QUARANTINE
+             "Ruko! OTP mat do!" Full-screen Senior Siren or silent quarantine. SMS never buzzes.
+0:29 – 0:48 | ACT 3: THE FAMILY WAR-ROOM & ANDROID KEYSTORE LINK
+             Guardian Console: Safety Score 100, Google Tink ECIES-P256 sealed, 6-emoji visual SAS.
+0:48 – 0:60 | ACT 4: PRE-RING CALL TERMINATION & COMMUNITY BLOCKLIST
+             Scammer calls back: CallScreeningService terminates call BEFORE ring #1 (0 rings audible).
+1:00 – 1:26 | ACT 5: REVENUECAT MULTI-SEAT MONETIZATION & PROMO UNLOCK
+             Family Fortress $79.99/yr. Test code SHIPATON-JUDGE unlocks Pro with gold ripple tap.
+1:26 – 1:36 | ACT 6: DIGNIFIED DEFENSE FOR OUR PARENTS
+             Grand dual-phone finale with glass reflections: "Protection for those who cannot verify."
 ```
 
-*Demo video (`assets/kavach-demo-2min.mp4`, <120s, 1920x1080) follows the 6-act script in [`DEMO_2MIN_WINNABLE.md`](./DEMO_2MIN_WINNABLE.md) — shot on real emulator builds of both APK flavors (Senior sanctuary + Family war-room), narrated in English with Hinglish emotional beats and full English subtitles. Voiceover generated with ElevenLabs (free tier). Prefer reading code? Start at [the 3 killer features](#-the-3-killer-features-acts-not-chats), then [the shield learns](#-the-shield-learns-signed-not-static), then [how the E2E actually works](#-true-e2e-no-theater). All brand names belong to their owners; shown only to demonstrate scam detection.*
-
 <p align="center">
-  <img src="./assets/icon-1024.png" width="120" alt="Kavach app icon" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="./assets/screenshot-1179x2556.png" width="220" alt="Kavach app screenshot" />
+  <img src="./assets/demo_screens/senior_idle.png" width="22%" alt="Senior Sanctuary" />
+  &nbsp;
+  <img src="./assets/demo_screens/senior_siren.png" width="22%" alt="Senior Siren" />
+  &nbsp;
+  <img src="./assets/demo_screens/family_home.png" width="22%" alt="Guardian Command Center" />
+  &nbsp;
+  <img src="./assets/demo_screens/paywall_active.png" width="22%" alt="RevenueCat Paywall Pro" />
 </p>
 
 ---
@@ -92,6 +118,40 @@ Every household Block files an anonymized sender-**hash** report (raw numbers ne
 
 ### Rules decide, LLM narrates (never the reverse)
 Verdicts are deterministic rules — no API key, no network, no hallucination. The LLM only rephrases debriefs warmly, via a silent-failover chain: **Zen → Gemini → Groq → offline templates** (`agent/kavach_agent.py`, `agent/config.py`). Empty keys = templates, which carried every flood test. The Zen path is OpenAI-compatible (`OPENCODE_API_KEY` server-side only, never in the APK); free-tier Zen ids are provider-gated to OpenCode itself, so production stays keyless by design.
+
+---
+
+## 🏛️ System Architecture: The Two-Sided Defense
+
+```mermaid
+graph TD
+    subgraph SeniorDevice ["🧓 Senior Sanctuary (Mother's Phone)"]
+        SMS["Incoming SMS / Call"] --> RuleEngine["On-Device RuleEngine (Local AI)"]
+        RuleEngine -->|"Verdict: SCAM"| SilentQ["Quarantine Vault (0 Buzzing)"]
+        RuleEngine -->|"Emergency"| Siren["Senior Siren (Bilingual Voice)"]
+        RuleEngine -->|"Repeat Scammer"| PreRing["CallScreeningService (0 Rings)"]
+        TinkSenior["Android Keystore (Google Tink ECIES-P256)"]
+    end
+
+    subgraph CloudRelay ["☁️ Blind Cloud Relay (FastAPI Zero-Knowledge)"]
+        Relay["Relay Server (kavach-19v6.onrender.com)"]
+        CipherLedger[("Salted SHA-256 Hashes & Opaque Blobs")]
+        Relay --- CipherLedger
+    end
+
+    subgraph ManagerDevice ["🏠 Guardian War-Room (Child's Console)"]
+        WarRoom["Family Command Center (Safety Score 100)"]
+        TinkManager["Android Keystore (Hardware Sealed)"]
+        RC["RevenueCat SDK (Multi-Seat Pro Entitlement)"]
+        DecryptedAlerts["Decrypted Evidence & Masked OTPs"]
+    end
+
+    SilentQ -.->|"Push Encrypted ECIES Blob"| Relay
+    CipherLedger -.->|"Pull Opaque Ciphertext"| WarRoom
+    WarRoom --> DecryptedAlerts
+    TinkSenior <===>|"Mutual SAS 6-Emoji Verification"| TinkManager
+    RC -->|"Entitlement: pro_family_shield"| WarRoom
+```
 
 ---
 
