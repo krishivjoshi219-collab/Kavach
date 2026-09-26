@@ -62,17 +62,22 @@ class KavachScreeningService : CallScreeningService() {
         }
 
         // Post-decision warmup: pull sibling-device household blocks so the NEXT
-        // call benefits. Never touches this verdict. Fire-and-forget.
+        // call benefits. Never touches this verdict. Managed single-thread executor
+        // prevents thread-exhaustion and guarantees sequential background queueing.
         if (numberHash.isNotEmpty() && store != null) {
             val hid = householdId
             val st = store
-            Thread {
+            bgExecutor.execute {
                 try {
                     val client = com.kavach.guardian.net.RelayClient(
                         com.kavach.guardian.BuildConfig.KAVACH_API)
                     com.kavach.guardian.net.CommunityShield.syncHousehold(client, st, hid)
                 } catch (_: Exception) {}
-            }.start()
+            }
         }
+    }
+
+    companion object {
+        private val bgExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     }
 }

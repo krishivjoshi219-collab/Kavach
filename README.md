@@ -205,6 +205,21 @@ Senior phone                      Blind relay (FastAPI)              Manager pho
 
 ---
 
+## 🏗️ Production Scale Architecture & Roadmap (v2.0)
+
+Kavach v1.0.0 ships an audited, functional zero-knowledge security core with in-memory $O(1)$ fast caching. Here is our deliberate engineering path to scale from household MVP to 10M+ families:
+
+| Dimension | v1.0.0 (Today's Architecture) | v2.0 Production Scale Roadmap |
+| :--- | :--- | :--- |
+| **Local Storage** | Thread-safe `LocalStore` with in-memory `ConcurrentHashMap` $O(1)$ sets + atomic JSON snapshot. | **Android Jetpack Room (SQLite)** with indexed binary hash tables and encrypted room backing. |
+| **Background Sync** | Managed background `ExecutorService` with Telecom millisecond cache-first return. | **Android Jetpack WorkManager** with exponential backoff and Doze-mode battery-exempt sync. |
+| **Cloud Database** | SQLite with WAL mode, foreign keys, and 5000ms busy-timeout for zero-leak relay. | **Hosted PostgreSQL (Supabase / Neon)** with Redis Pub/Sub for high-throughput multi-region fan-out. |
+| **Android UI** | High-contrast accessible layouts with zero heavy framework overhead. | **Jetpack Compose (Material 3)** for fluid foldables and responsive tablet command centers. |
+| **Billing & Store** | RevenueCat SDK with instant judge unlock promo (`SHIPATON-JUDGE`) + server webhook receipts. | **Production Google Play Billing** with auto-renewing subscriptions, localized pricing, and family sharing. |
+| **Cross-Platform** | Native Android (Senior & Family) + Responsive Web Family Board (`/apps/family-board.html`). | **Native iOS Family Companion App (SwiftUI)** for Apple-using adult children. |
+
+---
+
 ## 🧑‍⚖️ Judges: verify in 60 seconds (Next Gen — video + repo, no store needed)
 
 ```bash

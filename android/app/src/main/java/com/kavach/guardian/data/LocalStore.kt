@@ -5,9 +5,29 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/** Private on-device store. Plaintext here never leaves except as ciphertext. */
+/** Private on-device store with thread-safe O(1) in-memory caching. Plaintext here never leaves except as ciphertext. */
 class LocalStore(context: Context) {
     private val dir = File(context.filesDir, "kavach").apply { mkdirs() }
+    private val fileLock = Any()
+
+    // O(1) in-memory fast caches for high-frequency call screening
+    private val blockedCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val communityAllowCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    init {
+        synchronized(fileLock) {
+            val arr = readList("blocklist")
+            for (i in 0 until arr.length()) {
+                val h = arr.getJSONObject(i).optString("h")
+                if (h.isNotEmpty()) blockedCache.add(h)
+            }
+            val allowArr = readList("community_allow")
+            for (i in 0 until allowArr.length()) {
+                val h = allowArr.getJSONObject(i).optString("h")
+                if (h.isNotEmpty()) communityAllowCache.add(h)
+            }
+        }
+    }
 
     private fun readList(name: String): JSONArray {
         val f = File(dir, "$name.json")
@@ -15,39 +35,43 @@ class LocalStore(context: Context) {
     }
 
     private fun writeList(name: String, arr: JSONArray) {
-        File(dir, "$name.json").writeText(arr.toString())
+        synchronized(fileLock) {
+            File(dir, "$name.json").writeText(arr.toString())
+        }
     }
 
     fun addBlockedHash(hash: String, label: String) {
-        val arr = readList("blocklist")
-        for (i in 0 until arr.length()) {
-            if (arr.getJSONObject(i).optString("h") == hash) return
+        if (hash.isEmpty()) return
+        blockedCache.add(hash)
+        synchronized(fileLock) {
+            val arr = readList("blocklist")
+            for (i in 0 until arr.length()) {
+                if (arr.getJSONObject(i).optString("h") == hash) return
+            }
+            arr.put(JSONObject().put("h", hash).put("label", label).put("ts", System.currentTimeMillis()))
+            writeList("blocklist", arr)
         }
-        arr.put(JSONObject().put("h", hash).put("label", label).put("ts", System.currentTimeMillis()))
-        writeList("blocklist", arr)
     }
 
     fun removeBlockedHash(hash: String) {
-        val arr = readList("blocklist")
-        val kept = JSONArray()
-        for (i in 0 until arr.length()) {
-            if (arr.getJSONObject(i).optString("h") != hash) kept.put(arr.getJSONObject(i))
+        if (hash.isEmpty()) return
+        blockedCache.remove(hash)
+        synchronized(fileLock) {
+            val arr = readList("blocklist")
+            val kept = JSONArray()
+            for (i in 0 until arr.length()) {
+                if (arr.getJSONObject(i).optString("h") != hash) kept.put(arr.getJSONObject(i))
+            }
+            writeList("blocklist", kept)
         }
-        writeList("blocklist", kept)
     }
 
     fun isBlockedHash(hash: String): Boolean {
-        val arr = readList("blocklist")
-        for (i in 0 until arr.length()) {
-            if (arr.getJSONObject(i).optString("h") == hash) return true
-        }
-        return false
+        if (hash.isEmpty()) return false
+        return blockedCache.contains(hash)
     }
 
-    fun blockedHashes(): List<String> {
-        val arr = readList("blocklist")
-        return List(arr.length()) { arr.getJSONObject(it).optString("h") }
-    }
+    fun blockedHashes(): List<String> = blockedCache.toList()
 
     fun logIncident(verdict: String, channel: String, summary: String) {
         logIncident(verdict, channel, summary, "")
@@ -105,18 +129,21 @@ class LocalStore(context: Context) {
 
     /** Merge sibling-device household blocks (server is source of truth). */
     fun syncHouseholdBlocklist(entries: List<Pair<String, String>>) {
-        val arr = readList("blocklist")
-        val known = mutableSetOf<String>()
-        for (i in 0 until arr.length()) known.add(arr.getJSONObject(i).optString("h"))
-        var changed = false
-        for ((h, label) in entries) {
-            if (h.length != 64 || h in known) continue
-            arr.put(JSONObject().put("h", h).put("label", label)
-                .put("ts", System.currentTimeMillis()))
-            known.add(h)
-            changed = true
+        synchronized(fileLock) {
+            val arr = readList("blocklist")
+            val known = mutableSetOf<String>()
+            for (i in 0 until arr.length()) known.add(arr.getJSONObject(i).optString("h"))
+            var changed = false
+            for ((h, label) in entries) {
+                if (h.length != 64 || h in known) continue
+                arr.put(JSONObject().put("h", h).put("label", label)
+                    .put("ts", System.currentTimeMillis()))
+                known.add(h)
+                blockedCache.add(h)
+                changed = true
+            }
+            if (changed) writeList("blocklist", arr)
         }
-        if (changed) writeList("blocklist", arr)
     }
 
     // --- Quarantine inbox: scam SMS kept in private app storage locally ---
@@ -155,20 +182,21 @@ class LocalStore(context: Context) {
     }
 
     fun communityAllowOverride(hash: String) {
-        val arr = readList("community_allow")
-        for (i in 0 until arr.length()) {
-            if (arr.getJSONObject(i).optString("h") == hash) return
+        if (hash.isEmpty()) return
+        communityAllowCache.add(hash)
+        synchronized(fileLock) {
+            val arr = readList("community_allow")
+            for (i in 0 until arr.length()) {
+                if (arr.getJSONObject(i).optString("h") == hash) return
+            }
+            arr.put(JSONObject().put("h", hash).put("ts", System.currentTimeMillis()))
+            writeList("community_allow", arr)
         }
-        arr.put(JSONObject().put("h", hash).put("ts", System.currentTimeMillis()))
-        writeList("community_allow", arr)
     }
 
     fun isCommunityAllowed(hash: String): Boolean {
-        val arr = readList("community_allow")
-        for (i in 0 until arr.length()) {
-            if (arr.getJSONObject(i).optString("h") == hash) return true
-        }
-        return false
+        if (hash.isEmpty()) return false
+        return communityAllowCache.contains(hash)
     }
 
     fun clearCommunity() {
