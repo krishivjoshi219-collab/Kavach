@@ -13,8 +13,12 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
-        // RevenueCat public SDK key (test mode).
-        buildConfigField("String", "REVENUECAT_KEY", "\"test_mLlyzbSOuWpNrIjajKLZtYKyuGe\"")
+        // RevenueCat public SDK key (injected via GitHub Secrets or environment variable).
+        val revenueCatKey = System.getenv("REVENUECAT_KEY")
+            ?.takeIf { it.isNotBlank() }
+            ?: (project.findProperty("REVENUECAT_KEY") as? String)?.takeIf { it.isNotBlank() }
+            ?: "test_REPLACE_ME"
+        buildConfigField("String", "REVENUECAT_KEY", "\"$revenueCatKey\"")
         buildConfigField("String", "KAVACH_API", "\"https://kavach-19v6.onrender.com\"")
         // Role preset: dual (chooser) by default; flavors override.
         buildConfigField("String", "APP_ROLE", "\"dual\"")
