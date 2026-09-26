@@ -35,6 +35,7 @@ class PaywallActivity : AppCompatActivity() {
     private lateinit var client: RelayClient
     private var proPackage: Package? = null
     private var familyPackage: Package? = null
+    private var lifetimePackage: Package? = null
     private var selectedTier: String = "annual" // "annual" or "monthly"
     private lateinit var statusBadge: TextView
 
@@ -297,11 +298,52 @@ class PaywallActivity : AppCompatActivity() {
             isAllCaps = false
             setOnClickListener { onRestoreTapped() }
         }
+        val customerCenterBtn = Button(this).apply {
+            text = "Customer Center"
+            textSize = 12f
+            setTextColor(Color.parseColor("#90A4AE"))
+            setBackgroundColor(Color.TRANSPARENT)
+            isAllCaps = false
+            setOnClickListener { onCustomerCenterTapped() }
+        }
         footerRow.addView(restoreBtn)
+        footerRow.addView(customerCenterBtn)
         root.addView(footerRow)
 
         setContentView(scroll)
+
+        // Retrieve customer info on start to reflect active entitlements
+        if (Purchases.isConfigured) {
+            Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
+                override fun onReceived(customerInfo: CustomerInfo) {
+                    if (hasProEntitlement(customerInfo)) {
+                        val currentTier = (application as KavachApp).store.getString("tier") ?: "pro"
+                        statusBadge.text = if (currentTier == "ultra")
+                            "✨ FAMILY FORTRESS ACTIVE (Parent Seats)"
+                        else "✨ PRO FAMILY SHIELD ACTIVE (3 Parent Seats)"
+                        statusBadge.setTextColor(Color.parseColor("#FFD54F"))
+                    }
+                }
+                override fun onError(error: PurchasesError) {}
+            })
+        }
         fetchOfferings {}
+    }
+
+    private fun onCustomerCenterTapped() {
+        try {
+            // Launch RevenueCat Customer Center from purchases-ui
+            val intent = Intent(this, Class.forName("com.revenuecat.purchases.ui.revenuecatui.customercenter.CustomerCenterActivity"))
+            startActivity(intent)
+        } catch (_: Exception) {
+            // Fallback to Google Play Subscriptions management
+            try {
+                val playIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/account/subscriptions"))
+                startActivity(playIntent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Subscription management available in Google Play", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun activateTier(tier: String) {
@@ -331,6 +373,10 @@ class PaywallActivity : AppCompatActivity() {
     }
 
     private fun fetchOfferings(done: (Boolean) -> Unit) {
+        if (!Purchases.isConfigured) {
+            done(false)
+            return
+        }
         try {
             Purchases.sharedInstance.getOfferings(object : ReceiveOfferingsCallback {
                 override fun onReceived(offerings: Offerings) {
@@ -339,7 +385,10 @@ class PaywallActivity : AppCompatActivity() {
                         it.identifier.contains("pro", true) || it.identifier.contains("monthly", true)
                     } ?: def?.availablePackages?.firstOrNull()
                     familyPackage = def?.availablePackages?.firstOrNull {
-                        it.identifier.contains("family", true) || it.identifier.contains("annual", true)
+                        it.identifier.contains("family", true) || it.identifier.contains("annual", true) || it.identifier.contains("yearly", true)
+                    }
+                    lifetimePackage = def?.availablePackages?.firstOrNull {
+                        it.identifier.contains("lifetime", true)
                     }
                     done(true)
                 }
@@ -411,7 +460,7 @@ class PaywallActivity : AppCompatActivity() {
     private fun hasProEntitlement(info: CustomerInfo): Boolean {
         // Canonical Next Gen entitlement is `shield_protection`.
         // Accept legacy/alias IDs so dashboard renames never lock judges out.
-        val ids = listOf("shield_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield", "kavach_pro", "kavach_premium")
+        val ids = listOf("shield_protection", "sheild_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield", "kavach_pro", "kavach_premium")
         return ids.any { info.entitlements[it]?.isActive == true }
     }
 

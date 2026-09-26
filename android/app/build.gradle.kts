@@ -13,8 +13,8 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
-        // RevenueCat public SDK key (test mode). Replace per build flavor.
-        buildConfigField("String", "REVENUECAT_KEY", "\"test_REPLACE_ME\"")
+        // RevenueCat public SDK key (test mode).
+        buildConfigField("String", "REVENUECAT_KEY", "\"test_mLlyzbSOuWpNrIjajKLZtYKyuGe\"")
         buildConfigField("String", "KAVACH_API", "\"https://kavach-19v6.onrender.com\"")
         // Role preset: dual (chooser) by default; flavors override.
         buildConfigField("String", "APP_ROLE", "\"dual\"")
@@ -67,9 +67,9 @@ dependencies {
     implementation("com.google.crypto.tink:tink-android:1.23.0")
     // Pairing QR codes.
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
-    // Monetization (test mode for the hackathon).
-    implementation("com.revenuecat.purchases:purchases:10.21.1")
-    implementation("com.revenuecat.purchases:purchases-ui:10.21.1")
+    // Monetization (RevenueCat SDK v10.23.2)
+    implementation("com.revenuecat.purchases:purchases:10.23.2")
+    implementation("com.revenuecat.purchases:purchases-ui:10.23.2")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
