@@ -411,7 +411,7 @@ class PaywallActivity : AppCompatActivity() {
     private fun hasProEntitlement(info: CustomerInfo): Boolean {
         // Canonical Next Gen entitlement is `shield_protection`.
         // Accept legacy/alias IDs so dashboard renames never lock judges out.
-        val ids = listOf("shield_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield")
+        val ids = listOf("shield_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield", "kavach_pro", "kavach_premium")
         return ids.any { info.entitlements[it]?.isActive == true }
     }
 
