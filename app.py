@@ -586,8 +586,8 @@ def nextgen_proof():
         "track": "Next Gen",
         "test_mode": True,
         "revenuecat": {
-            "sdk": "purchases:10.21.1 (PaywallActivity.kt)",
-            "entitlements": ["shield_protection", "family_fortress",
+            "sdk": "purchases:10.23.2 (PaywallActivity.kt)",
+            "entitlements": ["sheild_protection", "shield_protection", "family_fortress",
                              "pro_caregiver", "pro", "family_pro_shield"],
             "judge_promo": "SHIPATON-JUDGE",
             "server_authority": "POST /api/v1/billing/webhook "
