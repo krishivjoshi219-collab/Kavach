@@ -12,11 +12,12 @@ Features:
 - Cinematic Fade-In & Fade-Out
 """
 
-import os
-import sys
 import math
+import os
 import subprocess
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageMath
+import sys
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageMath
 
 W, H = 1920, 1080
 FPS = 30

@@ -5,7 +5,10 @@ Synthesizes a bespoke ambient electronic tech soundtrack with sidechain sub-bass
 harmonic synth pads, and 7 precisely timed UI sound effects (SFX), then mixes with ElevenLabs narration.
 """
 
-import math, struct, wave, os, subprocess
+import math
+import struct
+import subprocess
+import wave
 
 AUDIO_IN = "/home/k/Prototype/Kavach-demo-final/narration.mp3"
 AUDIO_OUT = "/home/k/Prototype/Kavach-demo-final/narration_cinematic_master.wav"

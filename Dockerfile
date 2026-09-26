@@ -19,7 +19,7 @@ COPY simulator/web/public ./simulator/web/public
 USER app
 EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=20s \
-  CMD python -c "import os,urllib.request;urllib.request.urlopen('http://localhost:'+os.getenv('PORT','7860')+'/healthz')"
+  CMD python -c "import os,urllib.request;urllib.request.urlopen('http://localhost:'+os.getenv('PORT','7860')+'/healthz',timeout=4)"
 # Single worker by design: SQLite (WAL) is the store, and multiple uvicorn
 # workers in one container only multiply "database is locked" collisions.
 # Scale with more containers / a managed DB, not --workers. --proxy-headers

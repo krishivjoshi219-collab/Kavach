@@ -365,9 +365,11 @@ PAUSE_CARDS = {
            "Say: I will verify independently using an official channel. End the call if unsafe. "
            "Kavach is safety information, not legal advice."),
     "hi": ("रुकें। पैसे न भेजें। OTP/कोड साझा न करें। खुद खोजे गए आधिकारिक संपर्क से सत्यापित करें। "
-           "कहें: मैं आधिकारिक चैनल से स्वतंत्र रूप से सत्यापित करूंगा। असुरक्षित लगे तो कॉल काट दें।"),
+           "कहें: मैं आधिकारिक चैनल से स्वतंत्र रूप से सत्यापित करूंगा। असुरक्षित लगे तो कॉल काट दें। "
+           "कवच सामान्य सुरक्षा जानकारी है, कानूनी सलाह नहीं।"),
     "hinglish": ("Ruko. Paise mat bhejo. OTP/code share mat karo. Khud dhoondhe gaye official contact se verify karo. "
-                 "Bolo: main independently verify karunga. Unsafe lage to call kaat do."),
+                 "Bolo: main independently verify karunga. Unsafe lage to call kaat do. "
+                 "Kavach safety information hai, legal advice nahi."),
 }
 
 

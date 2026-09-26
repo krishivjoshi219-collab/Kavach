@@ -52,7 +52,7 @@ for idx, (kick, head, sub, chips, accent) in enumerate(ACTS, 1):
                             radius=42, outline=accent, width=3)
         d.text((130, y + 18), c, font=F(FR, 34), fill=(245, 234, 210))
         y += 120
-    d.text((90, H - 110), "KAVACH - Next Gen - %d/6" % idx, font=F(FB, 30),
+    d.text((90, H - 110), f"KAVACH - Next Gen - {idx}/6", font=F(FB, 30),
            fill=(140, 120, 95))
-    img.save("/tmp/opencode/cards/card%d.png" % idx)
+    img.save(f"/tmp/opencode/cards/card{idx}.png")
 print("CARDS_OK")
