@@ -20,6 +20,10 @@ import com.kavach.guardian.KavachApp
 import com.kavach.guardian.crypto.SasFingerprint
 import com.kavach.guardian.crypto.ShieldCrypto
 import com.kavach.guardian.net.RelayClient
+import com.revenuecat.purchases.Purchases
+import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallActivityLauncher
+import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallResult
+import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallResultHandler
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -32,8 +36,9 @@ import java.util.Locale
  * Features live dynamic household safety score, multi-device parent fleet telemetry,
  * real-time searchable encrypted threat log, and consent-gated remote protections.
  */
-class FamilyActivity : AppCompatActivity() {
+class FamilyActivity : AppCompatActivity(), PaywallResultHandler {
 
+    private lateinit var paywallActivityLauncher: PaywallActivityLauncher
     private lateinit var client: RelayClient
     private lateinit var crypto: ShieldCrypto
     private lateinit var cryptoBadge: TextView
@@ -43,6 +48,7 @@ class FamilyActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        paywallActivityLauncher = PaywallActivityLauncher(this, this)
 
         val app = application as KavachApp
         val store = app.store
@@ -226,9 +232,21 @@ class FamilyActivity : AppCompatActivity() {
         val manageBtn = KavachTheme.button(this, "Manage Subscription / Add Parent Device →", KavachTheme.EMERALD_PRO, Color.BLACK, 10f, 42f) {
             startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
         }
+        val quickPaywallBtn = KavachTheme.button(this, "🛡️ Present Paywall If Needed (sheild_protection)", Color.parseColor("#1E293B"), Color.parseColor("#93C5FD"), 10f, 38f) {
+            if (Purchases.isConfigured) {
+                try {
+                    paywallActivityLauncher.launchIfNeeded(requiredEntitlementIdentifier = "sheild_protection")
+                } catch (e: Exception) {
+                    startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
+                }
+            } else {
+                startActivity(Intent(this@FamilyActivity, PaywallActivity::class.java))
+            }
+        }
         proCard.addView(proTitle)
         proCard.addView(proSubtitle)
         proCard.addView(manageBtn)
+        proCard.addView(quickPaywallBtn)
         root.addView(proCard, marginBot20)
 
         // 4. Extensive Cryptographic E2E Parent Fleet Link Section
@@ -796,5 +814,27 @@ class FamilyActivity : AppCompatActivity() {
             .setMessage("• $text")
             .setPositiveButton("Close", null)
             .show()
+    }
+
+    override fun onActivityResult(result: PaywallResult) {
+        when (result) {
+            is PaywallResult.Purchased -> {
+                val app = application as KavachApp
+                val hid = app.store.getString("household_id") ?: "demo_family_household"
+                app.store.putString("tier", "ultra")
+                Toast.makeText(this, "Family Shield Pro activated! ✨", Toast.LENGTH_SHORT).show()
+            }
+            is PaywallResult.Restored -> {
+                val app = application as KavachApp
+                val hid = app.store.getString("household_id") ?: "demo_family_household"
+                app.store.putString("tier", "ultra")
+                Toast.makeText(this, "Purchases restored: Pro entitlement active.", Toast.LENGTH_SHORT).show()
+            }
+            is PaywallResult.Error -> {
+                Toast.makeText(this, "Paywall notice: ${result.error.message}", Toast.LENGTH_SHORT).show()
+            }
+            PaywallResult.Cancelled -> {}
+            else -> {}
+        }
     }
 }

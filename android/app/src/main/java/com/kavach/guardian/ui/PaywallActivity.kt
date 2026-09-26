@@ -209,6 +209,27 @@ class PaywallActivity : AppCompatActivity(), PaywallResultHandler {
         }
         root.addView(remotePaywallBtn, planCardLp)
 
+        // 6c. Entitlement-gated presentation via launchIfNeeded
+        val launchIfNeededBtn = Button(this).apply {
+            text = "Launch Paywall If Needed (sheild_protection) 🛡️"
+            textSize = 12f
+            setTextColor(Color.parseColor("#90CAF9"))
+            setBackgroundColor(Color.TRANSPARENT)
+            isAllCaps = false
+            setOnClickListener {
+                if (Purchases.isConfigured) {
+                    try {
+                        paywallActivityLauncher.launchIfNeeded(requiredEntitlementIdentifier = "sheild_protection")
+                    } catch (e: Exception) {
+                        Toast.makeText(this@PaywallActivity, "Notice: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this@PaywallActivity, "Purchases not configured.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        root.addView(launchIfNeededBtn, planCardLp)
+
         // 7. Judge Evaluation Access (Shipaton 2026 Special)
         val judgeCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -312,6 +333,11 @@ class PaywallActivity : AppCompatActivity(), PaywallResultHandler {
             })
         }
         fetchOfferings {}
+        if (intent.getBooleanExtra("launch_if_needed", false) && Purchases.isConfigured) {
+            try {
+                paywallActivityLauncher.launchIfNeeded(requiredEntitlementIdentifier = "sheild_protection")
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onActivityResult(result: PaywallResult) {
