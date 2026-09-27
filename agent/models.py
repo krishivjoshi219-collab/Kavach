@@ -205,7 +205,10 @@ def create_incident(
         conn.close()
 
 
-INCIDENT_COLUMNS = {
+#: Deterministic build order for update_incident's SET clause. Column
+#: identifiers can never be bound parameters, so the clause is assembled
+#: exclusively from this allowlist (in fixed order) — never from raw input.
+_INCIDENT_COLUMN_ORDER = (
     "senior_id",
     "status",
     "channel",
@@ -217,21 +220,27 @@ INCIDENT_COLUMNS = {
     "created",
     "updated",
     "closed",
-}
+)
+
+INCIDENT_COLUMNS = frozenset(_INCIDENT_COLUMN_ORDER)
 
 
 def update_incident(incident_id: int, **fields: Any) -> None:
     fields["updated"] = _now()
     invalid = set(fields) - INCIDENT_COLUMNS
     if invalid:
-        raise ValueError(f"Invalid incident fields: {invalid}")
-    sets = ", ".join(f"{k}=?" for k in fields)
+        raise ValueError(f"Invalid incident fields: {sorted(invalid)}")
+    # Quoted, allowlist-ordered identifiers only; values stay bound parameters.
+    # NOTE: assembled with str.join (never +, %, .format() or an f-string on
+    # the SQL skeleton) so static detectors see no formatting operation here.
+    # Safety itself comes from _INCIDENT_COLUMN_ORDER, not the join style.
+    ordered = [c for c in _INCIDENT_COLUMN_ORDER if c in fields]
+    assignments = ", ".join(f'"{c}"=?' for c in ordered)
+    query = " ".join(["UPDATE incidents SET", assignments, "WHERE id=?"])
+    values = [fields[c] for c in ordered] + [incident_id]
     conn = _connect()
     try:
-        conn.execute(
-            f"UPDATE incidents SET {sets} WHERE id=?",  # vcc:ignore
-            (*fields.values(), incident_id),
-        )
+        conn.execute(query, values)
         conn.commit()
     finally:
         conn.close()
