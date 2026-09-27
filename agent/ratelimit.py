@@ -7,6 +7,7 @@ one router's limits silently never fire. Import here, set
 without the middleware, @limiter.limit decorators are parsed but never
 enforced (silent fail-open).
 """
+
 from __future__ import annotations
 
 import os
@@ -17,7 +18,11 @@ from slowapi.util import get_remote_address
 #: Kill-switch for load tests / pytest: RATE_LIMIT_ENABLED=false.
 #: Production default is enabled.
 RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() not in (
-    "0", "false", "no", "off")
+    "0",
+    "false",
+    "no",
+    "off",
+)
 
 limiter = Limiter(key_func=get_remote_address, enabled=RATE_LIMIT_ENABLED)
 

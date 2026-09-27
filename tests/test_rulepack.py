@@ -1,4 +1,5 @@
 """Rule packs: the shield learns. Tests prove: parity, signature, anti-tamper."""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -18,8 +19,7 @@ def test_pack_mirrors_source_of_truth():
 
 def test_sign_verify_roundtrip():
     served = rulepack.serve_pack()
-    assert rulepack.verify_pack(served["pack"], served["signature"],
-                                served["public_key"])
+    assert rulepack.verify_pack(served["pack"], served["signature"], served["public_key"])
 
 
 def test_tampered_pack_rejected():
@@ -33,10 +33,12 @@ def test_wrong_key_rejected():
     import base64
 
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     other = Ed25519PrivateKey.generate().public_key().public_bytes_raw()
     served = rulepack.serve_pack()
-    assert not rulepack.verify_pack(served["pack"], served["signature"],
-                                    base64.b64encode(other).decode())
+    assert not rulepack.verify_pack(
+        served["pack"], served["signature"], base64.b64encode(other).decode()
+    )
 
 
 def test_endpoint_serves_verifiable_pack():

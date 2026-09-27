@@ -6,6 +6,7 @@ True E2E: blobs must be base64 Tink ECIES ciphertext; plaintext is rejected.
 Manager gets all lent capabilities by default at pairing; senior revokes in one tap
 which bumps the epoch and wipes queued remote powers.
 """
+
 from __future__ import annotations
 
 import base64
@@ -65,8 +66,11 @@ MAX_BLOBS_PER_HOUSEHOLD = 500
 
 _RELAY_LOCK = threading.Lock()
 RELAY_STATS: dict[str, int] = {
-    "households_total": 0, "pairings_total": 0, "push_total": 0,
-    "blocks_total": 0, "commands_total": 0,
+    "households_total": 0,
+    "pairings_total": 0,
+    "push_total": 0,
+    "blocks_total": 0,
+    "commands_total": 0,
 }
 
 
@@ -79,12 +83,22 @@ def relay_stats() -> dict[str, int]:
     with _RELAY_LOCK:
         return dict(RELAY_STATS)
 
+
 # Ciphertext that is clearly not E2E (raw words that never appear in real
 # Tink ECIES base64 noise). Checked on raw string AND base64-decoded bytes.
 PLAINTEXT_PATTERNS = [
-    r"otp", r"aadhaar", r"aadhar", r"password", r"\bpin\b", r"cvv",
-    r"https?://", r"www\.", r"\.apk\b", r"\+91[\-\s]?\d",
-    r"account (is |will be )?(frozen|blocked)", r"ENCRYPTED:",
+    r"otp",
+    r"aadhaar",
+    r"aadhar",
+    r"password",
+    r"\bpin\b",
+    r"cvv",
+    r"https?://",
+    r"www\.",
+    r"\.apk\b",
+    r"\+91[\-\s]?\d",
+    r"account (is |will be )?(frozen|blocked)",
+    r"ENCRYPTED:",
 ]
 PLAINTEXT_RE = re.compile("|".join(f"(?:{p})" for p in PLAINTEXT_PATTERNS), re.IGNORECASE)
 
@@ -115,8 +129,7 @@ def _connect() -> sqlite3.Connection:
             except sqlite3.OperationalError:
                 pass  # column already exists
         for sql in (
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_blobs_nonce "
-            "ON blobs(household_id, nonce)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_blobs_nonce ON blobs(household_id, nonce)",
             "CREATE INDEX IF NOT EXISTS idx_blobs_household_id ON blobs(household_id, id)",
             "CREATE INDEX IF NOT EXISTS idx_blocklist_household ON blocklist(household_id)",
             "CREATE INDEX IF NOT EXISTS idx_community_hash ON community_reports(number_hash)",
@@ -147,12 +160,12 @@ def _month() -> str:
 
 # --- households & pairing (public keys only; no secrets touch the server) ---
 
+
 def create_household() -> str:
     hid = "hh_" + secrets.token_hex(6)
     conn = _connect()
     try:
-        conn.execute("INSERT INTO households(id,tier,created) VALUES(?,?,?)",
-                     (hid, "free", _now()))
+        conn.execute("INSERT INTO households(id,tier,created) VALUES(?,?,?)", (hid, "free", _now()))
         conn.commit()
         _bump("households_total")
         return hid
@@ -185,9 +198,11 @@ def record_webhook(provider: str, event_id: str, household_id: str, tier: str) -
     """Durable, idempotent webhook receipt. Returns True if newly applied."""
     conn = _connect()
     try:
-        cur = conn.execute("INSERT OR IGNORE INTO webhook_receipts(provider,event_id,household_id,"
-                           "tier,created) VALUES(?,?,?,?,?)",
-                           (provider, event_id, household_id, tier, _now()))
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO webhook_receipts(provider,event_id,household_id,"
+            "tier,created) VALUES(?,?,?,?,?)",
+            (provider, event_id, household_id, tier, _now()),
+        )
         conn.commit()
         return cur.rowcount == 1
     finally:
@@ -198,8 +213,10 @@ def stored_webhook_tier(provider: str, event_id: str) -> str | None:
     """Tier recorded for a previously seen webhook event (replay truth)."""
     conn = _connect()
     try:
-        row = conn.execute("SELECT tier FROM webhook_receipts WHERE provider=? AND event_id=?",
-                           (provider, event_id)).fetchone()
+        row = conn.execute(
+            "SELECT tier FROM webhook_receipts WHERE provider=? AND event_id=?",
+            (provider, event_id),
+        ).fetchone()
         return row["tier"] if row else None
     finally:
         conn.close()
@@ -210,14 +227,19 @@ def community_stats(household_id: str) -> dict[str, Any]:
     Never presented as regional carrier data."""
     conn = _connect()
     try:
-        blocked = conn.execute("SELECT COUNT(*) AS n FROM blocklist WHERE household_id=?",
-                               (household_id,)).fetchone()["n"]
-        blobs = conn.execute("SELECT COUNT(*) AS n FROM blobs WHERE household_id=?",
-                             (household_id,)).fetchone()["n"]
+        blocked = conn.execute(
+            "SELECT COUNT(*) AS n FROM blocklist WHERE household_id=?", (household_id,)
+        ).fetchone()["n"]
+        blobs = conn.execute(
+            "SELECT COUNT(*) AS n FROM blobs WHERE household_id=?", (household_id,)
+        ).fetchone()["n"]
     finally:
         conn.close()
-    return {"household_blocks": int(blocked), "household_blobs": int(blobs),
-            "total_threats_shielded": int(blocked + blobs)}
+    return {
+        "household_blocks": int(blocked),
+        "household_blobs": int(blobs),
+        "total_threats_shielded": int(blocked + blobs),
+    }
 
 
 def open_pairing(household_id: str, manager_pubkey: str) -> dict[str, Any] | None:
@@ -225,14 +247,14 @@ def open_pairing(household_id: str, manager_pubkey: str) -> dict[str, Any] | Non
         return None
     conn = _connect()
     try:
-        if not conn.execute("SELECT 1 FROM households WHERE id=?",
-                            (household_id,)).fetchone():
+        if not conn.execute("SELECT 1 FROM households WHERE id=?", (household_id,)).fetchone():
             return None
         code = "".join(secrets.choice("ABCDEFGHJKMNPQRSTUVWXYZ23456789") for _ in range(6))
-        conn.execute("INSERT INTO pairings(code,household_id,manager_pubkey,status,"
-                     "created,expires) VALUES(?,?,?,?,?,?)",
-                     (code, household_id, manager_pubkey[:8000], "open",
-                      _now(), _now() + PAIR_TTL_S))
+        conn.execute(
+            "INSERT INTO pairings(code,household_id,manager_pubkey,status,"
+            "created,expires) VALUES(?,?,?,?,?,?)",
+            (code, household_id, manager_pubkey[:8000], "open", _now(), _now() + PAIR_TTL_S),
+        )
         conn.commit()
         return {"pairing_code": code, "expires_in_s": PAIR_TTL_S}
     finally:
@@ -247,9 +269,11 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
             return None
         # Atomic single-use seal: concurrent completes race here, and only
         # one UPDATE may win. Unconditional UPDATE would let both succeed.
-        cur = conn.execute("UPDATE pairings SET senior_pubkey=?, senior_id=?, status='paired'"
-                           " WHERE code=? AND status='open' AND expires>?",
-                           (senior_pubkey[:8000], senior_id[:64], code.upper(), _now()))
+        cur = conn.execute(
+            "UPDATE pairings SET senior_pubkey=?, senior_id=?, status='paired'"
+            " WHERE code=? AND status='open' AND expires>?",
+            (senior_pubkey[:8000], senior_id[:64], code.upper(), _now()),
+        )
         conn.commit()
         if cur.rowcount != 1:
             return None
@@ -259,8 +283,7 @@ def complete_pairing(code: str, senior_pubkey: str, senior_id: str) -> dict[str,
     # Manager gets ALL lent capabilities by default at seal time.
     # Senior can revoke everything in one tap (bumps epoch).
     if senior_id:
-        set_consent(hid, senior_id[:64],
-                    {k: True for k in CAPABILITIES}, granted_by=senior_id[:64])
+        set_consent(hid, senior_id[:64], {k: True for k in CAPABILITIES}, granted_by=senior_id[:64])
     _bump("pairings_total")
     return {"household_id": hid, "manager_pubkey": mgr_pub}
 
@@ -269,13 +292,20 @@ def get_pair_peer(household_id: str) -> dict[str, Any] | None:
     """Manager fetch of senior pubkey after seal (single household, latest paired)."""
     conn = _connect()
     try:
-        row = conn.execute("SELECT senior_pubkey, senior_id, status FROM pairings"
-                           " WHERE household_id=? AND status='paired'"
-                           " ORDER BY created DESC LIMIT 1", (household_id,)).fetchone()
+        row = conn.execute(
+            "SELECT senior_pubkey, senior_id, status FROM pairings"
+            " WHERE household_id=? AND status='paired'"
+            " ORDER BY created DESC LIMIT 1",
+            (household_id,),
+        ).fetchone()
         if not row or not row["senior_pubkey"]:
             return None
-        return {"senior_pubkey": row["senior_pubkey"], "senior_id": row["senior_id"],
-                "status": row["status"], "epoch": get_epoch(household_id)}
+        return {
+            "senior_pubkey": row["senior_pubkey"],
+            "senior_id": row["senior_id"],
+            "status": row["status"],
+            "epoch": get_epoch(household_id),
+        }
     finally:
         conn.close()
 
@@ -283,8 +313,7 @@ def get_pair_peer(household_id: str) -> dict[str, Any] | None:
 def get_epoch(household_id: str) -> int:
     conn = _connect()
     try:
-        row = conn.execute("SELECT epoch FROM households WHERE id=?",
-                           (household_id,)).fetchone()
+        row = conn.execute("SELECT epoch FROM households WHERE id=?", (household_id,)).fetchone()
         return int(row["epoch"] or 0) if row else 0
     finally:
         conn.close()
@@ -295,8 +324,7 @@ def _bump_epoch(household_id: str) -> int:
     try:
         conn.execute("UPDATE households SET epoch=epoch+1 WHERE id=?", (household_id,))
         conn.commit()
-        row = conn.execute("SELECT epoch FROM households WHERE id=?",
-                           (household_id,)).fetchone()
+        row = conn.execute("SELECT epoch FROM households WHERE id=?", (household_id,)).fetchone()
         return int(row["epoch"] or 0) if row else 0
     finally:
         conn.close()
@@ -323,6 +351,7 @@ def _ciphertext_ok(ciphertext: str) -> bool:
 
 # --- blind relay: opaque blobs in, opaque blobs out ---
 
+
 def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> int | None:
     if not ciphertext or len(ciphertext) > 200_000 or sender not in ("senior", "manager"):
         return None
@@ -332,28 +361,31 @@ def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> in
         return None
     conn = _connect()
     try:
-        if not conn.execute("SELECT 1 FROM households WHERE id=?",
-                            (household_id,)).fetchone():
+        if not conn.execute("SELECT 1 FROM households WHERE id=?", (household_id,)).fetchone():
             return None
-        if conn.execute("SELECT 1 FROM blobs WHERE household_id=? AND nonce=?",
-                        (household_id, nonce[:100])).fetchone():
+        if conn.execute(
+            "SELECT 1 FROM blobs WHERE household_id=? AND nonce=?", (household_id, nonce[:100])
+        ).fetchone():
             return None  # nonce reuse: replay attack
         # Same-transaction epoch: a Kill-Switch revoke bumping the epoch
         # between our read and insert must not stamp a stale epoch.
-        epoch = conn.execute("SELECT epoch FROM households WHERE id=?",
-                             (household_id,)).fetchone()
+        epoch = conn.execute("SELECT epoch FROM households WHERE id=?", (household_id,)).fetchone()
         epoch = int(epoch["epoch"] or 0) if epoch else 0
         try:
-            cur = conn.execute("INSERT INTO blobs(household_id,sender,nonce,ciphertext,created,epoch)"
-                               " VALUES(?,?,?,?,?,?)",
-                               (household_id, sender, nonce[:100], ciphertext, _now(), epoch))
+            cur = conn.execute(
+                "INSERT INTO blobs(household_id,sender,nonce,ciphertext,created,epoch)"
+                " VALUES(?,?,?,?,?,?)",
+                (household_id, sender, nonce[:100], ciphertext, _now(), epoch),
+            )
         except sqlite3.IntegrityError:
             return None
         conn.commit()
         bid = int(cur.lastrowid)
-        conn.execute("DELETE FROM blobs WHERE household_id=? AND id NOT IN"
-                     " (SELECT id FROM blobs WHERE household_id=? ORDER BY id DESC LIMIT ?)",
-                     (household_id, household_id, MAX_BLOBS_PER_HOUSEHOLD))
+        conn.execute(
+            "DELETE FROM blobs WHERE household_id=? AND id NOT IN"
+            " (SELECT id FROM blobs WHERE household_id=? ORDER BY id DESC LIMIT ?)",
+            (household_id, household_id, MAX_BLOBS_PER_HOUSEHOLD),
+        )
         conn.commit()
         _bump("push_total")
         return bid
@@ -364,14 +396,20 @@ def push_blob(household_id: str, sender: str, nonce: str, ciphertext: str) -> in
 def pull_blobs(household_id: str, since_id: int = 0, limit: int = 100) -> list[dict]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT id,sender,nonce,ciphertext,created,epoch FROM blobs WHERE household_id=?"
-            " AND id>? ORDER BY id LIMIT ?", (household_id, since_id, min(limit, 200)))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT id,sender,nonce,ciphertext,created,epoch FROM blobs WHERE household_id=?"
+                " AND id>? ORDER BY id LIMIT ?",
+                (household_id, since_id, min(limit, 200)),
+            )
+        ]
     finally:
         conn.close()
 
 
 # --- screening on hashes: raw numbers never leave the phone ---
+
 
 def hash_number(household_id: str, e164: str) -> str:
     # Normalize before hashing so "+91 98..." and "+91-98..." map together.
@@ -390,27 +428,34 @@ COMMUNITY_THRESHOLD = 3
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def block_number(household_id: str, number_hash: str, label: str = "",
-                 action: str = "block") -> bool:
+def block_number(
+    household_id: str, number_hash: str, label: str = "", action: str = "block"
+) -> bool:
     number_hash = number_hash.lower()
     if not _HEX64_RE.match(number_hash) or action not in ("block", "silence", "allow"):
         return False
     conn = _connect()
     try:
-        conn.execute("INSERT OR REPLACE INTO blocklist(household_id,number_hash,label,"
-                     "action,created) VALUES(?,?,?,?,?)",
-                     (household_id, number_hash, label[:120], action, _now()))
+        conn.execute(
+            "INSERT OR REPLACE INTO blocklist(household_id,number_hash,label,"
+            "action,created) VALUES(?,?,?,?,?)",
+            (household_id, number_hash, label[:120], action, _now()),
+        )
         if action == "block":
             # Community report: hash + category only. Raw numbers never exist here.
-            conn.execute("INSERT OR IGNORE INTO community_reports(household_id,"
-                         "number_hash,category,created) VALUES(?,?,?,?)",
-                         (household_id, number_hash, label[:40], _now()))
+            conn.execute(
+                "INSERT OR IGNORE INTO community_reports(household_id,"
+                "number_hash,category,created) VALUES(?,?,?,?)",
+                (household_id, number_hash, label[:40], _now()),
+            )
         else:
             # allow/silence must retract MY community vote too — otherwise a
             # stale report keeps counting toward the 3-household threshold
             # even though this household no longer vouches for it.
-            conn.execute("DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
-                         (household_id, number_hash))
+            conn.execute(
+                "DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
+                (household_id, number_hash),
+            )
         conn.commit()
         _bump("blocks_total")
         return True
@@ -424,11 +469,15 @@ def unblock_number(household_id: str, number_hash: str) -> bool:
         return False
     conn = _connect()
     try:
-        cur = conn.execute("DELETE FROM blocklist WHERE household_id=? AND number_hash=?",
-                           (household_id, number_hash))
+        cur = conn.execute(
+            "DELETE FROM blocklist WHERE household_id=? AND number_hash=?",
+            (household_id, number_hash),
+        )
         # Sovereignty: unblocking retracts MY community report too.
-        conn.execute("DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
-                     (household_id, number_hash))
+        conn.execute(
+            "DELETE FROM community_reports WHERE household_id=? AND number_hash=?",
+            (household_id, number_hash),
+        )
         conn.commit()
         return cur.rowcount == 1
     finally:
@@ -443,9 +492,17 @@ def list_blocklist(household_id: str, limit: int = 200) -> list[dict[str, Any]]:
         rows = conn.execute(
             "SELECT number_hash, label, action, created FROM blocklist"
             " WHERE household_id=? ORDER BY created DESC LIMIT ?",
-            (household_id, max(1, min(limit, 200)))).fetchall()
-        return [{"number_hash": r["number_hash"], "label": r["label"],
-                 "action": r["action"], "created": r["created"]} for r in rows]
+            (household_id, max(1, min(limit, 200))),
+        ).fetchall()
+        return [
+            {
+                "number_hash": r["number_hash"],
+                "label": r["label"],
+                "action": r["action"],
+                "created": r["created"],
+            }
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -465,10 +522,17 @@ def threat_feed(limit: int = 200) -> list[dict[str, Any]]:
             "   ORDER BY created DESC LIMIT 1) AS category"
             " FROM community_reports cr GROUP BY number_hash"
             " HAVING reports >= ? ORDER BY reports DESC LIMIT ?",
-            (COMMUNITY_THRESHOLD, max(1, min(limit, 200)))).fetchall()
-        return [{"number_hash": r["number_hash"], "reports": r["reports"],
-                 "first_seen": r["first_seen"], "category": r["category"] or "scam"}
-                for r in rows]
+            (COMMUNITY_THRESHOLD, max(1, min(limit, 200))),
+        ).fetchall()
+        return [
+            {
+                "number_hash": r["number_hash"],
+                "reports": r["reports"],
+                "first_seen": r["first_seen"],
+                "category": r["category"] or "scam",
+            }
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -477,11 +541,16 @@ def lookup_number(household_id: str, number_hash: str) -> dict[str, Any]:
     number_hash = number_hash.lower()
     conn = _connect()
     try:
-        row = conn.execute("SELECT action,label FROM blocklist WHERE household_id=?"
-                           " AND number_hash=?", (household_id, number_hash)).fetchone()
+        row = conn.execute(
+            "SELECT action,label FROM blocklist WHERE household_id=? AND number_hash=?",
+            (household_id, number_hash),
+        ).fetchone()
         if row:
-            return {"action": row["action"], "reason": row["label"] or "household list",
-                    "source": "household"}
+            return {
+                "action": row["action"],
+                "reason": row["label"] or "household list",
+                "source": "household",
+            }
         # Community check as a single aggregate — no full feed scan per lookup.
         # Category = most recent report's label (matches threat_feed).
         crow = conn.execute(
@@ -489,15 +558,19 @@ def lookup_number(household_id: str, number_hash: str) -> dict[str, Any]:
             " (SELECT category FROM community_reports cr2"
             "   WHERE cr2.number_hash = community_reports.number_hash"
             "   ORDER BY created DESC LIMIT 1) AS category"
-            " FROM community_reports WHERE number_hash=?", (number_hash,)).fetchone()
+            " FROM community_reports WHERE number_hash=?",
+            (number_hash,),
+        ).fetchone()
     finally:
         conn.close()
     reports = int(crow["reports"] or 0) if crow else 0
     if reports >= COMMUNITY_THRESHOLD:
         category = (crow["category"] or "scam") if crow else "scam"
-        return {"action": "block",
-                "reason": f"community shield ({reports} households): {category}",
-                "source": "community"}
+        return {
+            "action": "block",
+            "reason": f"community shield ({reports} households): {category}",
+            "source": "community",
+        }
     return {"action": "allow", "reason": "not on any list", "source": "none"}
 
 
@@ -506,15 +579,17 @@ def lookup_number(household_id: str, number_hash: str) -> dict[str, Any]:
 CAPABILITIES = ["screen_calls", "forward_sms", "remote_cut", "cloud_brain", "share_routines"]
 
 
-def set_consent(household_id: str, senior_id: str, capabilities: dict[str, bool],
-                granted_by: str) -> bool:
+def set_consent(
+    household_id: str, senior_id: str, capabilities: dict[str, bool], granted_by: str
+) -> bool:
     clean = {k: bool(capabilities.get(k, False)) for k in CAPABILITIES}
     conn = _connect()
     try:
-        conn.execute("INSERT OR REPLACE INTO consent(household_id,senior_id,capabilities,"
-                     "granted_by,revoked,created,updated) VALUES(?,?,?,?,?,?,?)",
-                     (household_id, senior_id, json.dumps(clean), granted_by[:64], 0,
-                      _now(), _now()))
+        conn.execute(
+            "INSERT OR REPLACE INTO consent(household_id,senior_id,capabilities,"
+            "granted_by,revoked,created,updated) VALUES(?,?,?,?,?,?,?)",
+            (household_id, senior_id, json.dumps(clean), granted_by[:64], 0, _now(), _now()),
+        )
         conn.commit()
         return True
     finally:
@@ -524,8 +599,10 @@ def set_consent(household_id: str, senior_id: str, capabilities: dict[str, bool]
 def revoke_consent(household_id: str, senior_id: str) -> bool:
     conn = _connect()
     try:
-        cur = conn.execute("UPDATE consent SET revoked=1, updated=? WHERE household_id=?"
-                           " AND senior_id=?", (_now(), household_id, senior_id))
+        cur = conn.execute(
+            "UPDATE consent SET revoked=1, updated=? WHERE household_id=? AND senior_id=?",
+            (_now(), household_id, senior_id),
+        )
         conn.commit()
         ok = cur.rowcount == 1
     finally:
@@ -537,8 +614,10 @@ def revoke_consent(household_id: str, senior_id: str) -> bool:
         _bump_epoch(household_id)
         conn = _connect()
         try:
-            conn.execute("UPDATE commands SET status='revoked' WHERE household_id=?"
-                         " AND status='queued'", (household_id,))
+            conn.execute(
+                "UPDATE commands SET status='revoked' WHERE household_id=? AND status='queued'",
+                (household_id,),
+            )
             conn.commit()
         finally:
             conn.close()
@@ -548,14 +627,18 @@ def revoke_consent(household_id: str, senior_id: str) -> bool:
 def get_consent(household_id: str, senior_id: str) -> dict[str, Any]:
     conn = _connect()
     try:
-        row = conn.execute("SELECT * FROM consent WHERE household_id=? AND senior_id=?",
-                           (household_id, senior_id)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM consent WHERE household_id=? AND senior_id=?", (household_id, senior_id)
+        ).fetchone()
     finally:
         conn.close()
     epoch = get_epoch(household_id)
     if not row or row["revoked"]:
-        return {"granted": False, "capabilities": dict.fromkeys(CAPABILITIES, False),
-                "epoch": epoch}
+        return {
+            "granted": False,
+            "capabilities": dict.fromkeys(CAPABILITIES, False),
+            "epoch": epoch,
+        }
     try:
         caps = json.loads(row["capabilities"])
     except (json.JSONDecodeError, TypeError):
@@ -563,8 +646,13 @@ def get_consent(household_id: str, senior_id: str) -> dict[str, Any]:
     if not isinstance(caps, dict):
         caps = {}
     clean = {k: bool(caps.get(k, False)) for k in CAPABILITIES}
-    return {"granted": True, "capabilities": clean,
-            "granted_by": row["granted_by"], "updated": row["updated"], "epoch": epoch}
+    return {
+        "granted": True,
+        "capabilities": clean,
+        "granted_by": row["granted_by"],
+        "updated": row["updated"],
+        "epoch": epoch,
+    }
 
 
 def may(capability: str, household_id: str, senior_id: str) -> bool:
@@ -578,16 +666,18 @@ def may(capability: str, household_id: str, senior_id: str) -> bool:
 COMMAND_TYPES = ["cut_call", "sound_siren", "show_message"]
 
 
-def queue_command(household_id: str, target: str, type_: str,
-                  payload_cipher: str = "") -> dict[str, Any] | None:
+def queue_command(
+    household_id: str, target: str, type_: str, payload_cipher: str = ""
+) -> dict[str, Any] | None:
     if type_ not in COMMAND_TYPES or target not in ("senior", "manager"):
         return None
     conn = _connect()
     try:
-        cur = conn.execute("INSERT INTO commands(household_id,target,type,payload_cipher,"
-                           "status,created) VALUES(?,?,?,?,?,?)",
-                           (household_id, target, type_, payload_cipher[:5000],
-                            "queued", _now()))
+        cur = conn.execute(
+            "INSERT INTO commands(household_id,target,type,payload_cipher,"
+            "status,created) VALUES(?,?,?,?,?,?)",
+            (household_id, target, type_, payload_cipher[:5000], "queued", _now()),
+        )
         conn.commit()
         _bump("commands_total")
         return {"command_id": int(cur.lastrowid)}
@@ -598,10 +688,14 @@ def queue_command(household_id: str, target: str, type_: str,
 def pending_commands(household_id: str, target: str) -> list[dict]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT id,type,payload_cipher,created FROM commands WHERE household_id=?"
-            " AND target=? AND status='queued' ORDER BY id LIMIT 20",
-            (household_id, target))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT id,type,payload_cipher,created FROM commands WHERE household_id=?"
+                " AND target=? AND status='queued' ORDER BY id LIMIT 20",
+                (household_id, target),
+            )
+        ]
     finally:
         conn.close()
 
@@ -609,8 +703,10 @@ def pending_commands(household_id: str, target: str) -> list[dict]:
 def ack_command(command_id: int) -> bool:
     conn = _connect()
     try:
-        cur = conn.execute("UPDATE commands SET status='delivered', delivered=? WHERE id=?"
-                           " AND status='queued'", (_now(), command_id))
+        cur = conn.execute(
+            "UPDATE commands SET status='delivered', delivered=? WHERE id=? AND status='queued'",
+            (_now(), command_id),
+        )
         conn.commit()
         return cur.rowcount == 1
     finally:
@@ -618,6 +714,7 @@ def ack_command(command_id: int) -> bool:
 
 
 # --- cloud brain with quotas: paid tiers fund the inference ---
+
 
 def brain_ask(household_id: str, snippet: str) -> dict[str, Any]:
     """Server-side verdict over an already-scrubbed snippet. Quota-gated by tier."""
@@ -630,21 +727,36 @@ def brain_ask(household_id: str, snippet: str) -> dict[str, Any]:
         # statements lets concurrent asks both pass at used=quota-1.
         # BEGIN IMMEDIATE takes the write lock up front for the same reason.
         conn.execute("BEGIN IMMEDIATE")
-        row = conn.execute("SELECT brain_calls FROM usage WHERE household_id=? AND month=?",
-                           (household_id, month)).fetchone()
+        row = conn.execute(
+            "SELECT brain_calls FROM usage WHERE household_id=? AND month=?", (household_id, month)
+        ).fetchone()
         used = int(row["brain_calls"]) if row else 0
         if used >= quota:
             conn.rollback()
-            return {"ok": False, "error": "quota_exceeded", "tier": tier,
-                    "summary": "Monthly cloud-brain quota used up. Upgrade for more."}
-        conn.execute("INSERT INTO usage(household_id,month,brain_calls) VALUES(?,?,1)"
-                     " ON CONFLICT(household_id,month) DO UPDATE SET brain_calls="
-                     "brain_calls+1", (household_id, month))
+            return {
+                "ok": False,
+                "error": "quota_exceeded",
+                "tier": tier,
+                "summary": "Monthly cloud-brain quota used up. Upgrade for more.",
+            }
+        conn.execute(
+            "INSERT INTO usage(household_id,month,brain_calls) VALUES(?,?,1)"
+            " ON CONFLICT(household_id,month) DO UPDATE SET brain_calls="
+            "brain_calls+1",
+            (household_id, month),
+        )
         conn.commit()
     finally:
         conn.close()
     signals = redflags.extract_signals(snippet[:2000])
     verdict, conf, reasons = redflags.score_verdict(signals, snippet[:2000])
-    return {"ok": True, "tier": tier, "verdict": verdict, "confidence": conf,
-            "reasons": reasons, "guidance": redflags.GUIDANCE[verdict],
-            "used": used + 1, "quota": quota}
+    return {
+        "ok": True,
+        "tier": tier,
+        "verdict": verdict,
+        "confidence": conf,
+        "reasons": reasons,
+        "guidance": redflags.GUIDANCE[verdict],
+        "used": used + 1,
+        "quota": quota,
+    }

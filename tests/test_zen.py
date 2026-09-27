@@ -5,6 +5,7 @@ monkeypatched DB_PATH mid-suite → writes could hit real ./kavach.db) and
 re-snapshots kavach_agent's by-value config imports. Attribute patching is
 surgical and race-free.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,6 +41,7 @@ def test_zen_first_with_mocked_gateway(monkeypatch):
         return FakeResp()
 
     import httpx
+
     monkeypatch.setattr(httpx, "post", fake_post)
     provider, text = kavach_agent._llm_narrate("sys", "scam call about OTP")
     assert provider == "zen" and text == "Ruko, beta."

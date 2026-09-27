@@ -3,6 +3,7 @@
 Proves the agent can never skip stages, verdicts always cite evidence,
 and hostile input cannot hijack tools or alerts.
 """
+
 from agent import models, protocols, redflags
 from agent.kavach_agent import run_agent_turn
 
@@ -21,7 +22,8 @@ def test_seed_household():
 
 def test_scam_signals_fire():
     sig = redflags.extract_signals(
-        "Your account is frozen, share the OTP immediately or police will arrest you")
+        "Your account is frozen, share the OTP immediately or police will arrest you"
+    )
     codes = {s["code"] for s in sig}
     assert {"OTP_ASK", "THREAT", "URGENCY"} <= codes
     verdict, conf, reasons = redflags.score_verdict(sig, "x")
@@ -58,16 +60,17 @@ def test_bare_share_does_not_fire_remote_access():
 def test_power_apk_is_scam():
     sig = redflags.extract_signals(
         "Dear customer, your electricity power will be disconnected tonight. "
-        "Download the APK file immediately to update your KYC.")
+        "Download the APK file immediately to update your KYC."
+    )
     verdict, _, _ = redflags.score_verdict(sig, "power apk kyc")
     assert verdict == "SCAM"
 
 
 def test_bijli_paise_seeds_fire():
     assert "IMPERSONATION" in {
-        s["code"] for s in redflags.extract_signals("bijli bill cut tonight")}
-    assert "PAYMENT_EXTORT" in {
-        s["code"] for s in redflags.extract_signals("send paise now")}
+        s["code"] for s in redflags.extract_signals("bijli bill cut tonight")
+    }
+    assert "PAYMENT_EXTORT" in {s["code"] for s in redflags.extract_signals("send paise now")}
 
 
 def test_full_debrief_walk_reaches_scam_verdict():

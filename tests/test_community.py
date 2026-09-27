@@ -1,4 +1,5 @@
 """Community shield: one family's block protects all families. Hashes only."""
+
 from __future__ import annotations
 
 import re
@@ -84,9 +85,11 @@ def test_allow_retracts_my_community_vote():
 def test_concurrent_pairing_seal_single_winner():
     # One pairing code seals exactly once, even under concurrent completes.
     import threading
+
     h = _fresh_households(1)
-    init = client.post("/api/v1/pair/init",
-                       json={"household_id": h[0], "manager_pubkey": "K" * 64}).json()
+    init = client.post(
+        "/api/v1/pair/init", json={"household_id": h[0], "manager_pubkey": "K" * 64}
+    ).json()
     code = init["pairing_code"]
     wins = []
     lock = threading.Lock()
@@ -109,6 +112,7 @@ def test_concurrent_challenge_single_decision():
     import threading
 
     from agent import models as _models
+
     ch = _models.create_challenge("s", "who", "q?")
     results = {}
     lock = threading.Lock()
@@ -118,8 +122,10 @@ def test_concurrent_challenge_single_decision():
         with lock:
             results[name] = out
 
-    threads = [threading.Thread(target=attempt, args=("a", "APPROVE")),
-               threading.Thread(target=attempt, args=("d", "DENY"))]
+    threads = [
+        threading.Thread(target=attempt, args=("a", "APPROVE")),
+        threading.Thread(target=attempt, args=("d", "DENY")),
+    ]
     for t in threads:
         t.start()
     for t in threads:

@@ -1,4 +1,5 @@
 """Mobile contract routes: /api/v1/* — households, pairing, relay, screen, consent."""
+
 from __future__ import annotations
 
 import hmac
@@ -12,7 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from agent import config as cfg
-from agent import mobile, rulepack
+from agent import mobile, models, notifications, rulepack
 from agent.ratelimit import RELAY_LIMIT, limiter
 
 router = APIRouter(prefix="/api/v1")
@@ -31,8 +32,10 @@ def _qid(value: str) -> str | None:
 
 
 def _bad_id(request: Request) -> JSONResponse:
-    return _err("invalid_id", 422, request,
-                detail="IDs must match ^[\\w\\-.|]{1,64}$ (max 64 chars).")
+    return _err(
+        "invalid_id", 422, request, detail="IDs must match ^[\\w\\-.|]{1,64}$ (max 64 chars)."
+    )
+
 
 #: Sender hashes only — 64 lowercase hex chars. Raw numbers are rejected
 #: at the schema layer (422) before any relay logic runs.
@@ -46,8 +49,9 @@ IdStr = Annotated[str, Field(max_length=64, pattern=r"^[\w\-.|]{1,64}$")]
 
 def _err(error: str, status: int, request: Request | None = None, **extra: Any) -> JSONResponse:
     rid = getattr(request.state, "rid", "-") if request is not None else "-"
-    return JSONResponse({"ok": False, "error": error, "request_id": rid, **extra},
-                        status_code=status)
+    return JSONResponse(
+        {"ok": False, "error": error, "request_id": rid, **extra}, status_code=status
+    )
 
 
 class PairInit(BaseModel):
@@ -150,8 +154,12 @@ def api_push(body: BlobIn, request: Request):
     _ = request
     bid = mobile.push_blob(body.household_id, body.sender, body.nonce, body.ciphertext)
     if bid is None:
-        return _err("rejected", 400, request,
-                    detail="Blob failed the E2E gate (plaintext, replay, or unknown household).")
+        return _err(
+            "rejected",
+            400,
+            request,
+            detail="Blob failed the E2E gate (plaintext, replay, or unknown household).",
+        )
     return {"ok": True, "blob_id": bid}
 
 
@@ -174,8 +182,7 @@ def api_lookup(body: LookupIn):
 @limiter.limit(RELAY_LIMIT)
 def api_block(body: BlockIn, request: Request):
     _ = request
-    ok = mobile.block_number(body.household_id, body.number_hash.lower(),
-                             body.label, body.action)
+    ok = mobile.block_number(body.household_id, body.number_hash.lower(), body.label, body.action)
     if not ok:
         return _err("rejected", 400, request, detail="Invalid hash or action.")
     return {"ok": True}
@@ -203,8 +210,11 @@ def api_blocklist(household_id: str, request: Request):
 @limiter.limit(RELAY_LIMIT)
 def api_consent_set(body: ConsentIn, request: Request):
     _ = request
-    return {"ok": mobile.set_consent(body.household_id, body.senior_id,
-                                     body.capabilities, body.granted_by)}
+    return {
+        "ok": mobile.set_consent(
+            body.household_id, body.senior_id, body.capabilities, body.granted_by
+        )
+    }
 
 
 @router.post("/consent/revoke")
@@ -214,8 +224,9 @@ def api_consent_revoke(household_id: str, senior_id: str, request: Request):
     if hid is None or sid is None:
         return _bad_id(request)
     if not mobile.revoke_consent(hid, sid):
-        return _err("not_found", 404, request,
-                    detail="No consent record for this household/senior.")
+        return _err(
+            "not_found", 404, request, detail="No consent record for this household/senior."
+        )
     return {"ok": True}
 
 
@@ -232,13 +243,14 @@ def api_consent_get(household_id: str, senior_id: str, request: Request):
 def api_command(body: CommandIn, request: Request):
     _ = request
     # Remote powers require live consent: cut_call needs remote_cut, etc.
-    need = {"cut_call": "remote_cut", "sound_siren": "screen_calls",
-            "show_message": "forward_sms"}.get(body.type, "")
+    need = {
+        "cut_call": "remote_cut",
+        "sound_siren": "screen_calls",
+        "show_message": "forward_sms",
+    }.get(body.type, "")
     if need and not mobile.may(need, body.household_id, body.senior_id):
-        return _err("consent_required", 403, request,
-                    summary=f"Senior has not granted '{need}'.")
-    out = mobile.queue_command(body.household_id, body.target, body.type,
-                               body.payload_cipher)
+        return _err("consent_required", 403, request, summary=f"Senior has not granted '{need}'.")
+    out = mobile.queue_command(body.household_id, body.target, body.type, body.payload_cipher)
     if not out:
         return _err("rejected", 400, request)
     return {"ok": True, **out}
@@ -271,8 +283,9 @@ def api_brain(body: BrainIn, request: Request):
     _ = request
     # Cloud brain additionally requires the household's cloud_brain consent.
     if not mobile.may("cloud_brain", body.household_id, body.senior_id):
-        return _err("consent_required", 403, request,
-                    summary="Household has not enabled the cloud brain.")
+        return _err(
+            "consent_required", 403, request, summary="Household has not enabled the cloud brain."
+        )
     out = mobile.brain_ask(body.household_id, body.snippet)
     if out.get("error") == "quota_exceeded":
         return JSONResponse(out, status_code=429)
@@ -306,8 +319,9 @@ def api_billing_webhook(body: WebhookIn, request: Request):
     if not secret and cfg.IS_PROD:
         # Fail closed: an unauthenticated money endpoint must never apply
         # tiers in production. Demo/dev keeps TEST MODE (documented).
-        return _err("webhook_not_configured", 503, request,
-                    detail="Set RC_WEBHOOK_AUTH in production.")
+        return _err(
+            "webhook_not_configured", 503, request, detail="Set RC_WEBHOOK_AUTH in production."
+        )
     if secret:
         auth = request.headers.get("authorization", "")
         # Constant-time compare: plain != leaks prefix length via timing.
@@ -318,7 +332,11 @@ def api_billing_webhook(body: WebhookIn, request: Request):
         if not body.entitlement.strip():
             # Empty entitlement must never mint paid quota (was: else→"pro").
             return _err("missing_entitlement", 400, request)
-        tier = "ultra" if "family" in body.entitlement.lower() or "ultra" in body.entitlement.lower() else "pro"
+        tier = (
+            "ultra"
+            if "family" in body.entitlement.lower() or "ultra" in body.entitlement.lower()
+            else "pro"
+        )
     elif t in ("CANCELLATION", "EXPIRATION", "BILLING_ISSUE"):
         tier = "free"
     elif t == "TEST":
@@ -370,7 +388,6 @@ class NotificationIn(BaseModel):
 @limiter.limit(RELAY_LIMIT)
 def api_checkin(body: CheckinIn, request: Request):
     _ = request
-    from agent import models
     mood = "ok" if body.status == "safe" else "needs_care"
     try:
         cid = models.add_checkin(body.senior_id, "mobile", body.note or body.status, mood)
@@ -393,13 +410,14 @@ def api_checkin(body: CheckinIn, request: Request):
 @limiter.limit(RELAY_LIMIT)
 def api_notifications_send(body: NotificationIn, request: Request):
     _ = request
-    from agent import notifications
     if body.journey == "morning_checkin":
         res = notifications.send_morning_checkin(body.household_id, body.senior_id)
     elif body.journey == "missed_checkin":
         res = notifications.send_missed_checkin_nudge(body.household_id)
     elif body.journey == "emergency_alert":
-        res = notifications.send_emergency_scam_alert(body.household_id, body.caller_hash, body.reasons)
+        res = notifications.send_emergency_scam_alert(
+            body.household_id, body.caller_hash, body.reasons
+        )
     else:
         return _err("unknown_journey", 422, request)
     return res
@@ -408,8 +426,7 @@ def api_notifications_send(body: NotificationIn, request: Request):
 @router.get("/threat-feed")
 def api_threat_feed():
     """Community shield: hashes reported by 3+ independent households. Hashes only."""
-    return {"ok": True, "threshold": mobile.COMMUNITY_THRESHOLD,
-            "entries": mobile.threat_feed()}
+    return {"ok": True, "threshold": mobile.COMMUNITY_THRESHOLD, "entries": mobile.threat_feed()}
 
 
 @router.get("/threat-radar")
@@ -424,6 +441,5 @@ def api_threat_radar(household_id: str = "default", request: Request = None):  #
         "household_stats": stats,
         "community_shield_level": level,
         "zero_knowledge_enforced": True,
-        "note": "Counts from this relay only (household blocklist + blobs). Not carrier regional data."
+        "note": "Counts from this relay only (household blocklist + blobs). Not carrier regional data.",
     }
-

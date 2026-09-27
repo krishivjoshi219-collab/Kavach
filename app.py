@@ -1,18 +1,20 @@
 """Kavach production entrypoint: guardian API + real MCP + family board.
 
-  GET  /healthz   liveness        GET  /readyz    readiness (DB + MCP manager)
-  GET  /version   build + mode    GET  /metrics   operational counters
-  POST /api/chat  senior/family conversation (rate-limited)
-  GET  /api/family-feed          incidents + routines + check-ins + alerts
-  POST /mcp , /mcp/              real MCP, Streamable HTTP, spec 2025-11-25
-  GET  /apps/family-board.html   MCP App UI (also served as ui:// resource)
-  GET  /ui , /                   lightweight fallback console
+GET  /healthz   liveness        GET  /readyz    readiness (DB + MCP manager)
+GET  /version   build + mode    GET  /metrics   operational counters
+POST /api/chat  senior/family conversation (rate-limited)
+GET  /api/family-feed          incidents + routines + check-ins + alerts
+POST /mcp , /mcp/              real MCP, Streamable HTTP, spec 2025-11-25
+GET  /apps/family-board.html   MCP App UI (also served as ui:// resource)
+GET  /ui , /                   lightweight fallback console
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -36,7 +38,9 @@ from starlette.routing import Route
 
 import mobile_api
 from agent import config as cfg
+from agent import mobile as _mobile
 from agent import models
+from agent import redflags as _rf
 from agent.kavach_agent import run_agent_turn
 from agent.ratelimit import limiter
 from mcp_server.server import UI_URI, mcp
@@ -59,23 +63,31 @@ class _RequestIdFilter(logging.Filter):
         return True
 
 
-logging.basicConfig(level=getattr(logging, cfg.LOG_LEVEL.upper(), logging.INFO),
-                    format="%(asctime)s %(levelname)s %(name)s rid=%(request_id)s %(message)s")
+logging.basicConfig(
+    level=getattr(logging, cfg.LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s rid=%(request_id)s %(message)s",
+)
 for _h in logging.root.handlers:
     _h.addFilter(_RequestIdFilter())
 _base_logger = logging.getLogger("kavach")
 
 
 def _log(**fields: object) -> None:
-    _base_logger.info(" ".join(f"{k}={v}" for k, v in fields.items()),
-                      extra={"request_id": fields.get("rid", "-")})
+    _base_logger.info(
+        " ".join(f"{k}={v}" for k, v in fields.items()),
+        extra={"request_id": fields.get("rid", "-")},
+    )
 
 
 START_TIME = time.time()
 METRICS_LOCK = threading.Lock()
 METRICS: dict[str, int] = {
-    "requests_total": 0, "chat_total": 0, "chat_errors": 0,
-    "chat_latency_ms_sum": 0, "mcp_total": 0, "rate_limited": 0,
+    "requests_total": 0,
+    "chat_total": 0,
+    "chat_errors": 0,
+    "chat_latency_ms_sum": 0,
+    "mcp_total": 0,
+    "rate_limited": 0,
 }
 MCP_RUNNING = {"ok": False}
 
@@ -84,14 +96,18 @@ MCP_RUNNING = {"ok": False}
 async def lifespan(_: FastAPI):
     _log(event="startup", mode=cfg.llm_status()["mode"], origins=cfg.ALLOWED_ORIGINS)
     if "*" in cfg.ALLOWED_ORIGINS:
-        _base_logger.warning("CORS allows all origins — set ALLOWED_ORIGINS in production",
-                             extra={"request_id": "-"})
+        _base_logger.warning(
+            "CORS allows all origins — set ALLOWED_ORIGINS in production", extra={"request_id": "-"}
+        )
     if not os.getenv("RC_WEBHOOK_AUTH", ""):
-        _base_logger.warning("RC_WEBHOOK_AUTH unset — webhook runs in TEST MODE",
-                             extra={"request_id": "-"})
+        _base_logger.warning(
+            "RC_WEBHOOK_AUTH unset — webhook runs in TEST MODE", extra={"request_id": "-"}
+        )
     if IS_PROD and cfg.DB_PATH.endswith("kavach.db") and "/data/" not in cfg.DB_PATH:
-        _base_logger.warning("SQLite DB is on ephemeral disk — mount a volume in production",
-                             extra={"request_id": "-"})
+        _base_logger.warning(
+            "SQLite DB is on ephemeral disk — mount a volume in production",
+            extra={"request_id": "-"},
+        )
     async with mcp.session_manager.run():
         MCP_RUNNING["ok"] = True
         _log(event="mcp_ready")
@@ -106,9 +122,14 @@ async def lifespan(_: FastAPI):
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1024 * 1024)))
 
 _docs_url = None if IS_PROD else "/docs"
-app = FastAPI(title="Kavach — voice guardian for seniors", version=cfg.APP_VERSION,
-              lifespan=lifespan, docs_url=_docs_url, redoc_url=None,
-              openapi_url=None if IS_PROD else "/openapi.json")
+app = FastAPI(
+    title="Kavach — voice guardian for seniors",
+    version=cfg.APP_VERSION,
+    lifespan=lifespan,
+    docs_url=_docs_url,
+    redoc_url=None,
+    openapi_url=None if IS_PROD else "/openapi.json",
+)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 app.include_router(mobile_api.router)
@@ -121,50 +142,74 @@ async def _ratelimit_handler(request: Request, exc: RateLimitExceeded):
     rid = getattr(request.state, "rid", "-")
     retry_after = getattr(exc, "retry_after", None)
     headers = {"Retry-After": str(retry_after)} if retry_after else {}
-    return StarletteJSON({"ok": False, "error": "rate_limited",
-                          "detail": "Too many requests, slow down and retry.",
-                          "request_id": rid}, status_code=429, headers=headers)
+    return StarletteJSON(
+        {
+            "ok": False,
+            "error": "rate_limited",
+            "detail": "Too many requests, slow down and retry.",
+            "request_id": rid,
+        },
+        status_code=429,
+        headers=headers,
+    )
 
 
 @app.exception_handler(404)
 async def _not_found_handler(request: Request, exc: Exception):
     rid = getattr(request.state, "rid", "-")
-    return StarletteJSON({"ok": False, "error": "not_found",
-                          "detail": "No such endpoint.",
-                          "request_id": rid}, status_code=404)
+    return StarletteJSON(
+        {"ok": False, "error": "not_found", "detail": "No such endpoint.", "request_id": rid},
+        status_code=404,
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def _validation_handler(request: Request, exc: RequestValidationError):
     """Uniform envelope for schema errors; keeps FastAPI's 422 status."""
     rid = getattr(request.state, "rid", "-")
-    return StarletteJSON({"ok": False, "error": "validation_error",
-                          "detail": exc.errors(),
-                          "request_id": rid}, status_code=422)
+    return StarletteJSON(
+        {"ok": False, "error": "validation_error", "detail": exc.errors(), "request_id": rid},
+        status_code=422,
+    )
 
 
 @app.exception_handler(Exception)
 async def _catch_all(request: Request, exc: Exception):
     import traceback as _tb
+
     rid = getattr(request.state, "rid", "-")
-    _base_logger.error("unhandled path=%s rid=%s\n%s", request.url.path, rid,
-                       _tb.format_exc(limit=5), extra={"request_id": rid})
+    _base_logger.error(
+        "unhandled path=%s rid=%s\n%s",
+        request.url.path,
+        rid,
+        _tb.format_exc(limit=5),
+        extra={"request_id": rid},
+    )
     if request.url.path.startswith(("/api/chat", "/api/demo", "/api/family")):
         with METRICS_LOCK:
             METRICS["chat_errors"] += 1
     if request.url.path.startswith(("/mcp", "/mcp/")):
         # Streamable-HTTP framing: a bare {"ok":false} envelope breaks MCP
         # clients. Return a JSON-RPC error object instead.
-        return StarletteJSON({"jsonrpc": "2.0", "id": None,
-                              "error": {"code": -32603,
-                                        "message": "Internal error",
-                                        "data": {"request_id": rid}}},
-                             status_code=500,
-                             headers=_security_headers(request, https_only=False))
-    return StarletteJSON({"ok": False, "error": "internal",
-                          "detail": "Internal error. Retry with this request_id.",
-                          "request_id": rid}, status_code=500,
-                         headers=_security_headers(request, https_only=False))
+        return StarletteJSON(
+            {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32603, "message": "Internal error", "data": {"request_id": rid}},
+            },
+            status_code=500,
+            headers=_security_headers(request, https_only=False),
+        )
+    return StarletteJSON(
+        {
+            "ok": False,
+            "error": "internal",
+            "detail": "Internal error. Retry with this request_id.",
+            "request_id": rid,
+        },
+        status_code=500,
+        headers=_security_headers(request, https_only=False),
+    )
 
 
 def _security_headers(request: Request, https_only: bool = True) -> dict[str, str]:
@@ -200,9 +245,15 @@ async def _request_context(request: Request, call_next):
     except ValueError:
         clen = 0
     if clen > MAX_BODY_BYTES:
-        return StarletteJSON({"ok": False, "error": "payload_too_large",
-                              "detail": f"Body exceeds {MAX_BODY_BYTES} bytes.",
-                              "request_id": rid}, status_code=413)
+        return StarletteJSON(
+            {
+                "ok": False,
+                "error": "payload_too_large",
+                "detail": f"Body exceeds {MAX_BODY_BYTES} bytes.",
+                "request_id": rid,
+            },
+            status_code=413,
+        )
     with METRICS_LOCK:
         METRICS["requests_total"] += 1
         if request.url.path in ("/mcp", "/mcp/"):
@@ -225,10 +276,15 @@ async def _request_context(request: Request, call_next):
     # on plain HTTP — a wrong HSTS can brick local dev in browsers.
     proto = request.headers.get("x-forwarded-proto", request.url.scheme)
     if proto == "https":
-        response.headers["strict-transport-security"] = (
-            "max-age=31536000; includeSubDomains")
-    _log(event="request", rid=rid, method=request.method,
-         path=request.url.path, status=response.status_code, latency_ms=latency)
+        response.headers["strict-transport-security"] = "max-age=31536000; includeSubDomains"
+    _log(
+        event="request",
+        rid=rid,
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        latency_ms=latency,
+    )
     return response
 
 
@@ -262,20 +318,41 @@ class ChatIn(BaseModel):
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "service": cfg.APP_NAME, "version": cfg.APP_VERSION,
-            "mcp": "/mcp", "spec": cfg.MCP_SPEC_VERSION, "time": time.time()}
+    return {
+        "ok": True,
+        "service": cfg.APP_NAME,
+        "version": cfg.APP_VERSION,
+        "mcp": "/mcp",
+        "spec": cfg.MCP_SPEC_VERSION,
+        "time": time.time(),
+    }
 
 
 @app.get("/version")
 def version():
-    return {"service": cfg.APP_NAME, "version": cfg.APP_VERSION,
-            "mcp_spec": cfg.MCP_SPEC_VERSION, "mcp_app": UI_URI,
-            "llm": cfg.llm_status(),
-            "endpoints": ["/healthz", "/readyz", "/version", "/metrics",
-                          "/api/chat", "/api/family-feed", "/api/demo/attack",
-                          "/api/family/block-case", "/api/nextgen/proof",
-                          "/api/v1/* (mobile contract)",
-                          "/mcp", "/mcp/", "/apps/family-board.html", "/ui"]}
+    return {
+        "service": cfg.APP_NAME,
+        "version": cfg.APP_VERSION,
+        "mcp_spec": cfg.MCP_SPEC_VERSION,
+        "mcp_app": UI_URI,
+        "llm": cfg.llm_status(),
+        "endpoints": [
+            "/healthz",
+            "/readyz",
+            "/version",
+            "/metrics",
+            "/api/chat",
+            "/api/family-feed",
+            "/api/demo/attack",
+            "/api/family/block-case",
+            "/api/nextgen/proof",
+            "/api/v1/* (mobile contract)",
+            "/mcp",
+            "/mcp/",
+            "/apps/family-board.html",
+            "/ui",
+        ],
+    }
 
 
 @app.get("/readyz")
@@ -302,15 +379,14 @@ def readyz():
         checks["db_error"] = str(e)[:200]
     board = os.path.join(os.path.dirname(__file__), "mcp_server", "ui", "family_board.html")
     checks["mcp_app_board"] = os.path.exists(board)
-    ready = bool(checks["mcp_session_manager"] and checks["db_writable"]
-                 and checks["mcp_app_board"])
-    return JSONResponse({"ready": ready, "checks": checks},
-                        status_code=200 if ready else 503)
+    ready = bool(
+        checks["mcp_session_manager"] and checks["db_writable"] and checks["mcp_app_board"]
+    )
+    return JSONResponse({"ready": ready, "checks": checks}, status_code=200 if ready else 503)
 
 
 @app.get("/metrics")
 def metrics():
-    from agent import mobile as _mobile
     with METRICS_LOCK:
         snap = dict(METRICS)
     chats = snap["chat_total"]
@@ -319,9 +395,14 @@ def metrics():
         db_bytes = Path(cfg.DB_PATH).stat().st_size
     except OSError:
         db_bytes = -1
-    return {"uptime_s": int(time.time() - START_TIME), "avg_chat_latency_ms": avg,
-            **snap, "relay": _mobile.relay_stats(),
-            "db_bytes": db_bytes, "env": APP_ENV}
+    return {
+        "uptime_s": int(time.time() - START_TIME),
+        "avg_chat_latency_ms": avg,
+        **snap,
+        "relay": _mobile.relay_stats(),
+        "db_bytes": db_bytes,
+        "env": APP_ENV,
+    }
 
 
 def _feed(senior_id: str) -> dict:
@@ -333,25 +414,38 @@ def _feed(senior_id: str) -> dict:
             i["red_flags"] = json.loads(i["red_flags"])
         except (json.JSONDecodeError, TypeError):
             i["red_flags"] = []
-    return {"senior": {"id": senior.get("id"), "name": senior.get("name"),
-                       "language": senior.get("language")},
-            "incidents": incidents,
-            "routines": models.list_routines(senior_id),
-            "checkins": models.list_checkins(senior_id, 10),
-            "alerts": [{k: a[k] for k in ("id", "kind", "title", "status", "created", "sent_at")
-                        if k in a} for a in models.list_alerts(senior_id, 20)],
-            "contacts": [{"label": c["label"], "kind": c["kind"]}
-                         for c in models.list_contacts(senior_id)]}
+    return {
+        "senior": {
+            "id": senior.get("id"),
+            "name": senior.get("name"),
+            "language": senior.get("language"),
+        },
+        "incidents": incidents,
+        "routines": models.list_routines(senior_id),
+        "checkins": models.list_checkins(senior_id, 10),
+        "alerts": [
+            {k: a[k] for k in ("id", "kind", "title", "status", "created", "sent_at") if k in a}
+            for a in models.list_alerts(senior_id, 20)
+        ],
+        "contacts": [
+            {"label": c["label"], "kind": c["kind"]} for c in models.list_contacts(senior_id)
+        ],
+    }
 
 
 @app.get("/api/family-feed")
 def family_feed(senior_id: str = "demo-senior", request: Request = None):  # type: ignore[assignment]
-    import re as _re
-    if not senior_id or len(senior_id) > 64 or not _re.match(r"^[\w\-.]{1,64}$", senior_id):
+    if not senior_id or len(senior_id) > 64 or not re.match(r"^[\w\-.]{1,64}$", senior_id):
         rid = getattr(request.state, "rid", "-") if request is not None else "-"
-        return JSONResponse({"ok": False, "error": "invalid_id",
-                             "detail": "senior_id must match ^[\\w\\-.]{1,64}$.",
-                             "request_id": rid}, status_code=422)
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "invalid_id",
+                "detail": "senior_id must match ^[\\w\\-.]{1,64}$.",
+                "request_id": rid,
+            },
+            status_code=422,
+        )
     return JSONResponse(_feed(senior_id))
 
 
@@ -361,15 +455,21 @@ class DemoAttackIn(BaseModel):
 
 
 PAUSE_CARDS = {
-    "en": ("Pause. Do not pay. Do not share codes. Verify through a contact you find yourself. "
-           "Say: I will verify independently using an official channel. End the call if unsafe. "
-           "Kavach is safety information, not legal advice."),
-    "hi": ("रुकें। पैसे न भेजें। OTP/कोड साझा न करें। खुद खोजे गए आधिकारिक संपर्क से सत्यापित करें। "
-           "कहें: मैं आधिकारिक चैनल से स्वतंत्र रूप से सत्यापित करूंगा। असुरक्षित लगे तो कॉल काट दें। "
-           "कवच सामान्य सुरक्षा जानकारी है, कानूनी सलाह नहीं।"),
-    "hinglish": ("Ruko. Paise mat bhejo. OTP/code share mat karo. Khud dhoondhe gaye official contact se verify karo. "
-                 "Bolo: main independently verify karunga. Unsafe lage to call kaat do. "
-                 "Kavach safety information hai, legal advice nahi."),
+    "en": (
+        "Pause. Do not pay. Do not share codes. Verify through a contact you find yourself. "
+        "Say: I will verify independently using an official channel. End the call if unsafe. "
+        "Kavach is safety information, not legal advice."
+    ),
+    "hi": (
+        "रुकें। पैसे न भेजें। OTP/कोड साझा न करें। खुद खोजे गए आधिकारिक संपर्क से सत्यापित करें। "
+        "कहें: मैं आधिकारिक चैनल से स्वतंत्र रूप से सत्यापित करूंगा। असुरक्षित लगे तो कॉल काट दें। "
+        "कवच सामान्य सुरक्षा जानकारी है, कानूनी सलाह नहीं।"
+    ),
+    "hinglish": (
+        "Ruko. Paise mat bhejo. OTP/code share mat karo. Khud dhoondhe gaye official contact se verify karo. "
+        "Bolo: main independently verify karunga. Unsafe lage to call kaat do. "
+        "Kavach safety information hai, legal advice nahi."
+    ),
 }
 
 
@@ -377,28 +477,41 @@ PAUSE_CARDS = {
 def pause_card(lang: str = "en"):
     lang = lang[:8].lower()
     key = "hinglish" if "hing" in lang else "hi" if lang.startswith("hi") else "en"
-    return JSONResponse({"lang": key, "card": PAUSE_CARDS[key], "offline": True,
-                         "disclaimer": "General safety information, not legal advice."})
+    return JSONResponse(
+        {
+            "lang": key,
+            "card": PAUSE_CARDS[key],
+            "offline": True,
+            "disclaimer": "General safety information, not legal advice.",
+        }
+    )
 
 
 @app.get("/api/directory/lookup")
 def directory_lookup(q: str = "", jurisdiction: str = "IN", lang: str = "en"):
     entries = _load_directory()
     ql = q[:120].lower()
-    out = [e for e in entries
-           if (not ql or ql in (e.get("institution", "") + e.get("category", "")).lower())]
+    out = [
+        e
+        for e in entries
+        if (not ql or ql in (e.get("institution", "") + e.get("category", "")).lower())
+    ]
     if jurisdiction and jurisdiction.upper() != "ALL":
-        out = [e for e in out
-               if e.get("jurisdiction", "IN").upper() == jurisdiction[:8].upper()]
+        out = [e for e in out if e.get("jurisdiction", "IN").upper() == jurisdiction[:8].upper()]
     if lang[:2].lower() in ("hi", "en"):
         pref = [e for e in out if e.get("language") == lang[:2].lower()]
         if pref:
             out = pref
     # Copy before annotating: _load_directory() is cached, never mutate it.
     # count = total matches (not page length) so clients can paginate honestly.
-    annotated = [dict(e, caller_authenticated=False,
-                      note="Directory does not authenticate the caller. "
-                           "Caller ID can be spoofed.") for e in out]
+    annotated = [
+        dict(
+            e,
+            caller_authenticated=False,
+            note="Directory does not authenticate the caller. Caller ID can be spoofed.",
+        )
+        for e in out
+    ]
     return JSONResponse({"entries": annotated[:25], "count": len(annotated)})
 
 
@@ -413,38 +526,63 @@ def _load_directory() -> list[dict]:
 
 
 DEMO_SCENARIOS = {
-    "bank_otp": ("call", "HDFC bank officer",
-                 ("Senior: phone call. Caller: HDFC bank officer. Asked: share OTP to unfreeze account. "
-                  "Pressure: yes, police complaint today itself.")),
-    "digital_arrest": ("call", "CBI cyber cell",
-                       ("Senior: phone call. Caller: CBI cyber cell. "
-                        "Asked: stay on video call, transfer to safe account. "
-                        "Pressure: yes, arrest immediately, do not hang up.")),
-    "power_apk": ("message", "electricity department",
-                  ("Senior: SMS with APK link. Caller: electricity department. Asked: download APK to update KYC. "
-                   "Pressure: power cut tonight.")),
+    "bank_otp": (
+        "call",
+        "HDFC bank officer",
+        (
+            "Senior: phone call. Caller: HDFC bank officer. Asked: share OTP to unfreeze account. "
+            "Pressure: yes, police complaint today itself."
+        ),
+    ),
+    "digital_arrest": (
+        "call",
+        "CBI cyber cell",
+        (
+            "Senior: phone call. Caller: CBI cyber cell. "
+            "Asked: stay on video call, transfer to safe account. "
+            "Pressure: yes, arrest immediately, do not hang up."
+        ),
+    ),
+    "power_apk": (
+        "message",
+        "electricity department",
+        (
+            "Senior: SMS with APK link. Caller: electricity department. Asked: download APK to update KYC. "
+            "Pressure: power cut tonight."
+        ),
+    ),
 }
 
 
 @app.post("/api/demo/attack")
 @limiter.limit(f"{cfg.RATE_LIMIT_PER_MIN}/minute")
 def demo_attack(body: DemoAttackIn, request: Request):
-    from agent import redflags as _rf
     _ = request
     models.ensure_seed(body.senior_id)
     channel, claim, transcript = DEMO_SCENARIOS.get(body.scenario, DEMO_SCENARIOS["bank_otp"])
     signals = _rf.extract_signals(transcript)
     contact = models.find_contact(body.senior_id, claim)
     verdict, conf, reasons = _rf.score_verdict(signals, transcript, known_contact=bool(contact))
-    iid = models.create_incident(body.senior_id, channel, claim, transcript,
-                                 signals, verdict, conf)
-    draft = models.draft_alert(body.senior_id, "family_note",
-                               "Kavach live-attack: possible scam",
-                               f"Case #{iid}: {verdict} — {claim}. {'; '.join(reasons[:3])}",
-                               iid)
-    return JSONResponse({"ok": True, "test_mode": True, "incident_id": iid,
-                         "verdict": verdict, "confidence": conf, "reasons": reasons,
-                         "alert_id": draft["id"], "confirm_code": draft["confirm_code"]})
+    iid = models.create_incident(body.senior_id, channel, claim, transcript, signals, verdict, conf)
+    draft = models.draft_alert(
+        body.senior_id,
+        "family_note",
+        "Kavach live-attack: possible scam",
+        f"Case #{iid}: {verdict} — {claim}. {'; '.join(reasons[:3])}",
+        iid,
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "test_mode": True,
+            "incident_id": iid,
+            "verdict": verdict,
+            "confidence": conf,
+            "reasons": reasons,
+            "alert_id": draft["id"],
+            "confirm_code": draft["confirm_code"],
+        }
+    )
 
 
 class ChallengeIn(BaseModel):
@@ -469,10 +607,15 @@ def challenge_create(body: ChallengeIn, request: Request):
     _ = request
     models.ensure_seed(body.senior_id)
     ch = models.create_challenge(body.senior_id, body.claim_who, body.question)
-    return JSONResponse({"ok": True, **ch,
-                         "copy": "This confirms a response from an enrolled family device. "
-                                 "It does not prove the caller is genuine. If unsure, end the call "
-                                 "and contact family using a saved number."})
+    return JSONResponse(
+        {
+            "ok": True,
+            **ch,
+            "copy": "This confirms a response from an enrolled family device. "
+            "It does not prove the caller is genuine. If unsure, end the call "
+            "and contact family using a saved number.",
+        }
+    )
 
 
 @app.get("/api/family/challenge/{challenge_id}")
@@ -480,9 +623,24 @@ def challenge_get(challenge_id: str):
     ch = models.get_challenge(challenge_id[:64])
     if not ch:
         return JSONResponse({"ok": False, "error": "not_found"}, status_code=404)
-    return JSONResponse({"ok": True, "challenge": {k: ch[k] for k in
-                         ("id", "senior_id", "claim_who", "question", "state",
-                          "decision", "created", "expires")}})
+    return JSONResponse(
+        {
+            "ok": True,
+            "challenge": {
+                k: ch[k]
+                for k in (
+                    "id",
+                    "senior_id",
+                    "claim_who",
+                    "question",
+                    "state",
+                    "decision",
+                    "created",
+                    "expires",
+                )
+            },
+        }
+    )
 
 
 @app.post("/api/family/challenge/{challenge_id}/respond")
@@ -492,13 +650,21 @@ def challenge_respond(challenge_id: str, body: ChallengeRespondIn, request: Requ
     out = models.respond_challenge(challenge_id[:64], body.decision)
     if not out:
         return JSONResponse({"ok": False, "error": "bad_state_or_expired"}, status_code=410)
-    wording = {"APPROVE": "Enrolled device confirmed. This does not authenticate the caller. "
-                          "Call back using your saved number before acting.",
-               "DENY": "Enrolled device says they did not make this request. End the call and "
-                       "contact them using your saved number.",
-               "NEED_HELP": "Your family member requested help. Contact another trusted person."}
-    return JSONResponse({"ok": True, "state": out["state"], "decision": out["decision"],
-                         "wording": wording.get(out["decision"], "")})
+    wording = {
+        "APPROVE": "Enrolled device confirmed. This does not authenticate the caller. "
+        "Call back using your saved number before acting.",
+        "DENY": "Enrolled device says they did not make this request. End the call and "
+        "contact them using your saved number.",
+        "NEED_HELP": "Your family member requested help. Contact another trusted person.",
+    }
+    return JSONResponse(
+        {
+            "ok": True,
+            "state": out["state"],
+            "decision": out["decision"],
+            "wording": wording.get(out["decision"], ""),
+        }
+    )
 
 
 @app.post("/api/family/block-case")
@@ -511,7 +677,6 @@ def block_case(body: BlockCaseIn, request: Request):
     same lure blocked by 3 independent households enters the community feed.
     Raw numbers never exist here — hashes only.
     """
-    from agent import mobile as _mobile
     _ = request
     models.ensure_seed(body.senior_id)
     inc = models.get_incident(body.incident_id)
@@ -522,12 +687,19 @@ def block_case(body: BlockCaseIn, request: Request):
     number_hash = _mobile.hash_number(household_id, claim.strip() or f"case-{inc['id']}")
     ok = _mobile.block_number(household_id, number_hash, body.label[:120], "block")
     feed_hit = any(f["number_hash"] == number_hash for f in _mobile.threat_feed())
-    return JSONResponse({"ok": ok, "number_hash": number_hash,
-                         "household_id": household_id,
-                         "community": feed_hit,
-                         "summary": ("Blocked sender-hash for household. Sibling devices sync it "
-                                     "via GET /api/v1/screen/list; all households gain it at "
-                                     "3 independent reports.")})
+    return JSONResponse(
+        {
+            "ok": ok,
+            "number_hash": number_hash,
+            "household_id": household_id,
+            "community": feed_hit,
+            "summary": (
+                "Blocked sender-hash for household. Sibling devices sync it "
+                "via GET /api/v1/screen/list; all households gain it at "
+                "3 independent reports."
+            ),
+        }
+    )
 
 
 @app.post("/api/chat")
@@ -537,16 +709,22 @@ def chat(body: ChatIn, request: Request):
     rid = getattr(request.state, "rid", uuid.uuid4().hex[:12])
     t0 = monotonic()  # monotonic: NTP steps must not skew latency metrics
     try:
-        out = run_agent_turn(text, body.session_id or "default",
-                             body.senior_id or "demo-senior")
+        out = run_agent_turn(text, body.session_id or "default", body.senior_id or "demo-senior")
     except Exception:  # noqa: BLE001 - chat must never 500 on demo day
         import traceback as _tb
-        _base_logger.error("chat_error rid=%s\n%s", rid, _tb.format_exc(limit=5),
-                           extra={"request_id": rid})
+
+        _base_logger.error(
+            "chat_error rid=%s\n%s", rid, _tb.format_exc(limit=5), extra={"request_id": rid}
+        )
         # Generic client text: never echo internals (DB paths, SQL) outward.
-        out = {"spoken": "Something hiccuped on my side — but everything you said is saved. "
-                         "Please try once more.",
-               "text": f"error id {rid}", "cards": [], "tools": [], "provider": "error"}
+        out = {
+            "spoken": "Something hiccuped on my side — but everything you said is saved. "
+            "Please try once more.",
+            "text": f"error id {rid}",
+            "cards": [],
+            "tools": [],
+            "provider": "error",
+        }
         with METRICS_LOCK:
             METRICS["chat_errors"] += 1
     latency = int((monotonic() - t0) * 1000)
@@ -579,48 +757,72 @@ def nextgen_proof():
     Judges verify thoughtful RevenueCat use + repo/video readiness without a
     store release. All file checks are best-effort (missing file = false)."""
     import agent.rulepack as _rp
+
     base = os.path.dirname(__file__)
     assets = os.path.join(base, "assets")
     sub = os.path.join(base, "docs", "SUBMISSION_NEXTGEN.md")
-    return JSONResponse({
-        "track": "Next Gen",
-        "test_mode": True,
-        "revenuecat": {
-            "sdk": "purchases:10.23.2 (PaywallActivity.kt)",
-            "entitlements": ["sheild_protection", "shield_protection", "family_fortress",
-                             "pro_caregiver", "pro", "family_pro_shield"],
-            "judge_promo": "SHIPATON-JUDGE",
-            "server_authority": "POST /api/v1/billing/webhook "
-                                "(Bearer + idempotent receipts + downgrade)",
-            "sandbox_reconcile": "POST /api/v1/household/tier",
-            "tiers": {"free": 20, "pro": 200, "ultra": 2000},
-            "never_paywalled": ["urgent actions", "consent screens",
-                                "revoke/kill-switch", "export"],
-        },
-        "demo_contract": {
-            "attack": "POST /api/demo/attack {bank_otp|digital_arrest|power_apk}",
-            "block_case": "POST /api/family/block-case {senior_id, incident_id}",
-            "household_sync": "GET /api/v1/screen/list?household_id=",
-            "community": "GET /api/v1/threat-feed (hashes only, 3-household gate)",
-            "rules": "GET /api/v1/rules/pack (Ed25519, test_mode="
-                     + str(_rp.is_test_mode()) + ")",
-            "apks": ["kavach-senior-apk (.senior)", "kavach-manager-apk (.manager)"],
-        },
-        "repo": {
-            "license_mit": os.path.exists(os.path.join(base, "LICENSE")),
-            "submission_pack": os.path.exists(sub),
-            "icon_1024": os.path.exists(os.path.join(assets, "icon-1024.png")),
-            "screenshot_1179x2556": os.path.exists(
-                os.path.join(assets, "screenshot-1179x2556.png")),
-            "video_source": os.path.exists(
-                os.path.join(assets, "kavach-demo-2min.mp4")),
-        },
-        "endpoints": ["/healthz", "/readyz", "/version", "/metrics",
-                      "/api/chat", "/api/family-feed", "/api/demo/attack",
-                      "/api/family/block-case", "/api/v1/*", "/mcp",
-                      "/apps/family-board.html", "/funnel.html", "/ui"],
-    })
-
+    return JSONResponse(
+        {
+            "track": "Next Gen",
+            "test_mode": True,
+            "revenuecat": {
+                "sdk": "purchases:10.23.2 (PaywallActivity.kt)",
+                "entitlements": [
+                    "sheild_protection",
+                    "shield_protection",
+                    "family_fortress",
+                    "pro_caregiver",
+                    "pro",
+                    "family_pro_shield",
+                ],
+                "judge_promo": "SHIPATON-JUDGE",
+                "server_authority": "POST /api/v1/billing/webhook "
+                "(Bearer + idempotent receipts + downgrade)",
+                "sandbox_reconcile": "POST /api/v1/household/tier",
+                "tiers": {"free": 20, "pro": 200, "ultra": 2000},
+                "never_paywalled": [
+                    "urgent actions",
+                    "consent screens",
+                    "revoke/kill-switch",
+                    "export",
+                ],
+            },
+            "demo_contract": {
+                "attack": "POST /api/demo/attack {bank_otp|digital_arrest|power_apk}",
+                "block_case": "POST /api/family/block-case {senior_id, incident_id}",
+                "household_sync": "GET /api/v1/screen/list?household_id=",
+                "community": "GET /api/v1/threat-feed (hashes only, 3-household gate)",
+                "rules": "GET /api/v1/rules/pack (Ed25519, test_mode="
+                + str(_rp.is_test_mode())
+                + ")",
+                "apks": ["kavach-senior-apk (.senior)", "kavach-manager-apk (.manager)"],
+            },
+            "repo": {
+                "license_mit": os.path.exists(os.path.join(base, "LICENSE")),
+                "submission_pack": os.path.exists(sub),
+                "icon_1024": os.path.exists(os.path.join(assets, "icon-1024.png")),
+                "screenshot_1179x2556": os.path.exists(
+                    os.path.join(assets, "screenshot-1179x2556.png")
+                ),
+                "video_source": os.path.exists(os.path.join(assets, "kavach-demo-2min.mp4")),
+            },
+            "endpoints": [
+                "/healthz",
+                "/readyz",
+                "/version",
+                "/metrics",
+                "/api/chat",
+                "/api/family-feed",
+                "/api/demo/attack",
+                "/api/family/block-case",
+                "/api/v1/*",
+                "/mcp",
+                "/apps/family-board.html",
+                "/funnel.html",
+                "/ui",
+            ],
+        }
+    )
 
 
 FALLBACK_HTML = """<!doctype html><html lang='en'><head><meta charset='utf-8'>

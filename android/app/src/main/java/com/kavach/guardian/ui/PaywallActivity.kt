@@ -678,7 +678,7 @@ class PaywallActivity : AppCompatActivity(), PaywallResultHandler {
     }
 
     private fun hasProEntitlement(info: CustomerInfo): Boolean {
-        // Checking for sheild_protection (and canonical shield_protection)
+        // Canonical ID is shield_protection; legacy sheild_ alias kept for compat.
         // Accept aliases so dashboard changes never lock family users out.
         val ids = listOf("sheild_protection", "shield_protection", "family_fortress", "pro_caregiver", "pro", "family_pro_shield", "kavach_pro", "kavach_premium")
         return ids.any { info.entitlements[it]?.isActive == true }

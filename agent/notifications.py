@@ -3,6 +3,7 @@
 Supports automated morning check-ins, missed check-in caregiver nudges,
 and breakthrough emergency alerts. Uses OneSignal REST API.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,20 +21,30 @@ _PUSH_TIMEOUT_S = 10
 
 def _onesignal_config() -> tuple[str, str]:
     """Read env lazily so tests / redeploys can rotate keys without reimport."""
-    return (os.getenv("ONESIGNAL_APP_ID", "test_onesignal_app_id"),
-            os.getenv("ONESIGNAL_REST_KEY", ""))
+    return (
+        os.getenv("ONESIGNAL_APP_ID", "test_onesignal_app_id"),
+        os.getenv("ONESIGNAL_REST_KEY", ""),
+    )
 
 
-def _send_push(headings: dict[str, str], contents: dict[str, str],
-               custom_data: dict[str, Any], tag_filters: list[dict[str, str]]) -> dict[str, Any]:
+def _send_push(
+    headings: dict[str, str],
+    contents: dict[str, str],
+    custom_data: dict[str, Any],
+    tag_filters: list[dict[str, str]],
+) -> dict[str, Any]:
     """Dispatches a notification via OneSignal or logs in simulated mode."""
     app_id, rest_key = _onesignal_config()
     if not rest_key:
-        log.info("[OneSignal Test Mode] Notification dispatched: %s | %s", headings.get("en"), contents.get("en"))
+        log.info(
+            "[OneSignal Test Mode] Notification dispatched: %s | %s",
+            headings.get("en"),
+            contents.get("en"),
+        )
         return {
             "ok": True,
             "simulated": True,
-            "id": f"sim_{int(time.time()*1000)}",
+            "id": f"sim_{int(time.time() * 1000)}",
             "recipients": 1,
             "headings": headings,
             "contents": contents,
@@ -72,11 +83,15 @@ def send_morning_checkin(household_id: str, senior_id: str) -> dict[str, Any]:
     return _send_push(
         headings={"en": "Kavach Morning Shield ☀️"},
         contents={"en": "Good morning! Tap to confirm you're safe and start your protected day."},
-        custom_data={"type": "morning_checkin", "household_id": household_id, "senior_id": senior_id},
+        custom_data={
+            "type": "morning_checkin",
+            "household_id": household_id,
+            "senior_id": senior_id,
+        },
         tag_filters=[
             {"field": "tag", "key": "household_id", "relation": "=", "value": household_id},
             {"field": "tag", "key": "role", "relation": "=", "value": "senior"},
-        ]
+        ],
     )
 
 
@@ -84,26 +99,36 @@ def send_missed_checkin_nudge(household_id: str, senior_name: str = "Dad") -> di
     """Gentle nudge sent to family manager if morning check-in is missed."""
     return _send_push(
         headings={"en": "Family Check-In Reminder 💛"},
-        contents={"en": f"{senior_name} hasn't checked in this morning. A quick phone call brings peace of mind."},
+        contents={
+            "en": f"{senior_name} hasn't checked in this morning. A quick phone call brings peace of mind."
+        },
         custom_data={"type": "missed_checkin_nudge", "household_id": household_id},
         tag_filters=[
             {"field": "tag", "key": "household_id", "relation": "=", "value": household_id},
             {"field": "tag", "key": "role", "relation": "=", "value": "manager"},
-        ]
+        ],
     )
 
 
-def send_emergency_scam_alert(household_id: str, caller_hash: str, reasons: list[str]) -> dict[str, Any]:
+def send_emergency_scam_alert(
+    household_id: str, caller_hash: str, reasons: list[str]
+) -> dict[str, Any]:
     """High-priority alert sent to family manager upon live scam interception."""
     short = [str(r)[:120] for r in (reasons or [])[:5]]
     reason_str = "; ".join(short) if short else "Severe threat or OTP ask detected"
     reason_str = reason_str[:300]
     return _send_push(
         headings={"en": "🚨 URGENT: Scam Intercepted on Dad's Phone"},
-        contents={"en": f"Blocked scammer ({caller_hash[:8]}...). Threat: {reason_str}. Open War Room to intervene."},
-        custom_data={"type": "scam_alert", "household_id": household_id, "caller_hash": caller_hash},
+        contents={
+            "en": f"Blocked scammer ({caller_hash[:8]}...). Threat: {reason_str}. Open War Room to intervene."
+        },
+        custom_data={
+            "type": "scam_alert",
+            "household_id": household_id,
+            "caller_hash": caller_hash,
+        },
         tag_filters=[
             {"field": "tag", "key": "household_id", "relation": "=", "value": household_id},
             {"field": "tag", "key": "role", "relation": "=", "value": "manager"},
-        ]
+        ],
     )

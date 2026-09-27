@@ -4,6 +4,7 @@ DB_PATH is read dynamically (config.DB_PATH attribute access), so patching
 it isolates all DB users. In-memory counters (METRICS, RELAY_STATS) and
 rate-limit buckets are process-global and must be reset explicitly.
 """
+
 import os
 
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")

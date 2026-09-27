@@ -15,10 +15,19 @@ class KavachApp : Application() {
         super.onCreate()
         HybridConfig.register()
         store = LocalStore(this)
-        // Enable debug logging for testing and configure RevenueCat SDK
-        Purchases.logLevel = LogLevel.DEBUG
-        Purchases.configure(
-            PurchasesConfiguration.Builder(this, BuildConfig.REVENUECAT_KEY).build()
-        )
+        // RevenueCat: configure only with a real public SDK key. In TEST MODE
+        // (no key injected) skip configure so the app never crash-loops at
+        // cold start; PaywallActivity already gates on Purchases.isConfigured.
+        Purchases.logLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.WARN
+        val key = BuildConfig.REVENUECAT_KEY
+        if (key.isNotBlank() && key != "test_REPLACE_ME") {
+            try {
+                Purchases.configure(
+                    PurchasesConfiguration.Builder(this, key).build()
+                )
+            } catch (_: Exception) {
+                // Stay in TEST MODE: backend promo + sandbox reconcile path.
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
 """SQLite domain model: seniors, contacts, incidents, check-ins, routines, alerts, flows."""
+
 from __future__ import annotations
 
 import json
@@ -6,6 +7,7 @@ import os
 import secrets
 import sqlite3
 import time
+import uuid
 from typing import Any
 
 from . import config
@@ -99,23 +101,35 @@ def ensure_seed(senior_id: str = "demo-senior") -> dict[str, Any]:
         row = conn.execute("SELECT * FROM seniors WHERE id=?", (senior_id,)).fetchone()
         if row is None:
             conn.execute(
-                "INSERT INTO seniors(id,name,language,notes,created,updated)"
-                " VALUES(?,?,?,?,?,?)",
-                (senior_id, "Asha", "en",
-                 "Demo household (fictional). Speaks English, mornings are routine.",
-                 _now(), _now()))
+                "INSERT INTO seniors(id,name,language,notes,created,updated) VALUES(?,?,?,?,?,?)",
+                (
+                    senior_id,
+                    "Asha",
+                    "en",
+                    "Demo household (fictional). Speaks English, mornings are routine.",
+                    _now(),
+                    _now(),
+                ),
+            )
             for label, detail, kind in [
-                    ("Priya (daughter)", "+91-98XXX-XXX01", "family"),
-                    ("Family doctor — Dr. Rao", "+91-98XXX-XXX02", "family"),
-                    ("HDFC Bank official helpline", "1800-XXX-XXXX (printed on card)", "bank")]:
+                ("Priya (daughter)", "+91-98XXX-XXX01", "family"),
+                ("Family doctor — Dr. Rao", "+91-98XXX-XXX02", "family"),
+                ("HDFC Bank official helpline", "1800-XXX-XXXX (printed on card)", "bank"),
+            ]:
                 conn.execute(
                     "INSERT INTO safe_contacts(senior_id,label,detail,kind,created)"
-                    " VALUES(?,?,?,?,?)", (senior_id, label, detail, kind, _now()))
-            for label, expected in [("Breakfast", "08:30"), ("Morning walk", "07:00"),
-                                    ("Evening medicines", "20:00")]:
+                    " VALUES(?,?,?,?,?)",
+                    (senior_id, label, detail, kind, _now()),
+                )
+            for label, expected in [
+                ("Breakfast", "08:30"),
+                ("Morning walk", "07:00"),
+                ("Evening medicines", "20:00"),
+            ]:
                 conn.execute(
-                    "INSERT INTO routines(senior_id,label,expected_time,created)"
-                    " VALUES(?,?,?,?)", (senior_id, label, expected, _now()))
+                    "INSERT INTO routines(senior_id,label,expected_time,created) VALUES(?,?,?,?)",
+                    (senior_id, label, expected, _now()),
+                )
             conn.commit()
             row = conn.execute("SELECT * FROM seniors WHERE id=?", (senior_id,)).fetchone()
         return dict(row)
@@ -135,9 +149,12 @@ def get_senior(senior_id: str) -> dict[str, Any] | None:
 def list_contacts(senior_id: str) -> list[dict[str, Any]]:
     conn = _connect()
     try:
-        return [dict(r) for r in
-                conn.execute("SELECT * FROM safe_contacts WHERE senior_id=? ORDER BY id",
-                             (senior_id,))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM safe_contacts WHERE senior_id=? ORDER BY id", (senior_id,)
+            )
+        ]
     finally:
         conn.close()
 
@@ -155,16 +172,33 @@ def find_contact(senior_id: str, text: str) -> dict[str, Any] | None:
     return None
 
 
-def create_incident(senior_id: str, channel: str, caller_claim: str,
-                    transcript: str, red_flags: list[dict], verdict: str,
-                    confidence: float) -> int:
+def create_incident(
+    senior_id: str,
+    channel: str,
+    caller_claim: str,
+    transcript: str,
+    red_flags: list[dict],
+    verdict: str,
+    confidence: float,
+) -> int:
     conn = _connect()
     try:
         cur = conn.execute(
             "INSERT INTO incidents(senior_id,status,channel,caller_claim,transcript,"
             "red_flags,verdict,confidence,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (senior_id, "verdict", channel, caller_claim[:500], transcript[-4000:],
-             json.dumps(red_flags), verdict, confidence, _now(), _now()))
+            (
+                senior_id,
+                "verdict",
+                channel,
+                caller_claim[:500],
+                transcript[-4000:],
+                json.dumps(red_flags),
+                verdict,
+                confidence,
+                _now(),
+                _now(),
+            ),
+        )
         conn.commit()
         return int(cur.lastrowid)
     finally:
@@ -172,8 +206,17 @@ def create_incident(senior_id: str, channel: str, caller_claim: str,
 
 
 INCIDENT_COLUMNS = {
-    "senior_id", "status", "channel", "caller_claim", "transcript",
-    "red_flags", "verdict", "confidence", "created", "updated", "closed",
+    "senior_id",
+    "status",
+    "channel",
+    "caller_claim",
+    "transcript",
+    "red_flags",
+    "verdict",
+    "confidence",
+    "created",
+    "updated",
+    "closed",
 }
 
 
@@ -185,8 +228,10 @@ def update_incident(incident_id: int, **fields: Any) -> None:
     sets = ", ".join(f"{k}=?" for k in fields)
     conn = _connect()
     try:
-        conn.execute(f"UPDATE incidents SET {sets} WHERE id=?",  # vcc:ignore
-                     (*fields.values(), incident_id))
+        conn.execute(
+            f"UPDATE incidents SET {sets} WHERE id=?",  # vcc:ignore
+            (*fields.values(), incident_id),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -204,9 +249,13 @@ def get_incident(incident_id: int) -> dict[str, Any] | None:
 def list_incidents(senior_id: str, limit: int = 20) -> list[dict[str, Any]]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT * FROM incidents WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, _clamp_limit(limit)))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM incidents WHERE senior_id=? ORDER BY id DESC LIMIT ?",
+                (senior_id, _clamp_limit(limit)),
+            )
+        ]
     finally:
         conn.close()
 
@@ -216,7 +265,8 @@ def add_checkin(senior_id: str, kind: str, note: str, mood: str = "ok") -> int:
     try:
         cur = conn.execute(
             "INSERT INTO checkins(senior_id,kind,note,mood,created) VALUES(?,?,?,?,?)",
-            (senior_id, kind, note[:1000], mood, _now()))
+            (senior_id, kind, note[:1000], mood, _now()),
+        )
         conn.commit()
         return int(cur.lastrowid)
     finally:
@@ -226,9 +276,13 @@ def add_checkin(senior_id: str, kind: str, note: str, mood: str = "ok") -> int:
 def list_checkins(senior_id: str, limit: int = 10) -> list[dict[str, Any]]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT * FROM checkins WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, _clamp_limit(limit, default=10)))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM checkins WHERE senior_id=? ORDER BY id DESC LIMIT ?",
+                (senior_id, _clamp_limit(limit, default=10)),
+            )
+        ]
     finally:
         conn.close()
 
@@ -236,8 +290,12 @@ def list_checkins(senior_id: str, limit: int = 10) -> list[dict[str, Any]]:
 def list_routines(senior_id: str) -> list[dict[str, Any]]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT * FROM routines WHERE senior_id=? ORDER BY id", (senior_id,))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM routines WHERE senior_id=? ORDER BY id", (senior_id,)
+            )
+        ]
     finally:
         conn.close()
 
@@ -245,23 +303,34 @@ def list_routines(senior_id: str) -> list[dict[str, Any]]:
 def confirm_routine(routine_id: int) -> None:
     conn = _connect()
     try:
-        conn.execute("UPDATE routines SET last_confirmed=?, streak=streak+1 WHERE id=?",
-                     (_now(), routine_id))
+        conn.execute(
+            "UPDATE routines SET last_confirmed=?, streak=streak+1 WHERE id=?", (_now(), routine_id)
+        )
         conn.commit()
     finally:
         conn.close()
 
 
-def draft_alert(senior_id: str, kind: str, title: str, body: str,
-                incident_id: int | None = None) -> dict[str, Any]:
+def draft_alert(
+    senior_id: str, kind: str, title: str, body: str, incident_id: int | None = None
+) -> dict[str, Any]:
     code = "".join(secrets.choice("ABCDEFGHJKMNPQRSTUVWXYZ23456789") for _ in range(6))
     conn = _connect()
     try:
         cur = conn.execute(
             "INSERT INTO alerts(senior_id,incident_id,kind,title,body,status,"
             "confirm_code,created) VALUES(?,?,?,?,?,?,?,?)",
-            (senior_id, incident_id, kind, title[:200], body[:2000],
-             "pending_confirm", code, _now()))
+            (
+                senior_id,
+                incident_id,
+                kind,
+                title[:200],
+                body[:2000],
+                "pending_confirm",
+                code,
+                _now(),
+            ),
+        )
         conn.commit()
         return {"id": int(cur.lastrowid), "confirm_code": code}
     finally:
@@ -273,7 +342,9 @@ def get_pending_alert(senior_id: str) -> dict[str, Any] | None:
     try:
         row = conn.execute(
             "SELECT * FROM alerts WHERE senior_id=? AND status='pending_confirm'"
-            " ORDER BY id DESC LIMIT 1", (senior_id,)).fetchone()
+            " ORDER BY id DESC LIMIT 1",
+            (senior_id,),
+        ).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -284,9 +355,11 @@ def confirm_alert(alert_id: int, code: str) -> bool:
     # one UPDATE, so concurrent confirms can't both report success.
     conn = _connect()
     try:
-        cur = conn.execute("UPDATE alerts SET status='sent', sent_at=? WHERE id=?"
-                           " AND status='pending_confirm' AND UPPER(confirm_code)=UPPER(?)",
-                           (_now(), alert_id, code.strip()))
+        cur = conn.execute(
+            "UPDATE alerts SET status='sent', sent_at=? WHERE id=?"
+            " AND status='pending_confirm' AND UPPER(confirm_code)=UPPER(?)",
+            (_now(), alert_id, code.strip()),
+        )
         conn.commit()
         return cur.rowcount == 1
     finally:
@@ -296,21 +369,27 @@ def confirm_alert(alert_id: int, code: str) -> bool:
 def list_alerts(senior_id: str, limit: int = 20) -> list[dict[str, Any]]:
     conn = _connect()
     try:
-        return [dict(r) for r in conn.execute(
-            "SELECT * FROM alerts WHERE senior_id=? ORDER BY id DESC LIMIT ?",
-            (senior_id, _clamp_limit(limit)))]
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM alerts WHERE senior_id=? ORDER BY id DESC LIMIT ?",
+                (senior_id, _clamp_limit(limit)),
+            )
+        ]
     finally:
         conn.close()
 
 
-def set_flow(session_id: str, kind: str, stage: str,
-             incident_id: int | None = None, data: dict | None = None) -> None:
+def set_flow(
+    session_id: str, kind: str, stage: str, incident_id: int | None = None, data: dict | None = None
+) -> None:
     conn = _connect()
     try:
         conn.execute(
             "INSERT OR REPLACE INTO flows(session_id,kind,stage,incident_id,data,updated)"
             " VALUES(?,?,?,?,?,?)",
-            (session_id, kind, stage, incident_id, json.dumps(data or {}), _now()))
+            (session_id, kind, stage, incident_id, json.dumps(data or {}), _now()),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -344,17 +423,19 @@ def clear_flow(session_id: str) -> None:
         conn.close()
 
 
-def create_challenge(senior_id: str, claim_who: str, question: str, ttl_s: int = 300) -> dict[str, Any]:
-    import uuid as _uuid
-    cid = "ch_" + _uuid.uuid4().hex[:12]
+def create_challenge(
+    senior_id: str, claim_who: str, question: str, ttl_s: int = 300
+) -> dict[str, Any]:
+    cid = "ch_" + uuid.uuid4().hex[:12]
     nonce = secrets.token_urlsafe(24)
     now = _now()
     conn = _connect()
     try:
-        conn.execute("INSERT INTO family_challenges(id,senior_id,claim_who,question,nonce,"
-                     "state,created,expires) VALUES(?,?,?,?,?,?,?,?)",
-                     (cid, senior_id, claim_who[:200], question[:500], nonce,
-                      "pending", now, now + ttl_s))
+        conn.execute(
+            "INSERT INTO family_challenges(id,senior_id,claim_who,question,nonce,"
+            "state,created,expires) VALUES(?,?,?,?,?,?,?,?)",
+            (cid, senior_id, claim_who[:200], question[:500], nonce, "pending", now, now + ttl_s),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -386,22 +467,25 @@ def respond_challenge(challenge_id: str, decision: str) -> dict[str, Any] | None
         # Atomic resolve: concurrent APPROVE+DENY race here, and exactly one
         # may flip pending->resolved. Losers read back the winner's decision.
         now = _now()
-        cur = conn.execute("UPDATE family_challenges SET state='resolved', decision=?,"
-                           " resolved=? WHERE id=? AND state='pending' AND expires>?",
-                           (decision, now, challenge_id, now))
+        cur = conn.execute(
+            "UPDATE family_challenges SET state='resolved', decision=?,"
+            " resolved=? WHERE id=? AND state='pending' AND expires>?",
+            (decision, now, challenge_id, now),
+        )
         conn.commit()
-        row = conn.execute("SELECT * FROM family_challenges WHERE id=?",
-                           (challenge_id,)).fetchone()
+        row = conn.execute("SELECT * FROM family_challenges WHERE id=?", (challenge_id,)).fetchone()
         if not row:
             return None
         if cur.rowcount != 1:
             # Someone else resolved (or it expired) first: report, don't invent.
             if row["state"] == "pending" and row["expires"] < now:
-                conn.execute("UPDATE family_challenges SET state='expired' WHERE id=?",
-                             (challenge_id,))
+                conn.execute(
+                    "UPDATE family_challenges SET state='expired' WHERE id=?", (challenge_id,)
+                )
                 conn.commit()
-                row = conn.execute("SELECT * FROM family_challenges WHERE id=?",
-                                   (challenge_id,)).fetchone()
+                row = conn.execute(
+                    "SELECT * FROM family_challenges WHERE id=?", (challenge_id,)
+                ).fetchone()
             return None
         return dict(row)
     finally:
@@ -431,8 +515,10 @@ def save_turn(session_id: str, role: str, content: str) -> None:
     hist = hist[-50:]
     conn = _connect()
     try:
-        conn.execute("INSERT OR REPLACE INTO sessions(id,history,updated) VALUES(?,?,?)",
-                     (session_id, json.dumps(hist), _now()))
+        conn.execute(
+            "INSERT OR REPLACE INTO sessions(id,history,updated) VALUES(?,?,?)",
+            (session_id, json.dumps(hist), _now()),
+        )
         conn.commit()
     finally:
         conn.close()

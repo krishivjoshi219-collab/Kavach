@@ -10,6 +10,7 @@ Key handling: RULE_PACK_SIGNING_KEY env holds the base64 32-byte private seed
 (honest TEST MODE for the hackathon). The public key ships inside every
 /response so the app can pin it; release builds also bake it in.
 """
+
 from __future__ import annotations
 
 import base64
@@ -29,6 +30,7 @@ def _load_keypair() -> tuple[bytes, bytes, bool]:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
     from . import config as _cfg
+
     seed_b64 = os.getenv("RULE_PACK_SIGNING_KEY", "")
     if seed_b64:
         try:
@@ -44,8 +46,10 @@ def _load_keypair() -> tuple[bytes, bytes, bool]:
                 raise
             pass  # bad env key falls back to ephemeral dev key, honestly flagged
     if _cfg.IS_PROD:
-        raise RuntimeError("RULE_PACK_SIGNING_KEY is required in production "
-                           "(ephemeral keys fork multi-worker fleets).")
+        raise RuntimeError(
+            "RULE_PACK_SIGNING_KEY is required in production "
+            "(ephemeral keys fork multi-worker fleets)."
+        )
     priv = Ed25519PrivateKey.generate()
     pub = priv.public_key().public_bytes_raw()
     seed = priv.private_bytes_raw()
@@ -57,26 +61,37 @@ _SEED, _PUB, _TEST_MODE = _load_keypair()
 
 def build_pack() -> dict:
     """Serialize RULES + thresholds into the versioned pack dict."""
-    rules = [{"code": code, "label": label, "pattern": pat,
-              "weight": weight, "meaning": meaning}
-             for code, label, pat, weight, meaning in redflags.RULES]
-    return {"pack_version": PACK_VERSION, "key_id": KEY_ID,
-            "thresholds": dict(THRESHOLDS), "core_codes": list(CORE_CODES),
-            "rules": rules,
-            "changelog": [("v1: initial pack — 8 weighted rules, EN+HI patterns, "
-                            "word-boundary guards, bijli/paise seeds.")]}
+    rules = [
+        {"code": code, "label": label, "pattern": pat, "weight": weight, "meaning": meaning}
+        for code, label, pat, weight, meaning in redflags.RULES
+    ]
+    return {
+        "pack_version": PACK_VERSION,
+        "key_id": KEY_ID,
+        "thresholds": dict(THRESHOLDS),
+        "core_codes": list(CORE_CODES),
+        "rules": rules,
+        "changelog": [
+            (
+                "v1: initial pack — 8 weighted rules, EN+HI patterns, "
+                "word-boundary guards, bijli/paise seeds."
+            )
+        ],
+    }
 
 
 def _canonical(pack: dict) -> bytes:
     # ensure_ascii=False: raw UTF-8 bytes, matching the Android writer which
     # emits strings unescaped (org.json gives raw chars). ASCII-sort + no
     # spaces on both sides. Any change here breaks device verification.
-    return json.dumps(pack, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False).encode("utf-8")
+    return json.dumps(pack, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
 
 
 def sign_pack(pack: dict) -> str:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     priv = Ed25519PrivateKey.from_private_bytes(_SEED)
     return base64.b64encode(priv.sign(_canonical(pack))).decode()
 
@@ -89,6 +104,7 @@ def verify_pack(pack: dict, signature_b64: str, pub_b64: str) -> bool:
     """What the app does: verify before applying. Same math, no trust."""
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
         pub = Ed25519PublicKey.from_public_bytes(base64.b64decode(pub_b64))
         pub.verify(base64.b64decode(signature_b64), _canonical(pack))
         return True
@@ -98,9 +114,13 @@ def verify_pack(pack: dict, signature_b64: str, pub_b64: str) -> bool:
 
 def serve_pack() -> dict:
     pack = build_pack()
-    return {"pack": pack, "signature": sign_pack(pack),
-            "public_key": public_key_b64(), "key_id": KEY_ID,
-            "test_mode": _TEST_MODE}
+    return {
+        "pack": pack,
+        "signature": sign_pack(pack),
+        "public_key": public_key_b64(),
+        "key_id": KEY_ID,
+        "test_mode": _TEST_MODE,
+    }
 
 
 def is_test_mode() -> bool:
