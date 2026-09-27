@@ -247,6 +247,8 @@ curl -s https://kavach-19v6.onrender.com/api/nextgen/proof | jq .
 ```
 *Returns verified RevenueCat SDK 10.23.2 version, `sheild_protection` entitlement status, judge promo configuration, and asset checks in clean JSON.*
 
+> ⏳ **First-load note:** the relay runs on Render's free tier, which sleeps when idle. The very first request can take ~30 seconds to wake the instance — just wait and retry. Every request after that answers in under a second.
+
 ### 2. Run Local Verification Suite
 ```bash
 # Clone the repository
