@@ -9,8 +9,6 @@ GET  /apps/family-board.html   MCP App UI (also served as ui:// resource)
 GET  /ui , /                   lightweight fallback console
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import os

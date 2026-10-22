@@ -1,7 +1,5 @@
 """Mobile contract routes: /api/v1/* — households, pairing, relay, screen, consent."""
 
-from __future__ import annotations
-
 import hmac
 import logging
 import os
