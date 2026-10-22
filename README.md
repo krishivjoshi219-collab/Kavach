@@ -46,7 +46,7 @@ Elder fraud is a devastating **$10B+/year global crisis** (FBI IC3 2023–2024).
 **Kavach doesn't chat about fraud after funds are stolen. It actively acts on threats in real-time — with dignity intact, in Hindi, Hinglish, and English.**
 
 > 💡 **RevenueCat Shipaton 2026 — Next Gen Award Entry**  
-> Built by a **13-year-old solo student builder** ([@krishivjoshi219-collab](https://github.com/krishivjoshi219-collab)). **Full TEST MODE enabled throughout: no credit card required**.  
+> Built by a **solo student builder** ([@krishivjoshi219-collab](https://github.com/krishivjoshi219-collab)). **Full TEST MODE enabled throughout: no credit card required**.  
 > Competition judges instantly unlock full Pro Family Shield via promo code **`SHIPATON-JUDGE`**.  
 > Submission runbook: [`docs/SUBMISSION_NEXTGEN.md`](./docs/SUBMISSION_NEXTGEN.md) · Live Proof API: [`https://kavach-19v6.onrender.com/api/nextgen/proof`](https://kavach-19v6.onrender.com/api/nextgen/proof)
 
@@ -97,7 +97,7 @@ Watch the official **RevenueCat Shipaton 2026 Keynote Demo** ([YouTube Link](htt
 
 <div align="center">
   <a href="https://youtu.be/25BbgKDBK8w">
-    <img src="./assets/web_preview.png" width="700" alt="Watch Kavach 96s Keynote Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);" />
+    <img src="./assets/thumbnail-1080p.jpg" width="700" alt="Watch Kavach 96s Keynote Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);" />
     <br>
     <strong>▶️ Click to Watch the Official 96s Keynote Video on YouTube</strong>
   </a>
@@ -330,7 +330,7 @@ Kavach/
 ## 👥 Built With Heart by
 
 **Krishiv Joshi** ([@krishivjoshi219-collab](https://github.com/krishivjoshi219-collab))  
-*13-year-old student builder.* Designed and built end-to-end: system architecture, cryptographic protocols, native Android apps, backend cloud relay, and RevenueCat integration — for the **RevenueCat Shipaton 2026 · Next Gen Award**.
+*Solo student builder.* Designed and built end-to-end: system architecture, cryptographic protocols, native Android apps, backend cloud relay, and RevenueCat integration — for the **RevenueCat Shipaton 2026 · Next Gen Award**.
 
 Special thanks to the [RevenueCat](https://www.revenuecat.com) team, the [Google Tink](https://github.com/google/tink) cryptography team, and Android Open Source Project.
 
